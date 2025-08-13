@@ -263,6 +263,9 @@
         </div>
 
         <div class="result" id="result" aria-live="polite"></div>
+<div class="card" id="thanks" style="display:none;background:#ecfdf5;border-color:#34d399">
+  <b>Thanks! Your request was sent.</b> We’ll reach out shortly. You’ll also see it in our Netlify Forms dashboard.
+</div>
         <small class="muted">* Estimate is ballpark and may change after site visit, base evaluation, and exact measurements. Taxes/permits not included.</small>
       </form>
     </section>
@@ -458,6 +461,39 @@
     }
     renderBlog();
 
+    // --- Netlify Forms: AJAX submit to avoid 404 and show in-page success ---
+    const quoteForm = document.getElementById('quoteForm');
+    const thanksBox = document.getElementById('thanks');
+    function encodeFormData(fd){ return new URLSearchParams(fd).toString(); }
+    if(quoteForm){
+      quoteForm.addEventListener('submit', function(e){
+        e.preventDefault();
+        // ensure latest calc numbers are saved to hidden fields
+        try { calc(); } catch(_){ /* ignore */ }
+        const fd = new FormData(quoteForm);
+        // make sure Netlify sees the form name
+        if(!fd.has('form-name')) fd.append('form-name','quote');
+        fetch('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: encodeFormData(fd)
+        })
+        .then(()=>{
+          if(thanksBox){ thanksBox.style.display = 'block'; }
+          result.innerHTML = '<b>Submitted!</b> Check your email for confirmation.';
+          // optional: reset fields except rate/site factor
+          const rateVal = rate.value, factorVal = factor.value, modeVal = mode.value, thkVal = thk.value;
+          quoteForm.reset();
+          rate.value = rateVal; factor.value = factorVal; mode.value = modeVal; thk.value = thkVal;
+          window.scrollTo({top: quoteForm.offsetTop - 80, behavior:'smooth'});
+        })
+        .catch((err)=>{
+          result.innerHTML = 'Submission failed. Please try again or call 903-424-1607.';
+          console.error(err);
+        });
+      });
+    }
+
     // --- Contact: mailto ---
     const mailtoBtn = document.getElementById('mailtoBtn');
     function esc(s){return encodeURIComponent(s||'');}
@@ -470,3 +506,4 @@
   </script>
 </body>
 </html>
+
