@@ -4,61 +4,47 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CGH Operations LLC — Asphalt & Paving in East Texas</title>
-  <meta name="description" content="Asphalt paving, overlays, seal coat, and road base in East Texas. Free quotes. CGH Operations LLC, Longview, TX." />
-  <style>
-    /* --- Design tokens --- */
-    :root{
-      --bg:#0b1220;           /* deep navy */
-      --text:#0f172a;         /* slate */
-      --muted:#475569;        /* slate-600 */
-      --card:#ffffff;         /* white */
-      --line:#e5e7eb;         /* gray-200 */
-      --accent:#0ea5a9;       /* teal */
-      --accent-2:#005F86;     /* ocean blue (user palette) */
-      --radius:16px;
-      --shadow:0 10px 30px rgba(0,0,0,.08);
-    }
+  <meta name="description" content="Asphalt paving, overlays, seal coat, and road base in East Texas. Free quotes. CGH Operations LLC, Longview, TX.">
+  <!-- Favicons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/cgh-favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/cgh-favicon-16.png">
+  <link rel="icon" sizes="192x192" href="/android-chrome-192x192.png">
+  <link rel="icon" sizes="512x512" href="/android-chrome-512x512.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <meta name="theme-color" content="#0b1220">
+<style>
+    :root{ --bg:#0b1220; --text:#0f172a; --muted:#475569; --card:#ffffff; --line:#e5e7eb; --accent:#0ea5a9; --accent-2:#005F86; --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.08); }
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;color:var(--text);background:#fff;line-height:1.55}
+    html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:#fff;line-height:1.55}
     img{max-width:100%;height:auto;display:block;border-radius:12px}
     a{color:var(--accent-2);text-decoration:none}
-
-    /* Layout helpers */
     .wrap{max-width:1160px;margin:0 auto;padding:0 20px}
     .section{padding:56px 0}
     .muted{color:var(--muted)}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
     .grid{display:grid;gap:18px}
     .grid-3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-
-    /* Header & Nav */
-    header{background:linear-gradient(180deg, var(--bg), #121a2c);color:#eef3ff}
+    header{background:linear-gradient(180deg,var(--bg),#121a2c);color:#eef3ff}
     .nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
     .brand{display:flex;gap:12px;align-items:center}
-    .brand .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent-2),#0ea5a9)}
+    .brand .logo{width:42px;height:42px;border-radius:10px;background-image:url('/android-chrome-192x192.png');background-size:cover;background-position:center;background-color:#111;}
     .brand b{font-weight:800;letter-spacing:.2px}
     .menu a{color:#e6f0ff;margin-left:16px;opacity:.92}
     .menu a.active{opacity:1;text-decoration:underline}
     .burger{display:none}
-
-    /* Hero */
     .hero{display:grid;gap:22px;grid-template-columns:1.15fr .85fr;align-items:center;padding:24px 0 52px}
     .hero h1{font-size:clamp(28px,4vw,44px);margin:0}
     .hero p{color:#cbd5e1;margin:10px 0 0}
     .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
     .btn{display:inline-block;background:var(--accent-2);color:#fff;padding:12px 18px;border-radius:12px;font-weight:700;border:0;cursor:pointer}
     .btn.ghost{background:transparent;border:2px solid #8dd3ff;color:#e6f0ff}
-
-    /* Tabs-as-sections */
     nav a[data-tab]{cursor:pointer}
     section[data-panel]{display:none}
     section[data-panel].active{display:block}
-
-    /* Services */
     h2{font-size:clamp(22px,2.8vw,30px);margin:0 0 16px}
     h3{margin:6px 0 6px;font-size:18px}
-
-    /* Carousel */
     .carousel{position:relative;overflow:hidden;border-radius:var(--radius);border:1px solid var(--line)}
     .slides{display:flex;transition:transform .5s ease}
     .slide{min-width:100%;height:340px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;position:relative}
@@ -69,35 +55,24 @@
     .c-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;gap:6px;justify-content:center}
     .c-dot{width:9px;height:9px;border-radius:999px;background:rgba(255,255,255,.6);border:0}
     .c-dot.active{background:#fff}
-
-    /* Quote form */
     form{display:grid;gap:12px}
     input,select,textarea{padding:12px 14px;border:1px solid var(--line);border-radius:12px;font:inherit}
     .row{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
     .result{background:#f8fafc;border:1px dashed var(--line);border-radius:12px;padding:14px}
     .inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-
-    /* Blog */
     .post{padding:14px;border:1px solid var(--line);border-radius:12px}
     .post h4{margin:0 0 6px}
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#0b4b71;font-weight:600;font-size:12px}
-
-    /* Footer */
     footer{background:#0e1629;color:#b6c2d9;padding:28px 0;margin-top:36px;font-size:14px}
-
-    /* Reveal on scroll */
     .reveal{opacity:0;transform:translateY(12px);transition:all .6s ease}
     .reveal.in-view{opacity:1;transform:none}
-
-    /* Responsive */
-    @media (max-width: 880px){
-      .hero{grid-template-columns:1fr}
-      .menu{display:none}
-      .burger{display:inline-flex;gap:8px;align-items:center;color:#e6f0ff;background:transparent;border:1px solid rgba(255,255,255,.25);padding:8px 10px;border-radius:10px}
-      .mobile-menu{display:none;padding:10px 0}
-      .mobile-menu a{display:block;color:#e6f0ff;padding:8px 0;border-top:1px solid rgba(255,255,255,.1)}
-      .mobile-menu.show{display:block}
-    }
+    .faith-badge{display:inline-flex;gap:8px;align-items:center;background:#0ea5a926;color:#d7f7f9;padding:8px 14px;border:1.5px solid #0ea5a9a6;border-radius:999px;font-weight:800;font-size:16px}
+    .slogan{font-weight:800;margin-top:10px}
+    .small{font-size:12px}
+    details{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fafafa}
+    details+details{margin-top:10px}
+    details summary{cursor:pointer;font-weight:700}
+    @media (max-width: 880px){ .hero{grid-template-columns:1fr} .menu{display:none} .burger{display:inline-flex;gap:8px;align-items:center;color:#e6f0ff;background:transparent;border:1px solid rgba(255,255,255,.25);padding:8px 10px;border-radius:10px} .mobile-menu{display:none;padding:10px 0} .mobile-menu a{display:block;color:#e6f0ff;padding:8px 0;border-top:1px solid rgba(255,255,255,.1)} .mobile-menu.show{display:block} }
   </style>
 </head>
 <body>
@@ -121,20 +96,12 @@
       </nav>
       <button class="burger" id="burger" aria-label="Open menu">Menu ▾</button>
     </div>
-    <div class="wrap mobile-menu" id="mnav" aria-label="Mobile menu">
-      <a data-tab="home">Home</a>
-      <a data-tab="services">Services</a>
-      <a data-tab="gallery">Gallery</a>
-      <a data-tab="quote">Get a Quote</a>
-      <a data-tab="blog">Blog</a>
-      <a data-tab="about">About</a>
-      <a data-tab="contact">Contact</a>
-    </div>
-
     <div class="wrap hero">
       <div>
+        <span class="faith-badge">Christ • Community • CGH Operations</span>
         <h1>Asphalt Paving & Road Base Built to Last</h1>
         <p>New installs, overlays, patching, and seal coat across East Texas. Fast timelines, clean edges, and honest quotes.</p>
+        <p class="slogan">Rooted in Faith. Focused on Christ. Operating with Integrity for a Better Future. <small class="muted">Est. 2020 • Proverbs 16:3</small></p>
         <div class="cta">
           <a class="btn" data-tab="quote">Get a Free Estimate</a>
           <a class="btn ghost" href="tel:19034241607">Call 903‑424‑1607</a>
@@ -156,13 +123,18 @@
   </header>
 
   <main class="wrap">
-    <!-- HOME (also shows below the fold) -->
+    <!-- HOME -->
     <section class="section reveal" data-panel="home">
       <h2>Why CGH</h2>
       <div class="grid grid-3">
         <div class="card"><h3>Texas-Tough Builds</h3><p class="muted">Proper base, drainage, and compaction. We don’t cut corners—your surface stays smooth.</p></div>
         <div class="card"><h3>Fast & Clean</h3><p class="muted">Tight edges, straight lines, and spotless cleanup so you look good same day.</p></div>
         <div class="card"><h3>Fair Pricing</h3><p class="muted">Upfront estimates by area or tonnage with optional surcharges based on site conditions.</p></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3>Our Mission</h3>
+        <p class="muted">At CGH Operations LLC, we are a faith‑driven, full‑service company dedicated to delivering excellence across every project—whether it’s cleaning, construction, land management, or infrastructure services like asphalt and concrete. We operate with integrity, transparency, and a commitment to doing things the right way. Our mission is to build lasting value for our clients and communities by working with purpose, precision, and trust.</p>
       </div>
     </section>
 
@@ -173,7 +145,7 @@
         <div class="card"><h3>New Asphalt</h3><p class="muted">Driveways, private roads, and lots with TXDOT 247 base options.</p></div>
         <div class="card"><h3>Overlays & Repairs</h3><p class="muted">Leveling, patching, and 1.5–2.5” overlays to extend life.</p></div>
         <div class="card"><h3>Seal Coat</h3><p class="muted">Protective layers that slow oxidation and water intrusion.</p></div>
-        <div class="card"><h3>Road Base & Grading</h3><p class="muted">Crushed limestone and drainage work for a future-ready surface.</p></div>
+        <div class="card"><h3>Road Base & Grading</h3><p class="muted">Crushed limestone and drainage work for a future‑ready surface.</p></div>
         <div class="card"><h3>Striping & Marking</h3><p class="muted">ADA, fire lanes, directional arrows, and numbering.</p></div>
         <div class="card"><h3>Commercial & Residential</h3><p class="muted">From ranch roads to shopping centers—we scale to your scope.</p></div>
       </div>
@@ -182,7 +154,7 @@
     <!-- GALLERY -->
     <section class="section reveal" data-panel="gallery">
       <h2>Gallery</h2>
-      <p class="muted">Swap these placeholders with your before/after shots. The top carousel auto-plays, and you can add more slides in the HTML.</p>
+      <p class="muted">Swap these placeholders with your before/after shots. The top carousel auto‑plays, and you can add more slides in the HTML.</p>
       <div class="grid grid-3">
         <div class="card"><img src="https://images.unsplash.com/photo-1473186505569-9c61870c11f9?q=80&w=1200&auto=format&fit=crop" alt="Before & after driveway"></div>
         <div class="card"><img src="https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1200&auto=format&fit=crop" alt="Parking lot"></div>
@@ -194,11 +166,11 @@
     <section class="section reveal" data-panel="quote">
       <h2>Get a Free Estimate</h2>
       <p class="muted">Enter your driveway size. You can price by square foot or switch to tonnage based on thickness. Adjust the rate to match your current pricing.</p>
+
       <form id="quoteForm" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="card">
-  <input type="hidden" name="form-name" value="quote">
-  <p style="display:none">
-    <label>Don’t fill this out: <input name="bot-field"></label>
-  </p>
+        <input type="hidden" name="form-name" value="quote">
+        <p style="display:none"><label>Don’t fill this out: <input name="bot-field"></label></p>
+
         <div class="row">
           <div>
             <label>Length (ft)<br><input id="len" name="length_ft" type="number" min="1" placeholder="e.g., 80" required></label>
@@ -209,11 +181,12 @@
           <div>
             <label>Thickness (in)<br>
               <select id="thk" name="thickness_in">
-                <option value="1.5">1.5" (light)</option>
-                <option value="2">2.0" (standard)</option>
-                <option value="2.5" selected>2.5" (heavy)</option>
-                <option value="3">3.0"</option>
+                <option value="1.5">1.5" — Thin</option>
+                <option value="2">2.0" — Economy</option>
+                <option value="2.5" selected>2.5" — Recommended (default)</option>
+                <option value="3">3.0" — Thick</option>
               </select>
+              <small id="thkNote" class="muted">Recommended works well for most residential driveways.</small>
             </label>
           </div>
         </div>
@@ -230,12 +203,11 @@
           <div>
             <label>Rate (auto)
               <span class="muted" id="rateLabel">$ / sq ft</span><br>
-              <input id="rate" name="rate" type="number" step="0.01" value="3.25">
+              <input id="rate" name="rate" type="number" step="0.01" value="3.95" readonly>
             </label>
           </div>
           <div>
-            <label>Site factor
-              <span class="muted">(access/base)</span><br>
+            <label>Site factor <span class="muted">(access/base)</span><br>
               <select id="factor" name="site_factor">
                 <option value="1">Normal (×1.00)</option>
                 <option value="1.1">Tight access / weak base (×1.10)</option>
@@ -243,29 +215,29 @@
               </select>
             </label>
           </div>
-</div>
+        </div>
 
-<div class="row">
-  <label>Name<br><input name="name" required></label>
-  <label>Email<br><input name="email" type="email" required></label>
-  <label>Phone<br><input name="phone" required></label>
-  <label>City<br><input name="city"></label>
-</div>
+        <div class="row">
+          <label>Name<br><input name="name" required></label>
+          <label>Email<br><input name="email" type="email" required></label>
+          <label>Phone<br><input name="phone" required></label>
+          <label>City<br><input name="city"></label>
+        </div>
 
-<input type="hidden" name="estimate_total" id="estTotal">
-<input type="hidden" name="area_sqft"      id="areaSqft">
-<input type="hidden" name="tons_est"       id="tonsEst">
+        <input type="hidden" name="estimate_total" id="estTotal">
+        <input type="hidden" name="area_sqft" id="areaSqft">
+        <input type="hidden" name="tons_est" id="tonsEst">
 
-<div class="inline">
+        <div class="inline">
           <button type="button" class="btn" id="calcBtn">Calculate</button>
-          <button type="reset" class="btn ghost">Clear</button>
+          <button type="reset" class="btn ghost" id="clearBtn">Clear</button>
           <button type="submit" class="btn">Send Request</button>
         </div>
 
         <div class="result" id="result" aria-live="polite"></div>
-<div class="card" id="thanks" style="display:none;background:#ecfdf5;border-color:#34d399">
-  <b>Thanks! Your request was sent.</b> We’ll reach out shortly. You’ll also see it in our Netlify Forms dashboard.
-</div>
+        <div class="card" id="thanks" style="display:none;background:#ecfdf5;border-color:#34d399">
+          <b>Thanks! Your request was sent.</b> We’ll reach out shortly. You’ll also see it in our Netlify Forms dashboard.
+        </div>
         <small class="muted">* Estimate is ballpark and may change after site visit, base evaluation, and exact measurements. Taxes/permits not included.</small>
       </form>
     </section>
@@ -279,31 +251,75 @@
     <!-- ABOUT -->
     <section class="section reveal" data-panel="about">
       <h2>About Us</h2>
-      <div class="grid" style="grid-template-columns:1.1fr .9fr">
+      <div class="grid" style="grid-template-columns:1.05fr .95fr">
         <div class="card">
-          <p><b>CGH Operations LLC</b> is a Longview-based paving team handling residential driveways, ranch roads, commercial lots, and everything in between. We care about the details—base prep, drainage, compaction—and we leave a clean site when we’re done.</p>
-          <ul>
-            <li><b>Local & responsive:</b> Same-day estimates when possible.</li>
-            <li><b>Built to last:</b> Correct base specs and edge control.</li>
-            <li><b>Clear pricing:</b> By square foot or ton—no surprises.</li>
+          <h3>Who We Are</h3>
+          <p class="muted">CGH Operations LLC is a faith‑driven, full‑service company. We build and maintain infrastructure that lasts—driveways, private roads, parking lots, base and drainage—while serving people with integrity, clarity, and care.</p>
+
+          <h3>What We Stand For</h3>
+          <ul class="muted">
+            <li><b>Faith first:</b> Christ • Community • CGH Operations.</li>
+            <li><b>Integrity:</b> Do the right thing when no one’s watching.</li>
+            <li><b>Craftsmanship:</b> Proper base, drainage, compaction, and clean edges.</li>
+            <li><b>Safety & stewardship:</b> Take care of people, equipment, and the environment.</li>
           </ul>
+
+          <h3>How We Operate</h3>
+          <ul class="muted">
+            <li><b>Clear scopes & pricing:</b> Estimates by square foot or by ton with transparent factors.</li>
+            <li><b>Site‑first planning:</b> We evaluate base and drainage before we build.</li>
+            <li><b>Quality controls:</b> Lift thickness, compaction, and line work are checked as we go.</li>
+            <li><b>Communication:</b> You’ll know schedule, milestones, and changes ahead of time.</li>
+          </ul>
+
+          <h3>For a Better Future</h3>
+          <p class="muted">Our work should serve long after we leave. We design for durability, steward materials, recycle millings when practical, and train local talent. We’re here to build value for families, churches, and businesses across ARK‑LA‑TX‑OK.</p>
+
+          <p class="slogan">Rooted in Faith. Focused on Christ. Operating with Integrity for a Better Future. <span class="small muted">Est. 2020 • Proverbs 16:3</span></p>
         </div>
+
         <div class="card">
-          <h3>Coverage</h3>
-          <p class="muted">Longview • Spring Hill • Tyler • Henderson • East TX region</p>
-          <h3>Credentials</h3>
-          <p class="muted">Insured • Experienced crew • Commercial & residential</p>
-          <h3>Contact</h3>
-          <p class="muted">Phone: <a href="tel:19034241607">903‑424‑1607</a><br>Email: <a href="mailto:Colton@CGHOperations.com">Colton@CGHOperations.com</a></p>
+          <img src="/CGH%20Op%20no%20border.png" alt="CGH Operations logo" style="max-width:100%;height:auto;border-radius:12px;margin-bottom:10px">
+          <h3>Service Area</h3>
+          <p class="muted"><b>Based in Longview, Texas</b><br>Serving <b>ARK‑LA‑TX‑OK</b></p>
+          <h3>What We Do</h3>
+          <ul class="muted">
+            <li>Asphalt paving & overlays</li>
+            <li>Road base & drainage</li>
+            <li>Seal coat & striping</li>
+            <li>Concrete & sitework (select)</li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <!-- CONTACT -->
+    <!-- CONTACT with audience + dynamic info -->
     <section class="section reveal" data-panel="contact">
       <h2>Contact</h2>
       <div class="grid" style="grid-template-columns:1fr 1fr">
         <form id="contactForm" class="card">
+          <div class="row">
+            <label>I'm contacting as<br>
+              <select id="audience">
+                <option value="client" selected>Client</option>
+                <option value="career">Career / Worker</option>
+                <option value="investor">Investor</option>
+              </select>
+            </label>
+            <label id="careerWrap" style="display:none">Role<br>
+              <select id="careerRole">
+                <option value="Sales">Sales</option>
+                <option value="Labor">Labor</option>
+                <option value="Equipment Operator">Equipment Operator</option>
+                <option value="Engineer">Engineer</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="card" id="contactNote" style="background:#f8fafc">
+            <b>Client — what to include:</b> project address, surface type (asphalt, base, concrete), approx. size, preferred thickness (Thin 1.5" / Economy 2.0" / Recommended 2.5" / Thick 3.0"), photos or link, timeline, and budget range.
+          </div>
+
           <div class="row">
             <label>Name<br><input id="cName" required></label>
             <label>Email<br><input id="cEmail" type="email" required></label>
@@ -317,15 +333,22 @@
             <button type="button" class="btn" id="mailtoBtn">Email Us</button>
             <a class="btn ghost" href="tel:19034241607">Call Now</a>
           </div>
-          <small class="muted">This button opens your email app with all details pre-filled. For a real form inbox, connect Formspree or Netlify Forms.</small>
+          <small class="muted">This button opens your email app with all details pre‑filled. We can wire this to Netlify Forms if you want dashboard logging.</small>
         </form>
-        <div class="card">
-          <h3>Office</h3>
-          <p class="muted">4219 Jackson Rd, Longview, TX</p>
-          <h3>Hours</h3>
-          <p class="muted">Mon–Sat 8:00–6:00</p>
-          <h3>Fastest reply</h3>
-          <p class="muted">Text or call <a href="tel:19034241607">903‑424‑1607</a></p>
+
+        <div>
+          <div class="card">
+            <h3>Service Area</h3>
+            <p class="muted"><b>Based in Longview, Texas</b><br>Serving <b>ARK‑LA‑TX‑OK</b></p>
+            <h3>Hours</h3>
+            <p class="muted">Mon–Sat 8:00–6:00</p>
+            <h3>Fastest reply</h3>
+            <p class="muted">Text or call <a href="tel:19034241607">903‑424‑1607</a></p>
+          </div>
+
+          <div class="card" id="audienceInfo" style="margin-top:12px">
+            <!-- Filled dynamically based on audience/role -->
+          </div>
         </div>
       </div>
     </section>
@@ -340,54 +363,38 @@
   <a href="tel:19034241607" style="position:fixed;right:16px;bottom:16px;background:var(--accent-2);color:#fff;padding:12px 16px;border-radius:999px;font-weight:800;box-shadow:var(--shadow)">Call 903‑424‑1607</a>
 
   <script>
-    // --- Year ---
+    // Year
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // --- Mobile menu toggle ---
+    // Mobile nav
     const burger = document.getElementById('burger');
-    const mnav = document.getElementById('mnav');
-    burger.addEventListener('click',()=> mnav.classList.toggle('show'));
+const mnav = document.getElementById('mnav');
+if(burger && mnav){ burger.addEventListener('click',()=> mnav.classList.toggle('show')); }
 
-    // --- Tabs: show/hide sections ---
+    // Tabs
     const links = document.querySelectorAll('a[data-tab]');
     const panels = document.querySelectorAll('section[data-panel]');
     function show(tab){
       links.forEach(a=>a.classList.toggle('active', a.getAttribute('data-tab')===tab));
       panels.forEach(s=>s.classList.toggle('active', s.getAttribute('data-panel')===tab));
-      // close mobile nav after selection
-      mnav.classList.remove('show');
-      // scroll to top of main on tab change
+      if(mnav){ mnav.classList.remove('show'); }
       if(tab!=='home') window.scrollTo({top: document.querySelector('main').offsetTop-10, behavior:'smooth'});
     }
     links.forEach(a=> a.addEventListener('click', e=>{ e.preventDefault(); show(a.dataset.tab); }));
     show('home');
 
-    // --- Reveal on scroll ---
-    const io = new IntersectionObserver(entries=>{
-      entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in-view'); });
-    },{threshold:.15});
+    // Reveal on scroll
+    const io = new IntersectionObserver(entries=>{ entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in-view'); }); },{threshold:.15});
     document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
 
-    // --- Carousel ---
+    // Carousel
     const slides = document.getElementById('slides');
     const prev = document.getElementById('prev');
     const next = document.getElementById('next');
     const dotsWrap = document.getElementById('dots');
-    const total = slides.children.length;
-    let index = 0, timer;
-
-    function buildDots(){
-      for(let i=0;i<total;i++){
-        const b=document.createElement('button');
-        b.className='c-dot';
-        b.addEventListener('click',()=>go(i));
-        dotsWrap.appendChild(b);
-      }
-    }
-    function update(){
-      slides.style.transform = `translateX(${-index*100}%)`;
-      [...dotsWrap.children].forEach((d,i)=> d.classList.toggle('active', i===index));
-    }
+    const total = slides.children.length; let index = 0, timer;
+    function buildDots(){ for(let i=0;i<total;i++){ const b=document.createElement('button'); b.className='c-dot'; b.addEventListener('click',()=>go(i)); dotsWrap.appendChild(b); } }
+    function update(){ slides.style.transform = `translateX(${-index*100}%)`; [...dotsWrap.children].forEach((d,i)=> d.classList.toggle('active', i===index)); }
     function go(i){ index=(i+total)%total; update(); restart(); }
     function nextSlide(){ go(index+1); }
     function prevSlide(){ go(index-1); }
@@ -396,7 +403,7 @@
     next.addEventListener('click', nextSlide);
     prev.addEventListener('click', prevSlide);
 
-    // --- Quote calculator ---
+    // Quote calculator
     const len = document.getElementById('len');
     const wid = document.getElementById('wid');
     const thk = document.getElementById('thk');
@@ -406,103 +413,189 @@
     const result = document.getElementById('result');
     const calcBtn = document.getElementById('calcBtn');
     const rateLabel = document.getElementById('rateLabel');
+    const thkNote = document.getElementById('thkNote');
 
-    mode.addEventListener('change',()=>{
-      if(mode.value==='sqft'){ rateLabel.textContent = '$ / sq ft'; if(Number(rate.value)<1) rate.value=3.25; }
-      else { rateLabel.textContent = '$ / ton'; if(Number(rate.value)<30) rate.value=150; }
-    });
+    const rateMap = { '1.5':3.70, '2':3.87, '2.5':3.95, '3':4.71 };
+    const labelMap = { '1.5':'Thin', '2':'Economy', '2.5':'Recommended (default)', '3':'Thick' };
+
+    function setRateByThickness(){
+      if(mode.value==='sqft'){
+        rate.readOnly = true;
+        rate.value = (rateMap[thk.value] ?? 3.95).toFixed(2);
+      } else {
+        rate.readOnly = false;
+        if(!rate.value || Number(rate.value)<30) rate.value = 150;
+      }
+      if(thkNote){ thkNote.textContent = labelMap[thk.value] || ''; }
+    }
 
     function fmtUSD(x){ return x.toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0}); }
 
     function calc(){
-      const L = Number(len.value)||0, W = Number(wid.value)||0; if(!L||!W){ result.textContent='Enter length and width.'; return; }
-      const area = L*W; // sqft
-      const f = Number(factor.value)||1;
+      const L = Number(len.value)||0, W = Number(wid.value)||0; 
+      if(!L||!W){ result.textContent='Enter length and width.'; return; }
+      const area = L*W; const f = Number(factor.value)||1;
       const areaField = document.getElementById('areaSqft');
       const estField  = document.getElementById('estTotal');
       const tonsField = document.getElementById('tonsEst');
       if(areaField){ areaField.value = area; }
       let html = `<b>Area:</b> ${area.toLocaleString()} sq ft`;
       if(mode.value==='sqft'){
+        setRateByThickness();
         const r = Number(rate.value)||0; const total = area * r * f;
         if(estField){ estField.value = Math.round(total); }
-        if(tonsField){ tonsField.value = ''; } 
+        if(tonsField){ tonsField.value = ''; }
         html += `<br><b>Rate:</b> ${r.toFixed(2)} $/sq ft (× ${f.toFixed(2)})`;
         html += `<br><b>Estimated total:</b> ${fmtUSD(total)}`;
       } else {
-        const tIn = Number(thk.value)||2.5; // inches
-        const density = 145; // lb/ft^3 typical
-        const tons = area * (tIn/12) * density / 2000; // raw tons
-        const waste = 1.05; // 5% waste
-        const tonsAdj = tons * waste;
-        const r = Number(rate.value)||150; // $/ton
+        const tIn = Number(thk.value)||2.5; const density = 145; // lb/ft^3
+        const tons = area * (tIn/12) * density / 2000; const waste = 1.05;
+        const tonsAdj = tons * waste; const r = Number(rate.value)||150;
         const total = tonsAdj * r * f;
         if(tonsField){ tonsField.value = tonsAdj.toFixed(2); }
         if(estField){ estField.value = Math.round(total); }
-        html += `<br><b>Thickness:</b> ${tIn}" • <b>Tons (est):</b> ${tonsAdj.toFixed(2)} t`;
+        html += `<br><b>Thickness:</b> ${tIn}\" • <b>Tons (est):</b> ${tonsAdj.toFixed(2)} t`;
         html += `<br><b>Rate:</b> ${r.toFixed(2)} $/ton (× ${f.toFixed(2)})`;
         html += `<br><b>Estimated total:</b> ${fmtUSD(total)}`;
       }
       result.innerHTML = html;
     }
-    calcBtn.addEventListener('click', calc);
 
-    // --- Blog (static demo data you can replace) ---
+    calcBtn.addEventListener('click', calc);
+    mode.addEventListener('change', ()=>{ rateLabel.textContent=(mode.value==='sqft')?'$ / sq ft':'$ / ton'; setRateByThickness(); calc(); });
+    thk.addEventListener('change', ()=>{ setRateByThickness(); calc(); });
+    len.addEventListener('input', calc);
+    wid.addEventListener('input', calc);
+    factor.addEventListener('change', calc);
+    setRateByThickness();
+
+    // Blog demo
     const posts = [
       {title:'When to Choose an Overlay vs. Full Rebuild', date:'2025-07-15', tag:'How‑To', body:'Overlays work when your base is solid and cracks are superficial. If base is pumping or saturated, rebuild the base first.'},
-      {title:'Driveway Thickness: 1.5\" vs 2.5\"', date:'2025-06-28', tag:'Specs', body:'Light residential traffic can use 1.5–2.0\" lifts. For heavier vehicles or poor base, budget 2.5–3.0\" and improve drainage.'},
+      {title:'Driveway Thickness: 1.5" vs 2.5"', date:'2025-06-28', tag:'Specs', body:'Light residential traffic can use 1.5–2.0" lifts. For heavier vehicles or poor base, budget 2.5–3.0" and improve drainage.'},
       {title:'Seal Coat Timing After New Asphalt', date:'2025-05-30', tag:'Maintenance', body:'Let asphalt cure; commonly 3–6 months depending on weather. Seal coat slows oxidation and water intrusion.'}
     ];
     const blogList = document.getElementById('blogList');
-    function renderBlog(){
-      // newest first
-      posts.sort((a,b)=> new Date(b.date)-new Date(a.date));
-      blogList.innerHTML = posts.map(p=>`<article class="post"><div class="badge">${p.tag}</div><h4>${p.title}</h4><small class="muted">${new Date(p.date).toLocaleDateString()}</small><p>${p.body}</p></article>`).join('');
-    }
-    renderBlog();
+    blogList.innerHTML = posts.sort((a,b)=> new Date(b.date)-new Date(a.date)).map(p=>`<article class="post"><div class="badge">${p.tag}</div><h4>${p.title}</h4><small class="muted">${new Date(p.date).toLocaleDateString()}</small><p>${p.body}</p></article>`).join('');
 
-    // --- Netlify Forms: AJAX submit to avoid 404 and show in-page success ---
+    // Netlify Forms (quote): AJAX submit
     const quoteForm = document.getElementById('quoteForm');
     const thanksBox = document.getElementById('thanks');
     function encodeFormData(fd){ return new URLSearchParams(fd).toString(); }
     if(quoteForm){
       quoteForm.addEventListener('submit', function(e){
         e.preventDefault();
-        // ensure latest calc numbers are saved to hidden fields
-        try { calc(); } catch(_){ /* ignore */ }
+        try { calc(); } catch(_){}
         const fd = new FormData(quoteForm);
-        // make sure Netlify sees the form name
         if(!fd.has('form-name')) fd.append('form-name','quote');
-        fetch('/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: encodeFormData(fd)
-        })
-        .then(()=>{
-          if(thanksBox){ thanksBox.style.display = 'block'; }
-          result.innerHTML = '<b>Submitted!</b> Check your email for confirmation.';
-          // optional: reset fields except rate/site factor
-          const rateVal = rate.value, factorVal = factor.value, modeVal = mode.value, thkVal = thk.value;
-          quoteForm.reset();
-          rate.value = rateVal; factor.value = factorVal; mode.value = modeVal; thk.value = thkVal;
-          window.scrollTo({top: quoteForm.offsetTop - 80, behavior:'smooth'});
-        })
-        .catch((err)=>{
-          result.innerHTML = 'Submission failed. Please try again or call 903-424-1607.';
-          console.error(err);
-        });
+        fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: encodeFormData(fd) })
+        .then(()=>{ if(thanksBox) thanksBox.style.display='block'; result.innerHTML='<b>Submitted!</b> Check your email for confirmation.'; })
+        .catch((err)=>{ result.innerHTML='Submission failed. Please try again or call 903-424-1607.'; console.error(err); });
       });
     }
 
-    // --- Contact: mailto ---
+    // Contact: audience-aware mailto + dynamic sidebar info
+    const audienceSel = document.getElementById('audience');
+    const careerWrap = document.getElementById('careerWrap');
+    const careerRole = document.getElementById('careerRole');
+    const noteBox = document.getElementById('contactNote');
     const mailtoBtn = document.getElementById('mailtoBtn');
+    const infoBox = document.getElementById('audienceInfo');
     function esc(s){return encodeURIComponent(s||'');}
+
+    const noteCopy = {
+      client: '<b>Client — what to include:</b> project address, surface type (asphalt, base, concrete), approx. size, preferred thickness (Thin 1.5\" / Economy 2.0\" / Recommended 2.5\" / Thick 3.0\"), photos or link, timeline, and budget range.',
+      investor: '<b>Investor — what to include:</b> investment focus, amount range, timeline, accreditation (optional), and best time to talk.',
+      career: '<b>Career — what to include:</b> role (Sales/Labor/Equipment Operator/Engineer), years of experience, certifications (CDL/OSHA), availability, and a resume/portfolio link.'
+    };
+
+    function infoHTML(aud, role){
+      if(aud==='client'){
+        return `
+          <h3>Why CGH for Clients</h3>
+          <ul class="muted">
+            <li>Texas‑tough builds with correct base, drainage, and compaction.</li>
+            <li>Clean edges, tight timelines, and clear communication.</li>
+            <li>Fair, transparent pricing — by square foot or by ton.</li>
+          </ul>
+          <details><summary>FAQs</summary>
+            <div class="small">
+              <p><b>How accurate is the online estimate?</b> It’s a ballpark based on size and thickness. Final price follows a site visit and base evaluation.</p>
+              <p><b>Do you handle small jobs?</b> Yes — from patching and overlays to full driveways and lots.</p>
+              <p><b>Do you do concrete or base only?</b> Yes. Asphalt, concrete, and road base services are available.</p>
+            </div>
+          </details>
+        `;
+      }
+      if(aud==='career'){
+        const pay = {
+          'Labor':'Avg ~$15/hr',
+          'Equipment Operator':'~$18/hr',
+          'Sales':'10% commission',
+          'Engineer':'Compensation discussed based on project'
+        };
+        const payLine = role ? `<p><b>Pay (${role}):</b> ${pay[role]||''}</p>` : '';
+        return `
+          <h3>Careers at CGH</h3>
+          ${payLine}
+          <ul class="muted">
+            <li>Rooted in faith, operating with integrity — we do things the right way.</li>
+            <li>Opportunities in Sales, Labor, Equipment Operation, and Engineering.</li>
+            <li>We value safety, craftsmanship, and a servant‑leader mindset.</li>
+          </ul>
+          <details><summary>FAQs</summary>
+            <div class="small">
+              <p><b>Do I need experience?</b> Helpful, but we train for many roles. Certifications (CDL/OSHA) are a plus.</p>
+              <p><b>Full‑time or part‑time?</b> Both options depending on the season and workload.</p>
+              <p><b>How do I apply?</b> Send your resume/experience list and availability. We’ll reach out.</p>
+            </div>
+          </details>
+        `;
+      }
+      // investor
+      return `
+        <h3>Invest with CGH</h3>
+        <ul class="muted">
+          <li>Disciplined ops across cleaning, construction, and infrastructure.</li>
+          <li>Integrity‑first management with transparent reporting.</li>
+          <li>Focus on durable cash‑flow projects in ARK‑LA‑TX‑OK.</li>
+        </ul>
+        <details><summary>FAQs</summary>
+          <div class="small">
+            <p><b>Why CGH?</b> Faith‑driven culture, hands‑on leadership, and Texas‑tough execution.</p>
+            <p><b>Use of funds?</b> Equipment, working capital, and project scaling.</p>
+            <p><b>How to start?</b> Share your focus, range, and timeline — we’ll set a call.</p>
+          </div>
+        </details>
+      `;
+    }
+
+    function updateAudienceUI(){
+      const a = audienceSel.value;
+      careerWrap.style.display = (a==='career') ? 'block' : 'none';
+      noteBox.innerHTML = noteCopy[a];
+      infoBox.innerHTML = infoHTML(a, careerRole.value);
+    }
+    audienceSel.addEventListener('change', updateAudienceUI);
+    careerRole.addEventListener('change', updateAudienceUI);
+    updateAudienceUI();
+
     mailtoBtn.addEventListener('click',()=>{
       const to = 'Colton@CGHOperations.com';
-      const subject = `Quote Request — ${esc(document.getElementById('cCity').value||'East TX')}`;
-      const body = `Name: ${document.getElementById('cName').value}\nEmail: ${document.getElementById('cEmail').value}\nPhone: ${document.getElementById('cPhone').value}\nCity: ${document.getElementById('cCity').value}\n\nProject:\n${document.getElementById('cMsg').value}\n`;
-      window.location.href = `mailto:${to}?subject=${subject}&body=${encodeURIComponent(body)}`;
+      const a = audienceSel.value;
+      const role = (a==='career') ? ` — ${careerRole.value}` : '';
+      const subject = `Contact — ${a.charAt(0).toUpperCase()+a.slice(1)}${role}`;
+      const body = `Audience: ${a}${role}\nName: ${document.getElementById('cName').value}\nEmail: ${document.getElementById('cEmail').value}\nPhone: ${document.getElementById('cPhone').value}\nCity: ${document.getElementById('cCity').value}\n\nMessage:\n${document.getElementById('cMsg').value}\n`;
+      window.location.href = `mailto:${to}?subject=${esc(subject)}&body=${encodeURIComponent(body)}`;
     });
+
+    /* Manual test cases
+      Contact sidebar:
+      1) Default audience Client → audienceInfo shows client value + FAQs.
+      2) Switch to Career → sidebar shows careers info; change Role to see pay line update.
+      3) Switch to Investor → investor pitch + FAQs shows.
+      4) Address removed; service area shows "Based in Longview, Texas • Serving ARK‑LA‑TX‑OK".
+    */
   </script>
 </body>
 </html>
