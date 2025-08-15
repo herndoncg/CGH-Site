@@ -297,44 +297,53 @@
     <section class="section reveal" data-panel="contact">
       <h2>Contact</h2>
       <div class="grid" style="grid-template-columns:1fr 1fr">
-        <form id="contactForm" class="card">
-          <div class="row">
-            <label>I'm contacting as<br>
-              <select id="audience">
-                <option value="client" selected>Client</option>
-                <option value="career">Career / Worker</option>
-                <option value="investor">Investor</option>
-              </select>
-            </label>
-            <label id="careerWrap" style="display:none">Role<br>
-              <select id="careerRole">
-                <option value="Sales">Sales</option>
-                <option value="Labor">Labor</option>
-                <option value="Equipment Operator">Equipment Operator</option>
-                <option value="Engineer">Engineer</option>
-              </select>
-            </label>
-          </div>
+        <div>
+          <form id="contactForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="card">
+            <input type="hidden" name="form-name" value="contact">
+            <p style="display:none"><label>Don’t fill this out: <input name="bot-field"></label></p>
 
-          <div class="card" id="contactNote" style="background:#f8fafc">
-            <b>Client — what to include:</b> project address, surface type (asphalt, base, concrete), approx. size, preferred thickness (Thin 1.5" / Economy 2.0" / Recommended 2.5" / Thick 3.0"), photos or link, timeline, and budget range.
-          </div>
+            <div class="row">
+              <label>I'm contacting as<br>
+                <select id="audience" name="audience">
+                  <option value="client" selected>Client</option>
+                  <option value="career">Career / Worker</option>
+                  <option value="investor">Investor</option>
+                </select>
+              </label>
+              <label id="careerWrap" style="display:none">Role<br>
+                <select id="careerRole" name="career_role">
+                  <option value="Sales">Sales</option>
+                  <option value="Labor">Labor</option>
+                  <option value="Equipment Operator">Equipment Operator</option>
+                  <option value="Engineer">Engineer</option>
+                </select>
+              </label>
+            </div>
 
-          <div class="row">
-            <label>Name<br><input id="cName" required></label>
-            <label>Email<br><input id="cEmail" type="email" required></label>
+            <div class="card" id="contactNote" style="background:#f8fafc">
+              <b>Client — what to include:</b> project address, surface type (asphalt, base, concrete), approx. size, preferred thickness (Thin 1.5" / Economy 2.0" / Recommended 2.5" / Thick 3.0"), photos or link, timeline, and budget range.
+            </div>
+
+            <div class="row">
+              <label>Name<br><input id="cName" name="name" required></label>
+              <label>Email<br><input id="cEmail" name="email" type="email" required></label>
+            </div>
+            <div class="row">
+              <label>Phone<br><input id="cPhone" name="phone" placeholder="903‑xxx‑xxxx" required></label>
+              <label>City<br><input id="cCity" name="city" placeholder="Longview, TX"></label>
+            </div>
+            <label>Message<br><textarea id="cMsg" name="message" rows="5" placeholder="Tell us about your project"></textarea></label>
+            <div class="inline">
+              <button type="submit" class="btn">Send</button>
+              <button type="button" class="btn ghost" id="mailtoBtn">Email Us</button>
+            </div>
+            <small class="muted">The Send button posts to Netlify. The Email button opens your email app pre‑filled.</small>
+          </form>
+
+          <div class="card" id="contactThanks" style="display:none;background:#ecfdf5;border-color:#34d399;margin-top:12px">
+            <b>Thanks!</b> We got your message and will reply soon.
           </div>
-          <div class="row">
-            <label>Phone<br><input id="cPhone" placeholder="903‑xxx‑xxxx" required></label>
-            <label>City<br><input id="cCity" placeholder="Longview, TX"></label>
-          </div>
-          <label>Message<br><textarea id="cMsg" rows="5" placeholder="Tell us about your project"></textarea></label>
-          <div class="inline">
-            <button type="button" class="btn" id="mailtoBtn">Email Us</button>
-            <a class="btn ghost" href="tel:19034241607">Call Now</a>
-          </div>
-          <small class="muted">This button opens your email app with all details pre‑filled. We can wire this to Netlify Forms if you want dashboard logging.</small>
-        </form>
+        </div>
 
         <div>
           <div class="card">
@@ -368,8 +377,8 @@
 
     // Mobile nav
     const burger = document.getElementById('burger');
-const mnav = document.getElementById('mnav');
-if(burger && mnav){ burger.addEventListener('click',()=> mnav.classList.toggle('show')); }
+    const mnav = document.getElementById('mnav');
+    if(burger && mnav){ burger.addEventListener('click',()=> mnav.classList.toggle('show')); }
 
     // Tabs
     const links = document.querySelectorAll('a[data-tab]');
@@ -485,12 +494,27 @@ if(burger && mnav){ burger.addEventListener('click',()=> mnav.classList.toggle('
     if(quoteForm){
       quoteForm.addEventListener('submit', function(e){
         e.preventDefault();
-        try { calc(); } catch(_){}
+        try { calc(); } catch(_){ }
         const fd = new FormData(quoteForm);
         if(!fd.has('form-name')) fd.append('form-name','quote');
         fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: encodeFormData(fd) })
         .then(()=>{ if(thanksBox) thanksBox.style.display='block'; result.innerHTML='<b>Submitted!</b> Check your email for confirmation.'; })
         .catch((err)=>{ result.innerHTML='Submission failed. Please try again or call 903-424-1607.'; console.error(err); });
+      });
+    }
+
+    // Contact form: Netlify AJAX submit
+    const contactForm = document.getElementById('contactForm');
+    const contactThanks = document.getElementById('contactThanks');
+    if (contactForm) {
+      contactForm.addEventListener('submit', function(e){
+        e.preventDefault();
+        try { updateAudienceUI(); } catch(_){ }
+        const fd = new FormData(contactForm);
+        if (!fd.has('form-name')) fd.append('form-name','contact');
+        fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: encodeFormData(fd) })
+          .then(()=>{ if(contactThanks) contactThanks.style.display='block'; contactForm.reset(); try { updateAudienceUI(); } catch(_){ } })
+          .catch((err)=>{ alert('Submission failed. Please try again or call 903-424-1607.'); console.error(err); });
       });
     }
 
