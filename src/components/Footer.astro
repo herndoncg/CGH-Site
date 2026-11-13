@@ -1,0 +1,60 @@
+---
+import { site } from '../data/site';
+import { services } from '../data/services';
+import { areas } from '../data/areas';
+const year = new Date().getFullYear();
+---
+<footer class="ftr band">
+  <div class="stripe"></div>
+  <div class="wrap ftr__grid">
+    <div>
+      <p class="ftr__name"><b>CGH</b> Operations</p>
+      <p class="ftr__about">Asphalt paving and dirt work out of {site.city}, Texas since {site.foundedYear}.</p>
+      <p><a class="ftr__phone" href={site.phoneHref}>{site.phone}</a><br /><span class="muted">{site.hours}</span></p>
+      {site.email && <p><a href={`mailto:${site.email}`}>{site.email}</a></p>}
+      <p class="ftr__verse">"{site.verse.text}"<br /><span class="muted">{site.verse.ref}</span></p>
+    </div>
+    <nav aria-label="Services">
+      <h2>Services</h2>
+      <ul>{services.map((s) => <li><a href={`/services/${s.slug}`}>{s.name}</a></li>)}</ul>
+    </nav>
+    <nav aria-label="Service areas">
+      <h2>Service areas</h2>
+      <ul>{areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}, TX</a></li>)}</ul>
+    </nav>
+    <nav aria-label="Company">
+      <h2>Company</h2>
+      <ul>
+        <li><a href="/quote">Get a price range</a></li>
+        <li><a href="/about">About us</a></li>
+        <li><a href="/careers">Careers</a></li>
+        <li><a href="/blog">Blog</a></li>
+        <li><a href="/privacy">Privacy</a></li>
+      </ul>
+      <h2 class="ftr__sister">Oilfield work</h2>
+      <p class="ftr__about">{site.sister.line}: <a href={site.sister.url} rel="noopener">{site.sister.name}</a></p>
+    </nav>
+  </div>
+  <div class="wrap ftr__base">
+    <p>© {year} {site.legalName}. {site.motto}</p>
+  </div>
+</footer>
+
+<style>
+  .ftr { margin-top: 0; }
+  .ftr__grid { display: grid; gap: 36px; grid-template-columns: 1fr; padding-top: clamp(48px, 7vw, 84px); padding-bottom: 40px; }
+  @media (min-width: 720px) { .ftr__grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1020px) { .ftr__grid { grid-template-columns: 1.4fr 1fr 1fr 1fr; } }
+  .ftr__name { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; margin-bottom: 8px; }
+  .ftr__name b { font-weight: 900; }
+  .ftr__about { color: var(--text-2); max-width: 34ch; font-size: 0.98rem; }
+  .ftr__phone { font-family: var(--font-display); font-weight: 900; font-size: 1.5rem; text-decoration: none; color: var(--paver); }
+  .ftr__verse { font-size: 0.95rem; color: var(--text-2); max-width: 34ch; margin-top: 22px; }
+  .ftr h2 { font-size: 1rem; font-weight: 800; letter-spacing: 0; margin-bottom: 14px; color: #fff; }
+  .ftr__sister { margin-top: 26px; }
+  .ftr ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+  .ftr li a, .ftr__about a { color: var(--text-2); text-decoration: none; font-size: 0.98rem; }
+  .ftr li a:hover, .ftr__about a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+  .ftr__base { border-top: 1px solid var(--border); padding-top: 20px; padding-bottom: 28px; font-size: 0.88rem; color: var(--muted); }
+  .ftr__base p { margin: 0; }
+</style>

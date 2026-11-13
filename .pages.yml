@@ -1,0 +1,157 @@
+# CGH Operations content portal (Pages CMS). Open cghoperations.com/admin (or app.pagescms.org) and sign in with GitHub.
+# Everything changed here saves straight to the website and goes live in about 1-2 minutes.
+
+media:
+- name: photos
+  label: Job photos
+  input: public/img/uploads
+  output: /img/uploads
+  extensions: [jpg, jpeg, png, webp]
+  rename: safe
+- name: blog
+  label: Blog photos
+  input: public/img/blog
+  output: /img/blog
+  extensions: [jpg, jpeg, png, webp]
+  rename: safe
+
+content:
+- name: pricing
+  label: Quote Tool Prices
+  type: file
+  path: src/data/pricing.json
+  format: json
+  fields:
+  - { name: minimumJob, label: 'Minimum job price ($)', type: number, required: true }
+  - { name: minimumSqft, label: 'Size the minimum covers (sq ft)', type: number, required: true }
+  - name: tiers
+    label: 'Price per sq ft at each size (the price slides smoothly between these)'
+    type: object
+    list: { min: 1, max: 6 }
+    fields:
+    - { name: sqft, label: 'At this many sq ft', type: number }
+    - { name: rate, label: 'Price per sq ft ($)', type: number }
+  - { name: baseWorkFee, label: 'Grading / base work flat fee ($)', type: number, required: true }
+  - { name: loadPrice, label: 'Rock, price per dump truck load ($)', type: number, required: true }
+  - { name: loadYards, label: 'Cubic yards per load', type: number, required: true }
+  - { name: fillDepthIn, label: 'Rock depth (inches)', type: number, required: true }
+  - { name: rangeLowPct, label: 'Range: percent UNDER the estimate', type: number, required: true }
+  - { name: rangeHighPct, label: 'Range: percent OVER the estimate', type: number, required: true }
+
+- name: blog
+  label: Blog Posts
+  type: collection
+  path: src/content/blog
+  format: yaml-frontmatter
+  filename: '{primary}.md'
+  view:
+    fields: [title, date, category, draft]
+    primary: title
+    sort: [date, title]
+    default: { sort: date, order: desc }
+  fields:
+  - { name: title, label: Title, type: string, required: true }
+  - { name: description, label: 'Short summary (shows on Google and Facebook, 1-2 sentences)', type: text, required: true }
+  - { name: date, label: Publish date, type: date, required: true }
+  - name: category
+    label: Category
+    type: select
+    options: { values: [Driveways, Parking lots, Roads, Upkeep, Dirt work, Company] }
+  - { name: image, label: Photo, type: image, options: { media: blog } }
+  - { name: imageAlt, label: What the photo shows, type: string }
+  - { name: draft, label: 'Draft (hide from the site)', type: boolean, default: false }
+  - { name: body, label: Post, type: rich-text }
+
+- name: work
+  label: Job Photos
+  type: file
+  path: src/data/work-photos.json
+  format: json
+  list: true
+  fields:
+  - { name: src, label: Photo, type: image, required: true, options: { media: photos } }
+  - { name: caption, label: Short caption, type: string, required: true }
+  - { name: alt, label: 'Describe the photo in one sentence (helps Google)', type: string, required: true }
+
+- name: before-after
+  label: Before & After
+  type: file
+  path: src/data/before-after.json
+  format: json
+  list: true
+  fields:
+  - { name: title, label: Title, type: string, required: true }
+  - { name: before, label: BEFORE photo, type: image, required: true, options: { media: photos } }
+  - { name: after, label: AFTER photo, type: image, required: true, options: { media: photos } }
+  - { name: beforeAlt, label: Describe the BEFORE photo, type: string }
+  - { name: afterAlt, label: Describe the AFTER photo, type: string }
+  - name: service
+    label: Show on which service page
+    type: select
+    options: { values: [asphalt-driveways, parking-lots, private-roads, asphalt-overlays, asphalt-repair, sealcoating, crack-filling, striping, road-base-grading, dirt-work] }
+
+- name: reviews
+  label: Customer Reviews
+  type: file
+  path: src/data/reviews.json
+  format: json
+  list: true
+  fields:
+  - { name: quote, label: What they said, type: text, required: true }
+  - { name: name, label: Name, type: string, required: true }
+  - { name: town, label: Town, type: string }
+  - { name: job, label: 'Job (e.g. New driveway)', type: string }
+
+- name: careers
+  label: Job Openings
+  type: file
+  path: src/data/careers.json
+  format: json
+  fields:
+  - { name: datePosted, label: Date posted, type: date }
+  - name: roles
+    label: Open positions
+    type: object
+    list: true
+    fields:
+    - { name: slug, label: "Short id (letters and dashes, don't change once live)", type: string, required: true }
+    - { name: title, label: Job title, type: string, required: true }
+    - { name: type, label: 'Full-time / Part-time', type: string }
+    - { name: text, label: Description, type: text }
+    - { name: requirements, label: Requirements, type: string, list: true }
+
+- name: business
+  label: Business Info
+  type: file
+  path: src/data/business.json
+  format: json
+  fields:
+  - { name: phone, label: Phone, type: string, required: true }
+  - { name: email, label: Email, type: string }
+  - { name: city, label: City, type: string }
+  - { name: state, label: State, type: string }
+  - { name: postalCode, label: ZIP code, type: string }
+  - { name: foundedYear, label: Year founded, type: number }
+  - { name: hours, label: Hours, type: string }
+  - { name: insured, label: 'Show "Insured" on the site (only when a policy is active)', type: boolean }
+  - { name: googleReviewLink, label: Google review link, type: string }
+  - { name: statesServed, label: States served, type: string, list: true }
+  - name: social
+    label: Social media links
+    type: object
+    fields:
+    - { name: facebook, label: Facebook, type: string }
+    - { name: instagram, label: Instagram, type: string }
+  - name: verse
+    label: Company verse
+    type: object
+    fields:
+    - { name: text, label: Verse, type: text }
+    - { name: ref, label: Reference, type: string }
+  - name: sisterCompany
+    label: Sister company link
+    type: object
+    fields:
+    - { name: name, label: Name, type: string }
+    - { name: url, label: Website, type: string }
+    - { name: line, label: One-line description, type: string }

@@ -1,0 +1,41 @@
+---
+import Base from '../../layouts/Base.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { services, groups } from '../../data/services';
+---
+<Base title="Asphalt & Dirt Work Services in East Texas" description="Asphalt driveways, parking lots, private roads, overlays, repairs, sealcoating, crack filling, striping, road base, grading and dirt work from CGH Operations in Longview, TX.">
+  <section class="band pagehead">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li>Services</li></ol>
+      <h1>Asphalt and dirt work services</h1>
+      <p class="lede">New pavement, the upkeep that makes it last, and the ground work underneath. One crew, our own equipment.</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap">
+      {groups.map((g) => (
+        <div class="grp">
+          <h2>{g}</h2>
+          <ul>
+            {services.filter((s) => s.group === g).map((s) => (
+              <li><a href={`/services/${s.slug}`}><h3>{s.name}</h3><p>{s.line}</p>{s.instantQuote && <span>Instant price online</span>}</a></li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </section>
+  <CtaBand />
+</Base>
+<style>
+  .grp { display: grid; gap: 12px 48px; padding: 34px 0; border-top: 3px solid var(--asphalt); }
+  @media (min-width: 900px) { .grp { grid-template-columns: 240px 1fr; } }
+  .grp h2 { font-size: 1.7rem; margin: 0; }
+  .grp ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0 40px; }
+  @media (min-width: 700px) { .grp ul { grid-template-columns: 1fr 1fr; } }
+  .grp a { display: block; padding: 18px 0; border-bottom: 1px solid var(--border-strong); text-decoration: none; height: 100%; }
+  .grp h3 { margin: 0 0 4px; font-size: 1.3rem; font-weight: 800; }
+  .grp p { margin: 0; color: var(--muted); }
+  .grp span { display: inline-block; margin-top: 10px; background: var(--paver); padding: 2px 10px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; }
+  .grp a:hover h3 { text-decoration: underline; text-decoration-color: var(--paver); text-decoration-thickness: 4px; text-underline-offset: 5px; }
+</style>

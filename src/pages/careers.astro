@@ -1,0 +1,97 @@
+---
+import Base from '../layouts/Base.astro';
+import careers from '../data/careers.json';
+import { site } from '../data/site';
+const schema = careers.roles.map((r) => ({
+  '@context': 'https://schema.org', '@type': 'JobPosting', title: r.title, description: `<p>${r.text}</p><ul>${r.requirements.map((x) => `<li>${x}</li>`).join('')}</ul>`,
+  datePosted: careers.datePosted, employmentType: 'FULL_TIME', directApply: true,
+  hiringOrganization: { '@type': 'Organization', name: site.name, sameAs: site.url },
+  jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: site.city, addressRegion: site.state, addressCountry: 'US' } },
+}));
+---
+<Base title="Paving & Equipment Operator Jobs in Longview, TX" description="CGH Operations is hiring paving crew laborers, equipment operators and dump truck drivers in Longview, TX. Apply online in about two minutes." schema={schema}>
+  <section class="band pagehead">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li>Careers</li></ol>
+      <h1>Work with us</h1>
+      <p class="lede">We are a faith-driven crew in Longview that paves and moves dirt across East Texas. If you show up, work hard and take pride in a finished job, we want to hear from you.</p>
+      <div class="btn-row"><a class="btn btn--paver" href="#apply">Apply now</a></div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap roles">
+      {careers.roles.map((r) => (
+        <article>
+          <p class="muted">{r.type}, {site.city}, TX</p>
+          <h2>{r.title}</h2>
+          <p>{r.text}</p>
+          <ul class="checks">{r.requirements.map((x) => <li>{x}</li>)}</ul>
+        </article>
+      ))}
+    </div>
+  </section>
+  <section class="section section--stone" id="apply">
+    <div class="wrap narrow">
+      <h2>Apply</h2>
+      <p class="lede">Takes about two minutes. We call the people who look like a fit.</p>
+      <form class="apply" name="application" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-apply data-endpoint={site.formEndpoint}>
+        <input type="hidden" name="form-name" value="application" />
+        <input type="hidden" name="page" /><input type="hidden" name="submitted_at" />
+        <div class="hp" aria-hidden="true"><label>Leave blank<input type="text" name="bot-field" tabindex="-1" autocomplete="off" /></label></div>
+        <div class="form-grid">
+          <div class="field"><label for="ap-name">Name</label><input id="ap-name" name="name" required autocomplete="name" /></div>
+          <div class="field"><label for="ap-phone">Phone</label><input id="ap-phone" name="phone" type="tel" required autocomplete="tel" /></div>
+          <div class="field"><label for="ap-email">Email (optional)</label><input id="ap-email" name="email" type="email" autocomplete="email" /></div>
+          <div class="field"><label for="ap-city">Where do you live?</label><input id="ap-city" name="city" placeholder="Longview, TX" /></div>
+          <div class="field"><label for="ap-pos">Position</label>
+            <select id="ap-pos" name="position" required>
+              {careers.roles.map((r) => <option>{r.title}</option>)}
+              <option>Something else</option>
+            </select>
+          </div>
+          <div class="field"><label for="ap-cdl">Do you have a CDL?</label><select id="ap-cdl" name="cdl"><option>No</option><option>Yes, Class A</option><option>Yes, Class B</option></select></div>
+          <div class="field"><label for="ap-years">Years doing this kind of work</label><select id="ap-years" name="experience_years"><option>None yet</option><option>Less than 1</option><option>1 to 3</option><option>3 to 5</option><option>More than 5</option></select></div>
+          <div class="field"><label for="ap-start">When could you start?</label><input id="ap-start" name="start" placeholder="Right away, two weeks, ..." /></div>
+          <div class="field full"><label for="ap-details">Equipment you have run, past jobs, anything else we should know</label><textarea id="ap-details" name="details"></textarea></div>
+        </div>
+        <button class="btn btn--paver" type="submit">Send my application</button>
+        <p class="legal">By sending this, you agree CGH Operations may call, text or email you about your application. See our <a href="/privacy">privacy policy</a>.</p>
+        <p class="status" role="status" aria-live="polite" data-status></p>
+      </form>
+    </div>
+  </section>
+</Base>
+<script>
+  document.querySelectorAll<HTMLFormElement>('[data-apply]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const status = form.querySelector<HTMLElement>('[data-status]')!;
+      const btn = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+      const data = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+      if (data['bot-field']) return;
+      data.page = location.pathname; data.submitted_at = new Date().toISOString();
+      const endpoint = form.dataset.endpoint;
+      if (!endpoint) { status.textContent = 'Online applications are not switched on yet. Please call us to apply.'; return; }
+      btn.disabled = true; btn.textContent = 'Sending…';
+      try {
+        const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() });
+        if (!r.ok) throw new Error(String(r.status));
+        location.href = '/thank-you?for=application';
+      } catch {
+        status.textContent = 'Your application did not send. Please call us instead.';
+        btn.disabled = false; btn.textContent = 'Send my application';
+      }
+    });
+  });
+</script>
+<style>
+  .roles { display: grid; gap: 40px; }
+  @media (min-width: 960px) { .roles { grid-template-columns: repeat(3, 1fr); gap: 48px; } }
+  .roles article { border-top: 3px solid var(--asphalt); padding-top: 18px; }
+  .roles h2 { font-size: 1.6rem; }
+  .roles .muted { margin-bottom: 6px; font-size: 0.93rem; }
+  .apply { margin-top: 28px; background: var(--surface); padding: clamp(20px, 3vw, 36px); border-radius: var(--radius-lg); display: grid; gap: 20px; position: relative; }
+  .apply .btn { justify-self: start; }
+  .status { margin: 0; font-weight: 700; color: var(--clay); }
+  .status:empty { display: none; }
+</style>

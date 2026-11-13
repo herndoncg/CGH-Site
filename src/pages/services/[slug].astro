@@ -1,0 +1,101 @@
+---
+import Base from '../../layouts/Base.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { services } from '../../data/services';
+import { areas } from '../../data/areas';
+import { site, servicePhotos, beforeAfter } from '../../data/site';
+
+export function getStaticPaths() { return services.map((s) => ({ params: { slug: s.slug }, props: { s } })); }
+const { s } = Astro.props;
+const photo = servicePhotos[s.slug];
+const ba = beforeAfter.filter((b) => b.service === s.slug);
+const others = services.filter((o) => o.slug !== s.slug && o.group === s.group).slice(0, 4);
+const url = `${site.url}/services/${s.slug}`;
+const schema = [
+  { '@context': 'https://schema.org', '@type': 'Service', name: s.name, serviceType: s.name, description: s.description, url, provider: { '@id': `${site.url}/#business` }, areaServed: areas.map((a) => ({ '@type': 'City', name: `${a.city}, TX` })) },
+  { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: s.faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
+  { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Services', item: `${site.url}/services` }, { '@type': 'ListItem', position: 2, name: s.name, item: url }] },
+];
+---
+<Base title={s.title} description={s.description} schema={schema} image={photo?.src}>
+  <section class="band pagehead">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li><a href="/services">Services</a></li><li>{s.name}</li></ol>
+      <h1>{s.title}</h1>
+      <p class="lede">{s.line}</p>
+      <div class="btn-row">
+        {s.instantQuote ? <a class="btn btn--paver" href="/quote">Get my price range</a> : <a class="btn btn--paver" href={site.phoneHref}>Call {site.phone}</a>}
+        {s.instantQuote && <a class="btn btn--line" href={site.phoneHref}>Call {site.phone}</a>}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap split">
+      <div>
+        {s.intro.map((p) => <p class="intro">{p}</p>)}
+        <h2>What is included</h2>
+        <ul class="checks">{s.includes.map((i) => <li>{i}</li>)}</ul>
+      </div>
+      <aside>
+        {photo && <img class="shot" src={photo.src} alt={photo.alt} width="600" height="800" loading="eager" />}
+        <div class="signs">
+          <h3>{s.signs.heading}</h3>
+          <ul>{s.signs.items.map((i) => <li>{i}</li>)}</ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  {ba.map((b) => (
+    <section class="section section--stone">
+      <div class="wrap">
+        <h2>{b.title}</h2>
+        <div class="ba">
+          <figure><img src={b.before} alt={b.beforeAlt} loading="lazy" width="600" height="800" /><figcaption>Before</figcaption></figure>
+          <figure><img src={b.after} alt={b.afterAlt} loading="lazy" width="600" height="800" /><figcaption>After</figcaption></figure>
+        </div>
+      </div>
+    </section>
+  ))}
+
+  <section class="section">
+    <div class="wrap narrow">
+      <h2>Common questions</h2>
+      <div class="faq">{s.faqs.map((f) => (<details><summary>{f.q}</summary><p>{f.a}</p></details>))}</div>
+    </div>
+  </section>
+
+  <section class="section--tight section--stone">
+    <div class="wrap more">
+      <div>
+        <h2>Where we do this work</h2>
+        <p class="links">{areas.map((a) => <a href={`/service-areas/${a.slug}`}>{a.city}</a>)}</p>
+      </div>
+      {others.length > 0 && <div>
+        <h2>Related services</h2>
+        <p class="links">{others.map((o) => <a href={`/services/${o.slug}`}>{o.name}</a>)}</p>
+      </div>}
+    </div>
+  </section>
+  <CtaBand heading={s.instantQuote ? 'Find out what your job will cost.' : 'Tell us what you have.'} text={s.instantQuote ? undefined : 'Call or send the details and we will come look at it. The site visit is free.'} />
+</Base>
+<style>
+  .intro { font-size: 1.15rem; max-width: 62ch; }
+  .intro + h2 { margin-top: 1.4em; }
+  h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+  .shot { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); margin-bottom: 20px; }
+  .signs { background: var(--bg-2); border-radius: var(--radius-lg); padding: 26px 28px; border-top: 6px solid var(--paver); }
+  .signs h3 { margin-bottom: 12px; }
+  .signs ul { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .ba { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; max-width: 900px; }
+  .ba figure { margin: 0; position: relative; }
+  .ba img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-lg); }
+  .ba figcaption { position: absolute; left: 12px; top: 12px; background: var(--asphalt); color: #fff; font-weight: 700; padding: 4px 12px; border-radius: 999px; font-size: 0.88rem; }
+  .ba figure:last-child figcaption { background: var(--paver); color: var(--asphalt); }
+  .more { display: grid; gap: 28px; }
+  @media (min-width: 900px) { .more { grid-template-columns: 1fr 1fr; gap: 56px; } }
+  .more h2 { font-size: 1.3rem; margin-bottom: 12px; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; }
+  .links a { font-weight: 600; text-underline-offset: 3px; }
+</style>

@@ -1,0 +1,58 @@
+---
+import Base from '../layouts/Base.astro';
+import CtaBand from '../components/CtaBand.astro';
+import { workPhotos, beforeAfter } from '../data/site';
+---
+<Base title="Our Work: Asphalt Driveways, Lots & Roads in East Texas" description="Photos of asphalt driveways, ranch entrances, parking lot repairs and dirt work by CGH Operations across Longview and East Texas.">
+  <section class="band pagehead">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li>Our work</li></ol>
+      <h1>Our work</h1>
+      <p class="lede">Real jobs by our crew around East Texas. No stock photos.</p>
+    </div>
+  </section>
+  {beforeAfter.length > 0 && (
+    <section class="section section--stone">
+      <div class="wrap">
+        <h2>Before and after</h2>
+        <div class="pairs">
+          {beforeAfter.map((b) => (
+            <div>
+              <div class="ba">
+                <figure><img src={b.before} alt={b.beforeAlt} loading="lazy" width="600" height="800" /><figcaption>Before</figcaption></figure>
+                <figure><img src={b.after} alt={b.afterAlt} loading="lazy" width="600" height="800" /><figcaption>After</figcaption></figure>
+              </div>
+              <h3>{b.title}</h3>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+  <section class="section">
+    <div class="wrap">
+      <h2>On the job</h2>
+      <div class="grid">
+        {workPhotos.map((p) => (<figure><img src={p.src} alt={p.alt} loading="lazy" decoding="async" width="600" height="800" /><figcaption>{p.caption}</figcaption></figure>))}
+      </div>
+    </div>
+  </section>
+  <CtaBand />
+</Base>
+<style>
+  h2 { margin-bottom: 28px; }
+  .pairs { display: grid; gap: 36px; }
+  @media (min-width: 900px) { .pairs { grid-template-columns: 1fr 1fr; } }
+  .pairs h3 { margin: 14px 0 0; }
+  .ba { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  .ba figure { margin: 0; position: relative; }
+  .ba img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-lg); }
+  .ba figcaption { position: absolute; left: 10px; top: 10px; background: var(--asphalt); color: #fff; font-weight: 700; padding: 3px 11px; border-radius: 999px; font-size: 0.85rem; }
+  .ba figure:last-child figcaption { background: var(--paver); color: var(--asphalt); }
+  .grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+  @media (min-width: 800px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1100px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+  .grid figure { margin: 0; }
+  .grid img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-lg); background: var(--limestone-2); }
+  .grid figcaption { margin-top: 8px; font-size: 0.93rem; font-weight: 600; }
+</style>

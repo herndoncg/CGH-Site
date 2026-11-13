@@ -1,0 +1,57 @@
+/*
+  CGH Operations brand tokens.
+  Colors come from the job itself: fresh hot-mix asphalt, crushed limestone base,
+  paver yellow, and East Texas red clay.
+  Pages are light (limestone) by default. Add class="band" to a section to pave it dark.
+*/
+:root {
+  --asphalt: #1b1c1e;
+  --asphalt-2: #26282b;
+  --asphalt-3: #33363a;
+  --aggregate: #63676c;
+  --limestone: #ebe8df;
+  --limestone-2: #dcd8cc;
+  --chalk: #f8f7f2;
+  --white: #ffffff;
+  --paver: #f4b400;
+  --paver-bright: #ffc928;
+  --paver-deep: #b98300;
+  --clay: #9a4427;
+  --clay-deep: #7c3319;
+
+  --bg: var(--chalk);
+  --bg-2: var(--limestone);
+  --surface: var(--white);
+  --text: #1b1c1e;
+  --text-2: #3a3d41;
+  --muted: #5f6368;
+  --border: rgba(27, 28, 30, 0.12);
+  --border-strong: rgba(27, 28, 30, 0.28);
+  --accent: var(--clay);
+
+  --font-display: 'Overpass Variable', 'Overpass', 'Arial Narrow', system-ui, sans-serif;
+  --font-body: 'Instrument Sans Variable', 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+
+  --radius: 6px;
+  --radius-lg: 12px;
+  --max: 1200px;
+  --gutter: clamp(18px, 4vw, 44px);
+  --section: clamp(64px, 9vw, 120px);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.band {
+  --bg: var(--asphalt);
+  --bg-2: var(--asphalt-2);
+  --surface: var(--asphalt-2);
+  --text: #f4f2ec;
+  --text-2: #d6d3ca;
+  --muted: #a9a79f;
+  --border: rgba(244, 242, 236, 0.12);
+  --border-strong: rgba(244, 242, 236, 0.3);
+  --accent: var(--paver);
+  background-color: var(--bg);
+  /* fine aggregate grain, so dark sections read as pavement and not flat black */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--text);
+}

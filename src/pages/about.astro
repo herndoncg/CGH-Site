@@ -1,0 +1,50 @@
+---
+import Base from '../layouts/Base.astro';
+import CtaBand from '../components/CtaBand.astro';
+import { site } from '../data/site';
+const iron = ['Asphalt paver', 'Roller', 'Dozer', 'Backhoe', 'Skid steer', 'Two dump trucks'];
+---
+<Base title="About CGH Operations | Longview, TX Paving Crew" description="CGH Operations is a faith-driven asphalt paving and dirt work company in Longview, Texas, working since 2020 with its own paver, dozer, backhoe, skid steer and dump trucks.">
+  <section class="band pagehead">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li>About</li></ol>
+      <h1>A small crew that answers for its work</h1>
+      <p class="lede">{site.motto}</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap split split--even">
+      <div>
+        <p class="intro">CGH Operations has been paving and moving dirt out of {site.city}, Texas since {site.foundedYear}. We are a crew of eight or nine, not a call center. When you call, you talk to someone who will be on your job.</p>
+        <p>We do anything asphalt: new driveways, parking lots and private roads, overlays, patching, sealcoating, crack filling and striping. We also do the dirt work that asphalt depends on, like grading, washout repair and rock base. Owning our equipment means we are not waiting on a subcontractor to get your ground ready.</p>
+        <p>We are a faith-driven company. That shows up in plain ways: we tell you what your job actually needs, we give you a real price before we start, and we do the work the way we said we would.</p>
+        <p class="verse">"{site.verse.text}" <span>{site.verse.ref}</span></p>
+      </div>
+      <div>
+        <img class="shot" src="/img/work/paving-crew-with-leeboy-paver.webp" alt="CGH Operations crew working at the paver" width="600" height="800" />
+      </div>
+    </div>
+  </section>
+  <section class="section section--stone">
+    <div class="wrap split split--even">
+      <div>
+        <h2>The equipment we own</h2>
+        <ul class="checks">{iron.map((i) => <li>{i}</li>)}</ul>
+      </div>
+      <div>
+        <h2>Oilfield work</h2>
+        <p>Need lease roads, pads or location maintenance? That is our sister company, <a class="textlink" href={site.sister.url} rel="noopener">{site.sister.name}</a>.</p>
+        <h2 style="margin-top:1.2em">Reach us</h2>
+        <p><a class="textlink" href={site.phoneHref}>{site.phone}</a><br />{site.hours}<br />{site.city}, Texas</p>
+      </div>
+    </div>
+  </section>
+  <CtaBand />
+</Base>
+<style>
+  .intro { font-size: 1.2rem; }
+  .shot { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); }
+  .verse { border-left: 4px solid var(--paver); padding-left: 18px; font-size: 1.1rem; margin-top: 28px; }
+  .verse span { display: block; color: var(--muted); font-size: 0.95rem; }
+  h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); }
+</style>
