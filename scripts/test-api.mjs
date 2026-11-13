@@ -109,6 +109,21 @@ r = await call('GET', 'estimate-settings', null, cal); ok('crew cannot open esti
 r = await call('GET', 'estimate-settings', null, pat); ok('customers cannot open estimate numbers', r.status === 404);
 r = await call('POST', 'leads', { name: 'Three Option', phone: '9035550133', sqft: '900', firm_price: '3464', source: 'three-option estimate' }, sam); ok('an estimate saves as a lead with its price', r.body.lead.firm_price === 3464);
 
+// ----- managers: see everything, but cannot touch the owner or make other managers -----
+r = await call('POST', 'users', { name: 'Max Manager', email: 'max@example.com', role: 'manager', phone: '903-555-0177' }, owner); ok('owner adds a manager', r.status === 200 && r.body.user.role === 'manager' && r.body.user.phone === '903-555-0177'); const maxTemp = r.body.temp, maxId = r.body.user.id;
+r = await call('POST', 'login', { email: 'max@example.com', password: maxTemp }); r = await call('POST', 'password', { next: 'maxs-long-password' }, r.cookie); const max = r.cookie;
+r = await call('GET', 'leads', null, max); ok('manager sees every lead with prices', r.body.leads.length >= 3 && r.body.leads.some((l) => l.firm_price === 8600));
+r = await call('GET', 'applicants', null, max); ok('manager sees applicants', r.status === 200);
+r = await call('GET', 'users', null, max); ok('manager sees the team list', r.status === 200);
+r = await call('GET', 'estimate-settings', null, max); ok('manager sees contractor cost', r.body.contractor.hotmix_sqyd === 18);
+r = await call('POST', 'users', { name: 'New Crew', email: 'newcrew@example.com', role: 'crew' }, max); ok('manager can add crew', r.status === 200);
+r = await call('POST', 'users', { name: 'Second Manager', email: 'm2@example.com', role: 'manager' }, max); ok('manager cannot add another manager', r.status === 403);
+r = await call('PATCH', 'users/' + ownerId, { disabled: true }, max); ok('manager cannot touch the owner', r.status === 404);
+r = await call('PATCH', 'users/' + maxId, { role: 'sales' }, max); ok('manager cannot change a manager', r.status === 404);
+r = await call('PATCH', 'users/' + (await store.get('emails/' + sha('sam@example.com'))).id, { role: 'manager' }, max); ok('only the owner can change roles', r.status === 403);
+r = await call('PATCH', 'users/' + maxId, { role: 'crew' }, owner); r = await call('GET', 'applicants', null, max); ok('owner can change a role and it takes effect right away', r.status === 404);
+r = await call('POST', 'users', { name: 'Bad Role', email: 'bad@example.com', role: 'owner' }, owner); ok('nobody can create a second owner', r.status === 400);
+
 // ----- resetting, changing, turning off -----
 const calId = (await store.get('emails/' + sha('cal@example.com'))).id;
 r = await call('PATCH', 'users/' + calId, { reset: true }, owner); ok('owner can reset a password to a new temporary one', r.status === 200 && TEMP.test(r.body.temp) && r.body.temp !== calTemp); const calTemp2 = r.body.temp;
