@@ -1,0 +1,25 @@
+---
+import { site } from '../data/site';
+interface Props { heading?: string; text?: string }
+const { heading = 'Find out what your job will cost.', text = 'Enter a few measurements and get a price range in about a minute. A free site visit confirms it before any work starts.' } = Astro.props;
+---
+<section class="cta">
+  <div class="wrap cta__in">
+    <div>
+      <h2>{heading}</h2>
+      <p>{text}</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn--dark" href="/quote">Get my price range</a>
+      <a class="btn btn--line" href={site.phoneHref}>Call {site.phone}</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cta { background: var(--paver); color: var(--asphalt); padding: clamp(44px, 6vw, 76px) 0; --border-strong: rgba(11, 18, 32, 0.55); --text: var(--asphalt); }
+  .cta__in { display: grid; gap: 26px; align-items: center; }
+  @media (min-width: 900px) { .cta__in { grid-template-columns: 1.3fr auto; } }
+  .cta h2 { margin-bottom: 10px; }
+  .cta p { margin: 0; max-width: 52ch; font-size: 1.1rem; }
+</style>

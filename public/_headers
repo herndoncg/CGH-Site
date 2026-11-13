@@ -1,0 +1,29 @@
+# Response headers Netlify adds to every page (security + caching).
+# Plain version: these tell browsers to always use the secure connection, never show this site inside
+# another site's frame, and never keep a saved copy of the sign-in app's screens.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+/app/*
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/sw.js
+  Cache-Control: no-cache
+
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/img/*
+  Cache-Control: public, max-age=2592000
+
+/video/*
+  Cache-Control: public, max-age=2592000
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable

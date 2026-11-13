@@ -1,0 +1,36 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { site } from '../../data/site';
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', (p) => !p.data.draft);
+  return posts.map((post) => ({ params: { id: post.id }, props: { post } }));
+}
+const { post } = Astro.props;
+const { Content } = await render(post);
+const d = post.data;
+const fmt = (x: Date) => x.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+const url = `${site.url}/blog/${post.id}`;
+const schema = [{ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: d.title, description: d.description, datePublished: d.date.toISOString(), dateModified: (d.updated ?? d.date).toISOString(), author: { '@type': 'Organization', name: d.author }, publisher: { '@id': `${site.url}/#business` }, mainEntityOfPage: url, ...(d.image ? { image: new URL(d.image, site.url).href } : {}) }];
+---
+<Base title={d.title} description={d.description} type="article" image={d.image} schema={schema}>
+  <section class="band pagehead">
+    <div class="wrap narrow">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li><a href="/blog">Blog</a></li><li>{d.category}</li></ol>
+      <h1>{d.title}</h1>
+      <p class="muted">{fmt(d.date)}, by {d.author}</p>
+    </div>
+  </section>
+  <article class="section">
+    <div class="wrap narrow prose">
+      {d.image && <img src={d.image} alt={d.imageAlt ?? ''} width="760" height="507" />}
+      <Content />
+    </div>
+  </article>
+  <CtaBand />
+</Base>
+<style>
+  .pagehead h1 { max-width: 22ch; font-size: clamp(2rem, 4.4vw, 3.2rem); }
+  .prose > img:first-child { margin-top: 0; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+</style>

@@ -1,0 +1,270 @@
+---
+// The instant quote: three short steps, then a price range.
+// Job details -> ground conditions -> contact info -> range shown and lead sent.
+// All prices come from src/data/pricing.json (editable in the content portal).
+import { site } from '../data/site';
+import pricing from '../data/pricing.json';
+---
+<form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-endpoint={site.formEndpoint} data-pricing={JSON.stringify(pricing)} novalidate>
+  <input type="hidden" name="form-name" value="quote" />
+  {['loads', 'est_total', 'est_low', 'est_high', 'page', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  <ol class="qt__steps" aria-hidden="true">
+    <li class="is-on">The job</li><li>The ground</li><li>Your info</li><li>Your price</li>
+  </ol>
+
+  <fieldset class="qt__panel is-on" data-step="1">
+    <legend>What are we paving?</legend>
+    <div class="chips" role="radiogroup" aria-label="Type of job">
+      <label><input type="radio" name="job_type" value="Driveway" checked /><span>Driveway</span></label>
+      <label><input type="radio" name="job_type" value="Parking lot" /><span>Parking lot</span></label>
+      <label><input type="radio" name="job_type" value="Private or ranch road" /><span>Private or ranch road</span></label>
+      <label><input type="radio" name="job_type" value="Something else" /><span>Something else</span></label>
+    </div>
+
+    <p class="qt__q">How big is it?</p>
+    <div class="qt__size">
+      <div class="field"><label for="qt-len">Length (feet)</label><input id="qt-len" name="length_ft" inputmode="decimal" placeholder="100" /></div>
+      <span class="qt__x" aria-hidden="true">×</span>
+      <div class="field"><label for="qt-wid">Width (feet)</label><input id="qt-wid" name="width_ft" inputmode="decimal" placeholder="12" /></div>
+      <span class="qt__or">or</span>
+      <div class="field"><label for="qt-sqft">Total square feet</label><input id="qt-sqft" name="sqft" inputmode="numeric" placeholder="1,200" /></div>
+    </div>
+    <p class="qt__hint">No tape measure? Pace it off. One long step is about 3 feet. A close guess is fine.</p>
+    <p class="qt__err" data-err="1" role="alert"></p>
+    <div class="qt__nav"><span></span><button type="button" class="btn btn--paver" data-next>Next: the ground</button></div>
+  </fieldset>
+
+  <fieldset class="qt__panel" data-step="2">
+    <legend>What shape is the ground in?</legend>
+    <p class="qt__q">Any washouts, ruts or low spots that need grading before we pave?</p>
+    <div class="chips" role="radiogroup" aria-label="Needs grading">
+      <label><input type="radio" name="base_work" value="No" checked /><span>No, it is in decent shape</span></label>
+      <label><input type="radio" name="base_work" value="Yes" /><span>Yes, it needs work</span></label>
+      <label><input type="radio" name="base_work" value="Not sure" /><span>Not sure</span></label>
+    </div>
+
+    <p class="qt__q"><label for="qt-fill">About how much of the area needs rock brought in?</label></p>
+    <input id="qt-fill" class="qt__range" type="range" name="fill_pct" min="0" max="100" step="5" value="0" />
+    <p class="qt__fill" data-fill-label aria-live="polite">None. The ground is already solid.</p>
+    <p class="qt__hint">Think soft spots, thin gravel or bare dirt. If you are not sure, leave it at none and we will check on the site visit.</p>
+    <div class="qt__nav"><button type="button" class="btn btn--line" data-back>Back</button><button type="button" class="btn btn--paver" data-next>Next: your info</button></div>
+  </fieldset>
+
+  <fieldset class="qt__panel" data-step="3">
+    <legend>Where should we send your price?</legend>
+    <div class="hp" aria-hidden="true"><label>Leave blank<input type="text" name="bot-field" tabindex="-1" autocomplete="off" /></label></div>
+    <div class="form-grid">
+      <div class="field"><label for="qt-name">Name</label><input id="qt-name" name="name" autocomplete="name" required /></div>
+      <div class="field"><label for="qt-phone">Phone</label><input id="qt-phone" name="phone" type="tel" autocomplete="tel" required /></div>
+      <div class="field"><label for="qt-email">Email (optional)</label><input id="qt-email" name="email" type="email" autocomplete="email" /></div>
+      <div class="field"><label for="qt-city">Job address or town</label><input id="qt-city" name="city" autocomplete="street-address" placeholder="Longview, TX" /></div>
+    </div>
+    <p class="qt__err" data-err="3" role="alert"></p>
+    <div class="qt__nav"><button type="button" class="btn btn--line" data-back>Back</button><button type="submit" class="btn btn--paver">Show my price range</button></div>
+    <p class="legal">By continuing, you agree CGH Operations may call, text or email you about this request. See our <a href="/privacy">privacy policy</a>.</p>
+  </fieldset>
+
+  <div class="qt__panel qt__result" data-step="4" tabindex="-1">
+    <p class="qt__label">Your price range</p>
+    <p class="qt__price" data-out="range"></p>
+    <table class="qt__lines">
+      <tbody data-out="lines"></tbody>
+    </table>
+    <p class="qt__note">This is a ballpark from the numbers you entered, before taxes or permits. We confirm the final price with a free site visit before any work starts.</p>
+    <p class="qt__sent" data-out="sent"></p>
+    <div class="qt__next" data-next-step>
+      <p class="qt__nexthead">What would you like to do next?</p>
+      <div class="chips" role="radiogroup" aria-label="Next step">
+        <label><input type="radio" name="want" value="visit" checked /><span>Book my free site visit</span></label>
+        <label><input type="radio" name="want" value="call" /><span>Call me about it</span></label>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label for="qt-when">Best time to reach you</label><select id="qt-when" name="when"><option>Any time</option><option>Morning</option><option>Afternoon</option><option>Evening</option></select></div>
+        <div class="field"><label for="qt-note">Anything we should know? (optional)</label><input id="qt-note" name="want_note" /></div>
+      </div>
+      <button type="button" class="btn btn--paver" data-request>Send my request</button>
+      <p class="qt__err" data-err="4" role="alert"></p>
+    </div>
+    <p class="qt__done" data-out="requested" role="status"></p>
+    <div class="btn-row">
+      <a class="btn btn--line" href={site.phoneHref}>Or call {site.phone} now</a>
+      <button type="button" class="btn btn--line" data-restart>Change my numbers</button>
+    </div>
+  </div>
+</form>
+{/* A second copy of the "book a visit / call me" request goes through Netlify Forms, so it also lands in the same inbox as the quote. */}
+<form name="quote-request" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  {['bot-field', 'name', 'phone', 'wants', 'best_time', 'note', 'price_range', 'job'].map((n) => <input name={n} />)}
+</form>
+
+<script>
+  import { estimate, money, type Pricing } from '../lib/pricing';
+
+  const num = (v: FormDataEntryValue | null) => parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')) || 0;
+  const fillWords = (p: number) =>
+    p === 0 ? 'None. The ground is already solid.'
+    : p <= 15 ? `About ${p}%. A few soft spots.`
+    : p <= 35 ? `About ${p}%. Roughly a quarter of it.`
+    : p <= 60 ? `About ${p}%. Around half.`
+    : p < 100 ? `About ${p}%. Most of it.`
+    : 'All of it.';
+
+  document.querySelectorAll<HTMLFormElement>('[data-quote-tool]').forEach((form) => {
+    const pricing: Pricing = JSON.parse(form.dataset.pricing!);
+    const panels = [...form.querySelectorAll<HTMLElement>('.qt__panel')];
+    const steps = [...form.querySelectorAll<HTMLElement>('.qt__steps li')];
+    const el = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+    const err = (n: number, msg: string) => { const e = form.querySelector<HTMLElement>(`[data-err="${n}"]`); if (e) e.textContent = msg; };
+
+    const show = (n: number) => {
+      panels.forEach((p) => p.classList.toggle('is-on', p.dataset.step === String(n)));
+      steps.forEach((s, i) => { s.classList.toggle('is-on', i + 1 === n); s.classList.toggle('is-done', i + 1 < n); });
+      const panel = panels[n - 1];
+      (panel.querySelector('input:not([type=radio]):not([tabindex="-1"])') as HTMLElement | null ?? panel).focus({ preventScroll: true });
+      const top = form.getBoundingClientRect().top;
+      if (top < 0) window.scrollBy({ top: top - 90, behavior: 'smooth' });
+    };
+
+    const sqft = () => {
+      const direct = num(el('sqft').value);
+      return direct > 0 ? direct : num(el('length_ft').value) * num(el('width_ft').value);
+    };
+
+    // Typing length and width fills the square feet box; typing square feet clears the other two.
+    ['length_ft', 'width_ft'].forEach((n) => el(n).addEventListener('input', () => {
+      const a = num(el('length_ft').value) * num(el('width_ft').value);
+      el('sqft').value = a > 0 ? Math.round(a).toLocaleString('en-US') : '';
+    }));
+    el('sqft').addEventListener('input', () => { el('length_ft').value = ''; el('width_ft').value = ''; });
+
+    const fill = el('fill_pct'), fillLabel = form.querySelector<HTMLElement>('[data-fill-label]')!;
+    fill.addEventListener('input', () => { fillLabel.textContent = fillWords(Number(fill.value)); });
+
+    // Arriving from the homepage with ?sqft=1200 (or length & width) prefilled.
+    const q = new URLSearchParams(location.search);
+    if (q.get('length')) el('length_ft').value = q.get('length')!;
+    if (q.get('width')) el('width_ft').value = q.get('width')!;
+    if (num(q.get('length')) * num(q.get('width')) > 0) el('sqft').value = Math.round(num(q.get('length')) * num(q.get('width'))).toLocaleString('en-US');
+    else if (q.get('sqft')) el('sqft').value = q.get('sqft')!;
+
+    form.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest('button');
+      if (!t) return;
+      const current = Number(panels.find((p) => p.classList.contains('is-on'))!.dataset.step);
+      if (t.hasAttribute('data-next')) {
+        if (current === 1) {
+          const a = sqft();
+          if (a < 50) return err(1, 'Enter a length and width, or the total square feet, so we can price it.');
+          err(1, '');
+        }
+        show(current + 1);
+      } else if (t.hasAttribute('data-back')) show(current - 1);
+      else if (t.hasAttribute('data-restart')) show(1);
+    });
+
+    // After the price: "book my site visit" or "call me". Goes straight to the CGH team as an alert.
+    let leadSent: Promise<{ ref?: string }> = Promise.resolve({});
+    form.querySelector('[data-request]')!.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement; const d = new FormData(form);
+      btn.disabled = true; btn.textContent = 'Sending…'; err(4, '');
+      try {
+        const { ref } = await leadSent; if (!ref) throw new Error('no ref');
+        const r = await fetch('/api/lead-request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ref, want: d.get('want'), when: d.get('when'), note: d.get('want_note') }) });
+        if (!r.ok) throw new Error(String(r.status));
+        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ 'form-name': 'quote-request', name: String(d.get('name')), phone: String(d.get('phone')), wants: d.get('want') === 'call' ? 'A phone call' : 'A free site visit', best_time: String(d.get('when')), note: String(d.get('want_note') || ''), price_range: form.querySelector('[data-out="range"]')!.textContent || '', job: `${d.get('job_type')}, ${sqft().toLocaleString('en-US')} sq ft` }).toString() }).catch(() => {});
+        form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
+        form.querySelector<HTMLElement>('[data-out="requested"]')!.textContent = d.get('want') === 'call' ? `Got it. We will call you at ${d.get('phone')}.` : `Got it. We will call ${d.get('phone')} to set up your free site visit.`;
+      } catch { err(4, 'That did not send. Please call us and mention your price range.'); }
+      btn.disabled = false; btn.textContent = 'Send my request';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      if (data.get('bot-field')) return; // spam bot
+      const name = String(data.get('name') || '').trim();
+      const phone = String(data.get('phone') || '').replace(/\D/g, '');
+      if (!name || phone.length < 10) return err(3, 'Add your name and a 10-digit phone number so we can follow up on your price.');
+      err(3, '');
+
+      const q = estimate(pricing, { sqft: sqft(), baseWork: data.get('base_work') === 'Yes', fillPct: Number(data.get('fill_pct')) });
+      const out = (k: string) => form.querySelector<HTMLElement>(`[data-out="${k}"]`)!;
+      out('range').textContent = `${money(q.low)} to ${money(q.high)}`;
+      const rows: [string, string][] = [[`Asphalt, ${q.sqft.toLocaleString('en-US')} sq ft`, money(q.asphalt)]];
+      if (q.baseWork) rows.push(['Grading and base prep', money(q.baseWork)]);
+      if (q.loads) rows.push([`Rock, ${q.loads} dump truck load${q.loads > 1 ? 's' : ''}`, money(q.fill)]);
+      out('lines').replaceChildren(...rows.map(([a, b]) => { const tr = document.createElement('tr'); const th = document.createElement('th'); th.scope = 'row'; th.textContent = a; const td = document.createElement('td'); td.textContent = b; tr.append(th, td); return tr; }));
+      if (data.get('base_work') === 'Not sure') out('lines').insertAdjacentHTML('beforeend', '<tr><th scope="row">Grading</th><td>We will check on site</td></tr>');
+      out('sent').textContent = '';
+      show(4);
+
+      const endpoint = form.dataset.endpoint;
+      const payload: Record<string, string> = {
+        'form-name': 'quote', name, phone: String(data.get('phone')), email: String(data.get('email') || ''), city: String(data.get('city') || ''),
+        job_type: String(data.get('job_type')), length_ft: String(data.get('length_ft') || ''), width_ft: String(data.get('width_ft') || ''), sqft: String(q.sqft), base_work: String(data.get('base_work')), fill_pct: String(data.get('fill_pct')),
+        loads: String(q.loads), est_total: String(Math.round(q.total)), est_low: String(q.low), est_high: String(q.high),
+        page: location.pathname, submitted_at: new Date().toISOString(),
+      };
+      // the lead also goes into the CGH app's pipeline (/app)
+      leadSent = fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()).catch(() => ({}));
+      form.querySelector<HTMLElement>('[data-next-step]')!.hidden = false; out('requested').textContent = '';
+      if (!endpoint) return;
+      try {
+        const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(payload).toString() });
+        if (!r.ok) throw new Error(String(r.status));
+        out('sent').textContent = `Thanks, ${name.split(' ')[0]}. Your price range is saved with our team.`;
+      } catch {
+        out('sent').textContent = 'Your request did not send from this page. Call us and mention this price range.';
+      }
+    });
+  });
+</script>
+
+<style>
+  .qt { background: var(--surface); color: var(--text); border-radius: var(--radius-lg); padding: clamp(20px, 3.4vw, 40px); box-shadow: 0 24px 70px rgba(11, 18, 32, 0.18); border: 1px solid var(--border); }
+  .qt__steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0; margin: 0 0 28px; font-size: 0.86rem; font-weight: 600; color: var(--muted); }
+  .qt__steps li { border-top: 5px solid var(--limestone-2); padding-top: 8px; }
+  .qt__steps li.is-on { border-color: var(--paver); color: var(--text); }
+  .qt__steps li.is-done { border-color: var(--asphalt); }
+  .qt__panel { display: none; border: 0; padding: 0; margin: 0; min-width: 0; }
+  .qt__panel.is-on { display: block; }
+  .qt__panel:focus { outline: none; }
+  .qt legend { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.5rem, 2.6vw, 2rem); letter-spacing: -0.015em; padding: 0; margin-bottom: 20px; }
+  .qt__q { font-weight: 600; margin: 24px 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chips label { cursor: pointer; }
+  .chips input { position: absolute; opacity: 0; }
+  .chips span { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border: 1.5px solid var(--border-strong); border-radius: 999px; font-weight: 600; }
+  .chips input:checked + span { background: var(--asphalt); border-color: var(--asphalt); color: #fff; }
+  .chips input:focus-visible + span { outline: 3px solid var(--paver); outline-offset: 2px; }
+  .qt__size { display: grid; gap: 12px; grid-template-columns: 1fr auto 1fr; align-items: end; }
+  .qt__x { padding-bottom: 12px; font-size: 1.3rem; color: var(--muted); }
+  .qt__or { grid-column: 1 / -1; color: var(--muted); font-size: 0.95rem; }
+  .qt__size > .field:last-child { grid-column: 1 / -1; }
+  @media (min-width: 700px) {
+    .qt__size { grid-template-columns: 1fr auto 1fr auto 1.2fr; }
+    .qt__or { grid-column: auto; padding-bottom: 14px; }
+    .qt__size > .field:last-child { grid-column: auto; }
+  }
+  .qt__hint { color: var(--muted); font-size: 0.93rem; margin: 12px 0 0; }
+  .qt__err { color: var(--danger); font-weight: 600; margin: 12px 0 0; min-height: 1px; }
+  .qt__err:empty { display: none; }
+  .qt__range { width: 100%; accent-color: var(--asphalt); height: 34px; }
+  .qt__fill { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; margin: 6px 0 0; }
+  .qt__nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
+  .qt .legal { margin: 16px 0 0; }
+  .qt__label { font-weight: 600; color: var(--muted); margin: 0 0 4px; }
+  .qt__price { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.2rem, 6vw, 3.8rem); letter-spacing: -0.03em; line-height: 1; margin: 0 0 22px; }
+  .qt__lines { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+  .qt__lines :global(th), .qt__lines :global(td) { padding: 12px 0; border-top: 1px solid var(--border-strong); text-align: left; font-weight: 500; }
+  .qt__lines :global(td) { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .qt__note { color: var(--text-2); font-size: 0.97rem; max-width: 60ch; }
+  .qt__sent { font-weight: 700; }
+  .qt__sent:empty { display: none; }
+  .qt__next { background: var(--bg-2); border-radius: var(--radius-lg); padding: 20px; margin: 18px 0; display: grid; gap: 14px; }
+  .qt__next[hidden] { display: none; }
+  .qt__nexthead { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; margin: 0; }
+  .qt__next .btn { justify-self: start; }
+  .qt__done { font-weight: 700; font-size: 1.1rem; color: var(--clay); margin: 16px 0; }
+  .qt__done:empty { display: none; }
+</style>

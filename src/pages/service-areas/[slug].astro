@@ -1,0 +1,72 @@
+---
+import Base from '../../layouts/Base.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { areas } from '../../data/areas';
+import { services } from '../../data/services';
+import { site, workPhotos } from '../../data/site';
+
+export function getStaticPaths() { return areas.map((a, i) => ({ params: { slug: a.slug }, props: { a, i } })); }
+const { a, i } = Astro.props;
+const photo = workPhotos.length ? workPhotos[i % workPhotos.length] : null;
+const url = `${site.url}/service-areas/${a.slug}`;
+const faqs = [
+  { q: `How much does asphalt paving cost in ${a.city}?`, a: `Price depends on the size of the area, the shape the ground is in and how much rock it needs. Our online quote tool gives ${a.city} customers a price range in about a minute, and a free site visit confirms it.` },
+  { q: `Do you charge extra to come to ${a.city}?`, a: `${a.city} is inside our regular service area, so the online price range applies. We confirm everything at the free site visit.` },
+  { q: `What kinds of jobs do you take in ${a.city}?`, a: `Home driveways, long drives on acreage, ranch and farm entrances, church and business parking lots, private roads, repairs, sealcoating and the dirt work that goes with them.` },
+];
+const schema = [
+  { '@context': 'https://schema.org', '@type': 'Service', name: `Asphalt paving in ${a.city}, TX`, serviceType: 'Asphalt paving', url, provider: { '@id': `${site.url}/#business` }, areaServed: { '@type': 'City', name: `${a.city}, TX` } },
+  { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
+  { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Service areas', item: `${site.url}/service-areas` }, { '@type': 'ListItem', position: 2, name: `${a.city}, TX`, item: url }] },
+];
+---
+<Base title={`Asphalt Paving in ${a.city}, TX | Driveways & Parking Lots`} description={`Asphalt driveways, parking lots, private roads, repairs and dirt work in ${a.city}, TX from CGH Operations. ${a.drive.startsWith('About') ? a.drive + ' in Longview.' : 'One of our two home bases.'} Get a price range online.`} schema={schema}>
+  <section class="band pagehead">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li><a href="/service-areas">Service areas</a></li><li>{a.city}</li></ol>
+      <h1>Asphalt paving in {a.city}, TX</h1>
+      <p class="lede">Driveways, parking lots, private roads and dirt work in {a.city} and {a.county}.</p>
+      <div class="btn-row"><a class="btn btn--paver" href="/quote">Get my price range</a><a class="btn btn--line" href={site.phoneHref}>Call {site.phone}</a></div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap split">
+      <div>
+        <p class="intro">{a.local}</p>
+        <p>East Texas ground is hard on pavement. Red clay swells and shrinks, sandy spots wash, and a spring storm can drop inches of rain in an afternoon. That is why every job we do in {a.city} starts with the ground: where the water goes, where the soil is soft, and how much rock base the site needs before any asphalt goes down.</p>
+        <h2>What we do in {a.city}</h2>
+        <ul class="svc">
+          {services.map((s) => (<li><a href={`/services/${s.slug}`}><b>{s.name}</b><span>{s.line}</span></a></li>))}
+        </ul>
+      </div>
+      <aside>
+        {photo && <img class="shot" src={photo.src} alt={photo.alt} width="600" height="800" />}
+        <div class="near">
+          <h3>Also serving near {a.city}</h3>
+          <p>{a.nearby.join(', ')}</p>
+          <p class="muted">{a.drive}</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+  <section class="section section--stone">
+    <div class="wrap narrow">
+      <h2>Paving questions from {a.city}</h2>
+      <div class="faq">{faqs.map((f) => (<details><summary>{f.q}</summary><p>{f.a}</p></details>))}</div>
+    </div>
+  </section>
+  <CtaBand heading={`Get a price for your ${a.city} job.`} />
+</Base>
+<style>
+  .intro { font-size: 1.15rem; }
+  h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); margin-top: 1.4em; }
+  .section--stone h2 { margin-top: 0; }
+  .svc { list-style: none; padding: 0; margin: 0; border-top: 3px solid var(--asphalt); }
+  .svc a { display: grid; gap: 2px; padding: 14px 0; border-bottom: 1px solid var(--border-strong); text-decoration: none; }
+  .svc b { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; }
+  .svc span { color: var(--muted); font-size: 0.96rem; }
+  .svc a:hover b { text-decoration: underline; text-decoration-color: var(--paver); text-decoration-thickness: 4px; text-underline-offset: 5px; }
+  .shot { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); margin-bottom: 20px; }
+  .near { background: var(--bg-2); border-radius: var(--radius-lg); padding: 26px 28px; border-top: 6px solid var(--paver); }
+  .near p { margin: 0 0 6px; }
+</style>

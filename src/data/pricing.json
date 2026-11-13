@@ -1,0 +1,14 @@
+{
+  "minimumJob": 3500,
+  "minimumSqft": 900,
+  "tiers": [
+    { "sqft": 2500, "rate": 3.35 },
+    { "sqft": 5000, "rate": 3.2 }
+  ],
+  "baseWorkFee": 1500,
+  "loadPrice": 600,
+  "loadYards": 10,
+  "fillDepthIn": 2,
+  "rangeLowPct": 5,
+  "rangeHighPct": 10
+}

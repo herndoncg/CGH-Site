@@ -1,0 +1,69 @@
+/*
+  CGH Operations brand tokens.
+
+  Palette: CGH's own colors, taken from the site Colton already had (navy #0b1220, teal #0ea5a9,
+  deep blue #005F86, mint #34d399). Reasoning is in the project doc "cgh-color-study".
+    - Navy       : the dark base. Steady, professional, and what CGH already looks like.
+    - Deep blue  : links and small labels on light pages. Blue is the color most tied to competence and trust.
+    - Teal       : the one action color (buttons, key highlights). It stands out on navy and on white.
+    - Cool white : page backgrounds.
+
+  The variable NAMES are left over from the first design (asphalt, paver, clay, limestone) so the rest of
+  the site did not have to be rewritten. Read them as: asphalt = navy, paver = teal, clay = deep blue,
+  limestone/chalk = cool whites.
+
+  Pages are light by default. Add class="band" to a section to make it dark.
+*/
+:root {
+  --asphalt: #0b1220;
+  --asphalt-2: #121b2e;
+  --asphalt-3: #1c2942;
+  --aggregate: #5d6877;
+  --limestone: #eef3f8;
+  --limestone-2: #dbe4ee;
+  --chalk: #f8fafc;
+  --white: #ffffff;
+  --paver: #0ea5a9;
+  --paver-bright: #2cc4c8;
+  --paver-deep: #005f86;
+  --clay: #005f86;
+  --clay-deep: #00465f;
+  --mint: #34d399;
+  --danger: #b3261e;
+
+  --bg: var(--chalk);
+  --bg-2: var(--limestone);
+  --surface: var(--white);
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #475569;
+  --border: rgba(14, 23, 38, 0.12);
+  --border-strong: rgba(14, 23, 38, 0.28);
+  --accent: var(--clay);
+
+  --font-display: 'Overpass Variable', 'Overpass', 'Arial Narrow', system-ui, sans-serif;
+  --font-body: 'Instrument Sans Variable', 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+
+  --radius: 6px;
+  --radius-lg: 12px;
+  --max: 1200px;
+  --gutter: clamp(18px, 4vw, 44px);
+  --section: clamp(64px, 9vw, 120px);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.band {
+  --bg: var(--asphalt);
+  --bg-2: var(--asphalt-2);
+  --surface: var(--asphalt-2);
+  --text: #f2f5f9;
+  --text-2: #cfd7e2;
+  --muted: #9aa6b6;
+  --border: rgba(242, 245, 249, 0.12);
+  --border-strong: rgba(242, 245, 249, 0.3);
+  --accent: var(--paver);
+  background-color: var(--bg);
+  /* a very fine grain so dark sections are not a flat block of color */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--text);
+}

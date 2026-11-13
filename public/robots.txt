@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /thank-you
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://cghoperations.com/sitemap-index.xml

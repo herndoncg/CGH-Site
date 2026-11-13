@@ -1,0 +1,36 @@
+---
+import Base from '../layouts/Base.astro';
+import QuoteTool from '../components/QuoteTool.astro';
+import Strata from '../components/Strata.astro';
+import { site } from '../data/site';
+const faqs = [
+  { q: 'How accurate is the online price?', a: 'It is a ballpark built from your measurements and what you tell us about the ground. Most jobs land inside the range. The site visit is where we confirm it, because drainage, soft spots and access are hard to judge from a form.' },
+  { q: 'Is the site visit really free?', a: 'Yes. We come out, measure, look at the ground and give you a firm price. No charge and no pressure.' },
+  { q: 'Why is there a minimum price?', a: 'Every paving job takes a crew, the paver, a roller and a truck of hot mix, no matter how small the area. The minimum covers getting all of that to your site.' },
+  { q: 'Can I get a price for repairs, sealcoating or dirt work?', a: 'Those depend too much on what is there now to price from a form. Call us and we will come look at it.' },
+];
+const schema = [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }];
+---
+<Base title="Asphalt Paving Cost Estimate | Instant Price Range" description="Get a price range for your asphalt driveway, parking lot or private road in about a minute. Enter the size and ground conditions. Free site visit confirms it. Longview and East Texas." schema={schema}>
+  <section class="band pagehead qhead">
+    <div class="wrap">
+      <h1>Get your price range</h1>
+      <p class="lede">Three quick steps. No waiting on a callback to find out if it fits your budget.</p>
+    </div>
+  </section>
+  <section class="qbody">
+    <div class="wrap narrow"><QuoteTool /></div>
+  </section>
+  <Strata heading="What goes into your price" />
+  <section class="section">
+    <div class="wrap narrow">
+      <h2>Questions about pricing</h2>
+      <div class="faq">{faqs.map((f) => (<details><summary>{f.q}</summary><p>{f.a}</p></details>))}</div>
+      <p class="muted" style="margin-top:28px">Prefer to talk? Call <a class="textlink" href={site.phoneHref}>{site.phone}</a>, {site.hours}.</p>
+    </div>
+  </section>
+</Base>
+<style>
+  .qhead { padding-bottom: clamp(110px, 12vw, 150px); }
+  .qbody { margin-top: clamp(-110px, -9vw, -80px); padding-bottom: var(--section); position: relative; }
+</style>

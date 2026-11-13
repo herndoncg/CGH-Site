@@ -1,0 +1,25 @@
+{
+  "phone": "(903) 424-1607",
+  "email": "",
+  "city": "Longview",
+  "state": "TX",
+  "postalCode": "",
+  "foundedYear": 2020,
+  "hours": "Monday to Saturday, 8:00 to 6:00",
+  "insured": false,
+  "googleReviewLink": "",
+  "statesServed": ["Texas", "Louisiana", "Arkansas", "Oklahoma"],
+  "social": {
+    "facebook": "",
+    "instagram": ""
+  },
+  "verse": {
+    "text": "Commit to the Lord whatever you do, and he will establish your plans.",
+    "ref": "Proverbs 16:3"
+  },
+  "sisterCompany": {
+    "name": "A&H Lease Services",
+    "url": "https://ahleaseservice.com",
+    "line": "Oilfield lease roads, pads and location maintenance"
+  }
+}

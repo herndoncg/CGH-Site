@@ -1,0 +1,15 @@
+# Netlify build settings for cghoperations.com. These override whatever is typed into the Netlify dashboard.
+# Plain version: "install the site's tools, build it, and publish the folder called dist".
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Send the www address to the plain one so Google keeps a single copy of the site.
+[[redirects]]
+  from = "https://www.cghoperations.com/*"
+  to = "https://cghoperations.com/:splat"
+  status = 301
+  force = true

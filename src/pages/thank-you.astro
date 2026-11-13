@@ -1,0 +1,13 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+---
+<Base title="Thank you" description="We received your request." noindex>
+  <section class="section">
+    <div class="wrap narrow">
+      <h1>Got it. Thank you.</h1>
+      <p class="lede">We have your information and will be in touch. If it is urgent, call <a class="textlink" href={site.phoneHref}>{site.phone}</a>.</p>
+      <div class="btn-row" style="margin-top:28px"><a class="btn btn--dark" href="/">Back to the home page</a></div>
+    </div>
+  </section>
+</Base>

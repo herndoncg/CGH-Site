@@ -1,0 +1,254 @@
+---
+// cghoperations.com/app : the sign-in page and the app behind it.
+// One page, three doors: owner, team (sales and crew), and customers.
+// It talks to the back end in netlify/functions (see lib/core.mjs for who can see what).
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+---
+<Base title="Sign in | CGH Operations" description="Sign in for CGH Operations customers and team." noindex>
+  <section class="appwrap">
+    <div class="wrap" id="app" data-phone={site.phone} data-phone-href={site.phoneHref}>
+      <p class="muted">Loading…</p>
+    </div>
+  </section>
+</Base>
+
+<script>
+  type Me = { id: string; name: string; email: string; role: 'owner' | 'sales' | 'crew' | 'client'; mustChange?: boolean };
+  const root = document.getElementById('app')!;
+  const PHONE = root.dataset.phone!, PHONE_HREF = root.dataset.phoneHref!;
+  const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const money = (n: number) => (n ? '$' + Math.round(n).toLocaleString('en-US') : '');
+  const day = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const api = async (path: string, method = 'GET', data?: unknown) => {
+    const r = await fetch('/api/' + path, { method, credentials: 'same-origin', headers: data ? { 'content-type': 'application/json' } : {}, body: data ? JSON.stringify(data) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
+    return j;
+  };
+  const S: any = { me: null as Me | null, tab: 'leads', msg: '', filter: 'Open' };
+
+  // The ready-to-send welcome note for a new login. The temporary password is shown once, here.
+  const welcomeText = (kind: 'team' | 'client', name: string, email: string, temp: string) => {
+    const first = (name || '').trim().split(' ')[0] || 'there', link = location.origin + '/app/';
+    return kind === 'client'
+      ? `Hi ${first}, this is CGH Operations. Your project page is ready.\n\n1. Open ${link}\n2. Sign in with your email (${email}) and this temporary password: ${temp}\n3. You will be asked to choose your own password.\n\nYour price, dates and job status are all there. Questions? Call ${PHONE}.`
+      : `Welcome to the CGH Operations team, ${first}.\n\n1. Open ${link} on your phone.\n2. Sign in with your email (${email}) and this temporary password: ${temp}\n3. You will be asked to choose your own password.\n4. Put the app on your phone. iPhone: open the link in Safari, tap Share, then "Add to Home Screen". Android: tap "Install this app".\n\nThe temporary password works for 14 days. Please do not share your sign-in.`;
+  };
+  const welcomeBox = (w: any) => `<div class="linkbox"><p><b>Send this to ${esc(w.name || 'them')}.</b> The temporary password is shown only once. If it gets lost, press Reset password to make a new one.</p><textarea readonly rows="9" data-welcome>${esc(w.text)}</textarea><p class="row"><button type="button" class="btn btn--dark sm" data-act="copy">Copy message</button><a class="btn btn--line sm" href="mailto:${esc(w.email)}?subject=${encodeURIComponent('Your CGH Operations sign-in')}&body=${encodeURIComponent(w.text)}">Email it</a>${w.phone ? `<a class="btn btn--line sm" href="sms:${esc(w.phone)}?&body=${encodeURIComponent(w.text)}">Text it</a>` : ''}</p></div>`;
+  const accountPanel = () => `<details class="add acct" ${S.acct ? 'open' : ''}><summary class="btn btn--line">Change my password</summary><form data-form="password" class="stack">${field('Current password', 'current', 'password', 'required autocomplete="current-password"')}${field('New password (10 or more characters)', 'next', 'password', 'required minlength="10" autocomplete="new-password"')}<div><button class="btn btn--dark">Change password</button></div><p class="muted small">Changing it signs you out on your other devices.</p></form></details>`;
+
+  // ---------- installing the app and lead alerts ----------
+  let installEvt: any = null;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; if (S.me) render(); });
+  const canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const keyBytes = (k: string) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  const alertsBar = () => {
+    if (!S.me || S.me.role === 'client') return '';
+    const parts: string[] = [];
+    if (installEvt) parts.push('<button class="btn btn--line sm" data-act="install">Install this app</button>');
+    else if (isIos && !standalone) parts.push('<span class="small">To install on iPhone: tap the Share button, then "Add to Home Screen". Open it from there to turn on alerts.</span>');
+    if (S.me.role !== 'crew') {
+      if (S.pushOn) parts.push('<span class="small ok">Lead alerts are on for this device.</span>');
+      else if (canPush && !(isIos && !standalone)) parts.push('<button class="btn btn--dark sm" data-act="alerts">Turn on lead alerts on this device</button>');
+    }
+    return parts.length ? `<div class="alerts">${parts.join('')}</div>` : '';
+  };
+  async function syncPush() {
+    if (!canPush || !S.me || S.me.role === 'client' || S.me.role === 'crew' || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+    if (sub) { S.pushOn = true; api('push-subscribe', 'POST', { sub: sub.toJSON() }).catch(() => {}); }
+  }
+
+  const field = (label: string, name: string, type = 'text', extra = '') => `<div class="field"><label>${label}<input name="${name}" type="${type}" ${extra} /></label></div>`;
+  const authCard = (title: string, lede: string, body: string) => `<div class="auth"><h1>${title}</h1><p class="lede">${lede}</p>${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}<p class="muted small">Trouble signing in? Call <a href="${PHONE_HREF}">${PHONE}</a>.</p></div>`;
+
+  function renderAuth(mode: 'login' | 'first') {
+    if (mode === 'first') root.innerHTML = authCard('Choose your own password', 'You signed in with a temporary password. Pick your own to finish. Nobody at CGH can see it.', `<form data-form="firstpw" class="stack">${S.me.name ? '' : field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('New password (10 or more characters)', 'next', 'password', 'required minlength="10" autocomplete="new-password"')}<button class="btn btn--paver">Save and continue</button></form><button class="btn btn--line" data-act="logout">Sign out</button>`);
+    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}<button class="btn btn--paver">Sign in</button></form>`);
+  }
+
+  // ---------- customer portal ----------
+  const STEPS = ['Quote requested', 'Site visit', 'Firm quote', 'Accepted', 'Scheduled', 'Done'];
+  const stepOf = (stage: string) => ({ New: 0, Contacted: 0, 'Site visit set': 1, 'Quote sent': 2, Accepted: 3, Scheduled: 4, Done: 5 })[stage] ?? 0;
+  async function renderClient() {
+    const { job } = await api('my-job');
+    const head = `<div class="bar"><div><p class="muted small">Signed in as ${esc(S.me.name)}</p><h1>Your project</h1></div><button class="btn btn--line" data-act="logout">Sign out</button></div>`;
+    if (!job) { root.innerHTML = head + `<p class="lede">We do not have a project linked to this login yet. Call <a href="${PHONE_HREF}">${PHONE}</a>.</p>`; return; }
+    const at = stepOf(job.stage);
+    root.innerHTML = head + `
+      <ol class="track">${STEPS.map((s, i) => `<li class="${i < at ? 'done' : i === at ? 'now' : ''}">${s}</li>`).join('')}</ol>
+      <div class="cols">
+        <div class="panel"><h2>${job.firm_price ? 'Your firm quote' : 'Your price range'}</h2>
+          <p class="price">${job.firm_price ? money(job.firm_price) : job.est_low ? `${money(job.est_low)} to ${money(job.est_high)}` : 'Coming after the site visit'}</p>
+          <p class="muted">${esc(job.job_type || 'Paving')}${job.sqft ? `, about ${Number(job.sqft).toLocaleString('en-US')} sq ft` : ''}${job.city ? `, ${esc(job.city)}` : ''}</p>
+          ${job.firm_price && !job.accepted_at ? `<button class="btn btn--paver" data-act="accept">Accept this quote</button><p class="muted small">Accepting tells us to put you on the schedule. We will call to confirm the date.</p>` : ''}
+          ${job.accepted_at ? `<p class="ok">You accepted this quote on ${day(job.accepted_at)}. Thank you.</p>` : ''}
+        </div>
+        <div class="panel"><h2>Dates</h2>
+          <dl><dt>Site visit</dt><dd>${esc(job.visit_date || 'Not set yet')}</dd><dt>Paving day</dt><dd>${esc(job.job_date || 'Not set yet')}</dd></dl>
+          ${job.status_note ? `<h2>Latest from CGH</h2><p>${esc(job.status_note)}</p>` : ''}
+          <a class="btn btn--line" href="${PHONE_HREF}">Call ${PHONE}</a>
+        </div>
+      </div>
+      <div class="panel"><h2>Caring for new asphalt</h2><ul><li>Stay off it until we tell you it is ready. Hot weather means a longer wait.</li><li>For the first few weeks, avoid turning your wheels while parked and keep kickstands, jacks and trailer tongues off it.</li><li>Keep the edges supported. Do not drive off the side of the pavement.</li><li>Ask us when it is time to sealcoat. New asphalt has to cure first.</li></ul></div>${S.ok ? `<p class="ok">${esc(S.ok)}</p>` : ''}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${accountPanel()}`;
+  }
+
+  // ---------- team ----------
+  const TABS: Record<string, [string, string][]> = { owner: [['leads', 'Leads'], ['applicants', 'Applicants'], ['team', 'Team'], ['training', 'Training']], sales: [['leads', 'Leads'], ['training', 'Training']], crew: [['leads', 'Jobs'], ['training', 'Training']] };
+  const shell = (body: string) => `<div class="bar"><div><p class="muted small">${esc(S.me.name)}, ${S.me.role}</p><h1>CGH Operations</h1></div><button class="btn btn--line" data-act="logout">Sign out</button></div><nav class="tabs">${TABS[S.me.role].map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('')}</nav>${alertsBar()}${S.ok ? `<p class="ok">${esc(S.ok)}</p>` : ''}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}${accountPanel()}`;
+
+  function leadCard(l: any, d: any) {
+    const crew = S.me.role === 'crew';
+    const range = l.firm_price ? money(l.firm_price) + ' firm' : l.est_low ? `${money(l.est_low)} to ${money(l.est_high)}` : '';
+    const sel = (name: string, opts: [string, string][], cur: string) => `<select name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${v === (cur ?? '') ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+    return `<details class="lead" ${S.open === l.id ? 'open' : ''} data-id="${l.id}">
+      <summary><span class="stage s-${l.stage.replace(/\W/g, '')}">${esc(l.stage)}</span><b>${esc(l.name)}</b><span class="muted">${l.request ? `<strong class="want">Wants ${l.request.want === 'call' ? 'a call' : 'a site visit'}${l.request.when ? ` (${esc(l.request.when)})` : ''}</strong> · ` : ''}${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}</span><span class="muted small">${day(l.created)}</span></summary>
+      <div class="lead__body">
+        <p class="contact">${l.phone ? `<a class="btn btn--paver" href="tel:${esc(l.phone)}">Call ${esc(l.phone)}</a><a class="btn btn--line" href="sms:${esc(l.phone)}">Text</a>` : ''}${l.email ? `<a class="btn btn--line" href="mailto:${esc(l.email)}">Email</a>` : ''}</p>
+        <p class="muted small">${l.base_work ? `Needs grading: ${esc(l.base_work)}. ` : ''}${l.fill_pct ? `Rock on about ${l.fill_pct}% (${l.loads} load${l.loads === 1 ? '' : 's'}). ` : ''}${l.job_date ? `Paving day: ${esc(l.job_date)}. ` : ''}${l.source ? `Source: ${esc(l.source)}.` : ''}</p>
+        ${crew ? '' : `<form data-form="lead" data-id="${l.id}" class="grid2">
+          <div class="field"><label>Stage${sel('stage', d.stages.map((s: string) => [s, s]), l.stage)}</label></div>
+          ${S.me.role === 'owner' ? `<div class="field"><label>Assigned to${sel('owner', [['', 'Nobody yet'], ...d.team.map((u: any) => [u.id, u.name])], l.owner)}</label></div>` : ''}
+          <div class="field"><label>Firm price ($)<input name="firm_price" inputmode="decimal" value="${l.firm_price || ''}" /></label></div>
+          <div class="field"><label>Customer email<input name="email" type="email" value="${esc(l.email || '')}" /></label></div>
+          <div class="field"><label>Site visit<input name="visit_date" type="date" value="${esc(l.visit_date || '')}" /></label></div>
+          <div class="field"><label>Paving day<input name="job_date" type="date" value="${esc(l.job_date || '')}" /></label></div>
+          <div class="field full"><label>Message the customer sees in their portal<textarea name="status_note">${esc(l.status_note || '')}</textarea></label></div>
+          <div class="field full"><label>Add a note (team only)<textarea name="note" placeholder="What was said, what is next"></textarea></label></div>
+          <div class="full row"><button class="btn btn--dark">Save</button><button type="button" class="btn btn--line" data-act="client" data-id="${l.id}">${l.clientUid ? 'Reset customer password' : 'Create customer login'}</button></div>
+          ${S.welcome && S.welcome.for === l.id ? `<div class="full">${welcomeBox(S.welcome)}</div>` : ''}
+        </form>
+        ${l.notes?.length ? `<ul class="notes">${l.notes.slice().reverse().map((n: any) => `<li><span class="muted small">${day(n.at)} · ${esc(n.by)}</span><br />${esc(n.text)}</li>`).join('')}</ul>` : ''}`}
+      </div></details>`;
+  }
+  async function renderLeads() {
+    const d = await api('leads'); S.data = d;
+    const open = (l: any) => !['Done', 'Lost'].includes(l.stage);
+    const filters = ['Open', ...d.stages];
+    const shown = d.leads.filter((l: any) => (S.filter === 'Open' ? open(l) : l.stage === S.filter));
+    const crew = S.me.role === 'crew';
+    root.innerHTML = shell(`
+      ${crew ? '' : `<details class="add"><summary class="btn btn--paver">Add a lead</summary><form data-form="newlead" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Phone', 'phone', 'tel')}${field('Email', 'email', 'email')}${field('Town or address', 'city')}${field('Job (driveway, lot, road…)', 'job_type')}${field('Square feet', 'sqft', 'text', 'inputmode="numeric"')}<div class="field full"><label>Note<textarea name="note"></textarea></label></div><input type="hidden" name="source" value="added by team" /><div class="full"><button class="btn btn--dark">Save lead</button></div></form></details>
+      <div class="chips">${filters.map((f) => `<button data-filter="${esc(f)}" class="${S.filter === f ? 'on' : ''}">${esc(f)} <span>${d.leads.filter((l: any) => (f === 'Open' ? open(l) : l.stage === f)).length}</span></button>`).join('')}</div>`}
+      ${shown.length ? shown.map((l: any) => leadCard(l, d)).join('') : `<p class="empty">${crew ? 'No scheduled jobs yet. They show up here once a job has a paving day.' : 'Nothing here yet. Website quotes land here automatically, or add a lead with the button above.'}</p>`}`);
+  }
+  async function renderApplicants() {
+    const { applicants } = await api('applicants');
+    root.innerHTML = shell(applicants.length ? applicants.map((a: any) => `<details class="lead"><summary><span class="stage">${esc(a.status)}</span><b>${esc(a.name)}</b><span class="muted">${esc(a.position || '')}${a.city ? ` · ${esc(a.city)}` : ''}</span><span class="amt"></span><span class="muted small">${day(a.created)}</span></summary><div class="lead__body"><p class="contact"><a class="btn btn--paver" href="tel:${esc(a.phone)}">Call ${esc(a.phone)}</a>${a.email ? `<a class="btn btn--line" href="mailto:${esc(a.email)}">Email</a>` : ''}</p><p class="muted small">CDL: ${esc(a.cdl || 'not given')}. Experience: ${esc(a.experience_years || 'not given')}. Can start: ${esc(a.start || 'not given')}.</p><p>${esc(a.details || '')}</p><form data-form="applicant" data-id="${a.id}" class="row"><select name="status">${['New', 'Called', 'Interview', 'Hired', 'Not a fit'].map((s) => `<option ${s === a.status ? 'selected' : ''}>${s}</option>`).join('')}</select><button class="btn btn--dark">Save</button></form></div></details>`).join('') : '<p class="empty">No applications yet. They arrive here from the Careers page.</p>');
+  }
+  async function renderTeam() {
+    const { users } = await api('users');
+    root.innerHTML = shell(`<details class="add" ${S.welcome && S.welcome.for === 'team' ? 'open' : ''}><summary class="btn btn--paver">Add a team member</summary><form data-form="newuser" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Email', 'email', 'email', 'required')}<div class="field"><label>Role<select name="role"><option value="sales">Sales: sees and works leads</option><option value="crew">Crew: sees scheduled jobs, no prices</option></select></label></div><div class="full"><button class="btn btn--dark">Create login</button></div></form>${S.welcome && S.welcome.for === 'team' ? welcomeBox(S.welcome) : ''}</details>
+      <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Has not signed in yet'}</td><td>${u.role === 'owner' ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}" data-name="${esc(u.name)}" data-email="${esc(u.email)}" data-kind="${u.role === 'client' ? 'client' : 'team'}">Reset password</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table>`);
+  }
+  async function renderTraining() {
+    const d = await api('training');
+    const count = d.lessons.filter((l: any) => d.done[l.id]).length;
+    root.innerHTML = shell(`<p class="lede">${count} of ${d.lessons.length} lessons done.</p>
+      ${d.lessons.map((l: any) => `<details class="lead"><summary><span class="stage ${d.done[l.id] ? 's-Done' : ''}">${d.done[l.id] ? 'Done' : 'To do'}</span><b>${esc(l.title)}</b><span class="muted">${l.minutes} min</span><span class="amt"></span><span></span></summary><div class="lead__body"><ul>${l.points.map((p: string) => `<li>${esc(p)}</li>`).join('')}</ul>${d.done[l.id] ? `<p class="ok">You finished this on ${day(d.done[l.id])}.</p>` : `<button class="btn btn--dark" data-act="lesson" data-id="${l.id}">I have read and understand this</button>`}</div></details>`).join('')}
+      ${d.team ? `<h2>Team progress</h2><table class="tbl"><thead><tr><th>Name</th>${d.lessons.map((l: any) => `<th title="${esc(l.title)}">${esc(l.title.split(' ').slice(0, 2).join(' '))}</th>`).join('')}</tr></thead><tbody>${d.team.map((t: any) => `<tr><td><b>${esc(t.name)}</b></td>${d.lessons.map((l: any) => `<td>${t.done[l.id] ? 'Done' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>` : ''}`);
+  }
+
+  async function render() {
+    try {
+      if (!S.me) return renderAuth('login');
+      if (S.me.mustChange) return renderAuth('first');
+      if (S.me.role === 'client') return await renderClient();
+      await ({ leads: renderLeads, applicants: renderApplicants, team: renderTeam, training: renderTraining } as any)[S.tab]();
+    } catch (e: any) { root.innerHTML = `<p class="err">${esc(e.message)}</p><button class="btn btn--line" data-act="reload">Try again</button>`; }
+  }
+  const run = async (fn: () => Promise<void>) => { S.msg = ''; S.ok = ''; try { await fn(); } catch (e: any) { S.msg = e.message; } await render(); };
+
+  root.addEventListener('submit', (e) => {
+    const f = (e.target as HTMLElement).closest('form[data-form]') as HTMLFormElement | null; if (!f) return;
+    e.preventDefault();
+    const data: any = Object.fromEntries(new FormData(f).entries()); const kind = f.dataset.form, id = f.dataset.id;
+    run(async () => {
+      if (kind === 'login') { S.me = (await api('login', 'POST', data)).me; S.tab = 'leads'; S.welcome = null; await syncPush().catch(() => {}); }
+      else if (kind === 'firstpw') { S.me = (await api('password', 'POST', data)).me; S.ok = 'Your password is saved. You are in.'; await syncPush().catch(() => {}); }
+      else if (kind === 'password') { S.acct = true; S.me = (await api('password', 'POST', data)).me; S.acct = false; S.ok = 'Your password is changed.'; }
+      else if (kind === 'lead') { S.open = id; await api('leads/' + id, 'PATCH', data); }
+      else if (kind === 'newlead') { S.open = (await api('leads', 'POST', data)).lead.id; S.filter = 'Open'; }
+      else if (kind === 'applicant') await api('applicants/' + id, 'PATCH', data);
+      else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
+    });
+  });
+  root.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest('[data-act],[data-tab],[data-filter]') as HTMLElement | null; if (!t) return;
+    if (t.dataset.tab) { S.tab = t.dataset.tab; S.welcome = null; return void run(async () => {}); }
+    if (t.dataset.filter) { S.filter = t.dataset.filter; return void run(async () => {}); }
+    const act = t.dataset.act, id = t.dataset.id;
+    run(async () => {
+      if (act === 'logout') { await api('logout', 'POST', {}); S.me = null; S.welcome = null; }
+      else if (act === 'copy') { await navigator.clipboard.writeText(root.querySelector<HTMLTextAreaElement>('[data-welcome]')!.value); S.ok = 'Copied. Paste it into a text or email.'; }
+      else if (act === 'accept') await api('my-job/accept', 'POST', {});
+      else if (act === 'client') { S.open = id; const r = await api(`leads/${id}/invite`, 'POST', {}); const l = (S.data?.leads || []).find((x: any) => x.id === id); S.welcome = { for: id, name: r.name, email: r.email, phone: l?.phone, text: welcomeText('client', r.name, r.email, r.temp) }; }
+      else if (act === 'lesson') await api('training', 'POST', { lesson: id });
+      else if (act === 'relink') { const r = await api('users/' + id, 'PATCH', { reset: true }); S.welcome = { for: 'team', name: t.dataset.name, email: t.dataset.email, text: welcomeText(t.dataset.kind as any, t.dataset.name || '', t.dataset.email || '', r.temp) }; }
+      else if (act === 'toggle') await api('users/' + id, 'PATCH', { disabled: !!t.dataset.off });
+      else if (act === 'install' && installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; }
+      else if (act === 'alerts') {
+        if ((await Notification.requestPermission()) !== 'granted') throw new Error('Alerts are blocked for this site. Allow notifications in your browser or phone settings, then try again.');
+        const reg = await navigator.serviceWorker.ready; const { key } = await api('push-key');
+        if (!key) throw new Error('Alerts are not available right now.');
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
+        await api('push-subscribe', 'POST', { sub: sub.toJSON() }); S.pushOn = true;
+      }
+    });
+  });
+
+  (async () => {
+    try { const st = await api('state'); S.me = st.me; await syncPush().catch(() => {}); }
+    catch { S.msg = 'The sign-in service is not reachable right now. Try again in a minute.'; }
+    render();
+  })();
+</script>
+
+<style is:global>
+  .appwrap { padding: clamp(32px, 5vw, 64px) 0 var(--section); min-height: 70vh; background: var(--bg-2); }
+  .appwrap h1 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); margin: 0; }
+  .appwrap h2 { font-size: 1.25rem; margin: 0 0 10px; }
+  .appwrap .small { font-size: 0.86rem; } .appwrap .stack { display: grid; gap: 14px; }
+  .appwrap .field label { display: grid; gap: 6px; }
+  .auth { max-width: 460px; margin: clamp(10px, 5vh, 60px) auto 0; background: var(--surface); padding: clamp(24px, 4vw, 40px); border-radius: var(--radius-lg); box-shadow: 0 24px 70px rgba(11, 18, 32, 0.14); display: grid; gap: 14px; }
+  .auth .lede { margin: 0; font-size: 1.05rem; }
+  .appwrap .err { background: #fbe9e7; color: #8c1d18; border-left: 4px solid var(--danger); padding: 12px 14px; border-radius: var(--radius); font-weight: 600; margin: 0 0 14px; }
+  .appwrap .ok { color: #1f6b3a; font-weight: 700; }
+  .alerts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 16px; }
+  .want { color: var(--clay); }
+  .bar { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 3px solid var(--asphalt); margin-bottom: 20px; overflow-x: auto; }
+  .tabs button { border: 0; background: none; font: 800 1.05rem var(--font-display); padding: 12px 18px; cursor: pointer; border-radius: var(--radius) var(--radius) 0 0; color: var(--muted); white-space: nowrap; }
+  .tabs button.on { background: var(--asphalt); color: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .chips button { border: 1.5px solid var(--border-strong); background: var(--surface); border-radius: 999px; padding: 7px 14px; font: 600 0.92rem var(--font-body); cursor: pointer; }
+  .chips button.on { background: var(--asphalt); border-color: var(--asphalt); color: #fff; } .chips span { opacity: 0.6; margin-left: 4px; }
+  .lead, .add, .panel { background: var(--surface); border-radius: var(--radius-lg); margin-bottom: 10px; border: 1px solid var(--border); }
+  .panel { padding: 24px; } .add { padding: 14px; border-style: dashed; } .add > summary { list-style: none; width: max-content; } .add > summary::-webkit-details-marker { display: none; } .add form { margin-top: 16px; }
+  .lead > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 14px 16px; align-items: center; }
+  .lead > summary::-webkit-details-marker { display: none; }
+  .lead > summary b { font: 800 1.1rem var(--font-display); } .lead > summary .muted { grid-column: 1 / -1; font-size: 0.92rem; }
+  .lead > summary .amt { font: 800 1rem var(--font-display); grid-column: 1 / -1; } .lead > summary .amt:empty { display: none; }
+  @media (min-width: 860px) { .lead > summary { grid-template-columns: 130px 220px 1fr auto 60px; } .lead > summary .muted, .lead > summary .amt { grid-column: auto; } }
+  .stage { display: inline-block; font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--limestone-2); width: max-content; }
+  .s-New { background: var(--paver); } .s-Accepted, .s-Scheduled { background: #cfe6d5; } .s-Done { background: var(--asphalt); color: #fff; } .s-Lost { background: #f3d6d3; }
+  .lead__body { padding: 4px 16px 18px; border-top: 1px solid var(--border); display: grid; gap: 12px; }
+  .contact, .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; align-items: center; }
+  .grid2 { display: grid; gap: 12px; } @media (min-width: 700px) { .grid2 { grid-template-columns: 1fr 1fr; } .grid2 .full { grid-column: 1 / -1; } }
+  .appwrap textarea { min-height: 80px; }
+  .linkbox { background: #e3f6f7; border: 1.5px solid var(--paver); border-radius: var(--radius); padding: 14px; margin-top: 12px; } .linkbox p { margin: 0 0 8px; font-size: 0.95rem; } .linkbox textarea { width: 100%; padding: 10px; font: 0.92rem/1.5 var(--font-body); border: 1px solid var(--border-strong); border-radius: 4px; background: #fff; } .linkbox .row { margin: 10px 0 0; }
+  .acct { margin-top: 28px; border-style: solid; }
+  .notes { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; } .notes li { background: var(--bg-2); padding: 10px 12px; border-radius: var(--radius); }
+  .tbl { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; display: block; overflow-x: auto; } .tbl th, .tbl td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; } .tbl th { font-size: 0.82rem; color: var(--muted); }
+  .btn.sm { min-height: 36px; padding: 0 12px; font-size: 0.88rem; }
+  .empty { background: var(--surface); padding: 28px; border-radius: var(--radius-lg); color: var(--muted); text-align: center; }
+  .track { list-style: none; padding: 0; margin: 0 0 20px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+  .track li { border-top: 6px solid var(--limestone-2); padding-top: 8px; } .track li.done { border-color: var(--asphalt); color: var(--text); } .track li.now { border-color: var(--paver); color: var(--text); }
+  .cols { display: grid; gap: 10px; } @media (min-width: 800px) { .cols { grid-template-columns: 1.2fr 1fr; } }
+  .price { font: 900 clamp(2rem, 5vw, 3.2rem) var(--font-display); letter-spacing: -0.03em; margin: 0 0 6px; line-height: 1; }
+  .panel dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; } .panel dt { color: var(--muted); } .panel dd { margin: 0; font-weight: 700; }
+</style>
