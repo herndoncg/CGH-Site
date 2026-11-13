@@ -15,9 +15,11 @@ interface Props {
   type?: 'website' | 'article';
   schema?: Record<string, unknown>[];
   noindex?: boolean;
+  /** The signed-in app: no public header, footer or call bar, and the dark app background. */
+  bare?: boolean;
 }
 
-const { title, description: rawDescription, image = '/og-default.png', type = 'website', schema = [], noindex = false } = Astro.props;
+const { title, description: rawDescription, image = '/og-default.png', type = 'website', schema = [], noindex = false, bare = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname.replace(/\/$/, '') || '/', site.url).href;
 // Google shows about 60 characters of a title and 155 of a description.
 const fullTitle = title.includes('CGH') ? title : `${title} | CGH Operations`;
@@ -79,16 +81,19 @@ if (site.email) business.email = site.email;
     <script type="application/ld+json" set:html={JSON.stringify(business)} />
     {schema.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
   </head>
-  <body>
-    <a class="skip" href="#main">Skip to content</a>
-    <Header />
-    <main id="main"><slot /></main>
-    <Footer />
-
-    <nav class="callbar" aria-label="Quick contact">
-      <a href={site.phoneHref} class="callbar__call">Call</a>
-      <a href="/quote" class="callbar__quote">Get my price</a>
-    </nav>
+  <body class={bare ? 'band is-app' : undefined}>
+    {bare ? <slot /> : (
+      <Fragment>
+        <a class="skip" href="#main">Skip to content</a>
+        <Header />
+        <main id="main"><slot /></main>
+        <Footer />
+        <nav class="callbar" aria-label="Quick contact">
+          <a href={site.phoneHref} class="callbar__call">Call</a>
+          <a href="/quote" class="callbar__quote">Get my price</a>
+        </nav>
+      </Fragment>
+    )}
 
     <style>
       .callbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: none; grid-template-columns: 1fr 1.5fr; padding-bottom: env(safe-area-inset-bottom); background: var(--asphalt); box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18); }
@@ -97,7 +102,7 @@ if (site.email) business.email = site.email;
       .callbar__quote { background: var(--paver); color: var(--asphalt); }
       @media (max-width: 860px) {
         .callbar { display: grid; }
-        :global(body) { padding-bottom: 56px; }
+        :global(body:not(.is-app)) { padding-bottom: 56px; }
       }
     </style>
   </body>
