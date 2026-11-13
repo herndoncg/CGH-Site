@@ -11,7 +11,12 @@
     "@astrojs/sitemap": "^3.7.4",
     "@fontsource-variable/instrument-sans": "^5.2.0",
     "@fontsource-variable/overpass": "^5.2.0",
+    "@netlify/blobs": "^8.1.0",
     "astro": "^7.3.8",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0"
   }
 }

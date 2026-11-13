@@ -1,0 +1,50 @@
+// Runs the back end against an in-memory store and walks through the main flows.
+// Run: node scripts/test-api.mjs
+import { createHash } from 'node:crypto';
+import * as core from '../netlify/functions/lib/core.mjs';
+const mem = new Map();
+const store = { get: async (k) => (mem.has(k) ? JSON.parse(mem.get(k)) : null), setJSON: async (k, v) => void mem.set(k, JSON.stringify(v)), delete: async (k) => void mem.delete(k), list: async ({ prefix }) => ({ blobs: [...mem.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })) }) };
+let pass = 0, fail = 0;
+const ok = (label, cond) => { cond ? pass++ : fail++; console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`); };
+const call = async (method, path, body, cookie) => { const r = await core.handle(new Request('https://x.test/api/' + path, { method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined }), store); const set = r.headers.get('set-cookie'); return { status: r.status, body: await r.json(), cookie: set ? set.split(';')[0] : undefined }; };
+// a known setup code for the test: swap the stored fingerprint in memory by pre-creating nothing and checking rejection, then use a patched module copy
+let r = await call('GET', 'state'); ok('fresh site asks for setup', r.body.needsSetup === true && r.body.me === null);
+r = await call('POST', 'setup', { code: 'wrong', name: 'Colton', email: 'owner@example.com', password: 'a-long-password' }); ok('wrong setup code is refused', r.status === 403);
+// create the owner directly (the real code is not in this repo) the same way setup does
+const sha = (s) => createHash('sha256').update(s).digest('hex');
+await store.setJSON('users/own1', { id: 'own1', email: 'owner@example.com', name: 'Colton', role: 'owner', created: 1 }); await store.setJSON('emails/' + sha('owner@example.com'), { id: 'own1' }); await store.setJSON('meta/owner', { id: 'own1' });
+await store.setJSON('invites/' + sha('owner-invite'), { uid: 'own1', exp: Date.now() + 1e6 });
+r = await call('POST', 'accept', { token: 'owner-invite', password: 'short' }); ok('short password is refused', r.status === 400);
+r = await call('POST', 'accept', { token: 'owner-invite', password: 'a-long-password' }); ok('owner sets a password and is signed in', r.status === 200 && !!r.cookie); const owner = r.cookie;
+r = await call('POST', 'setup', { code: 'x', name: 'x', email: 'x@x.co', password: 'a-long-password' }); ok('setup cannot run twice', r.status === 409);
+r = await call('POST', 'login', { email: 'owner@example.com', password: 'nope-nope-nope' }); ok('wrong password is refused', r.status === 401);
+r = await call('POST', 'login', { email: 'OWNER@example.com', password: 'a-long-password' }); ok('owner can sign in', r.status === 200 && r.body.me.role === 'owner');
+r = await call('GET', 'leads'); ok('signed-out visitors cannot read leads', r.status === 401);
+r = await call('POST', 'lead', { name: 'Pat Customer', phone: '903-555-0100', email: 'pat@example.com', job_type: 'Driveway', sqft: '2500', est_low: '7950', est_high: '9200', est_total: '8375' }); ok('website quote is accepted', r.status === 200);
+r = await call('POST', 'lead', { name: 'Bot', phone: '9035550100', 'bot-field': 'x' }); r = await call('GET', 'leads', null, owner); ok('spam trap submissions are dropped', r.body.leads.length === 1);
+const lead = r.body.leads[0]; ok('owner sees the lead with its price range', lead.est_low === 7950 && lead.stage === 'New');
+r = await call('POST', 'users', { name: 'Sam Sales', email: 'sam@example.com', role: 'sales' }, owner); ok('owner can add a sales login', r.status === 200 && r.body.link.includes('invite=')); const samToken = r.body.link.split('invite=')[1];
+r = await call('POST', 'users', { name: 'Cal Crew', email: 'cal@example.com', role: 'crew' }, owner); const calToken = r.body.link.split('invite=')[1];
+r = await call('POST', 'accept', { token: samToken, password: 'sams-long-password' }); const sam = r.cookie; ok('sales rep accepts the invite', r.body.me.role === 'sales');
+r = await call('POST', 'accept', { token: samToken, password: 'sams-long-password' }); ok('an invite link works only once', r.status === 410);
+r = await call('POST', 'accept', { token: calToken, password: 'cals-long-password' }); const cal = r.cookie;
+r = await call('GET', 'users', null, sam); ok('sales cannot list team logins', r.status === 404);
+r = await call('GET', 'applicants', null, sam); ok('sales cannot read applicants', r.status === 404);
+r = await call('PATCH', 'leads/' + lead.id, { owner: 'own1' }, owner); r = await call('GET', 'leads', null, sam); ok('sales does not see leads assigned to someone else', r.body.leads.length === 0);
+r = await call('PATCH', 'leads/' + lead.id, { owner: '' }, owner); r = await call('PATCH', 'leads/' + lead.id, { stage: 'Quote sent', firm_price: '8600', note: 'Walked the site.' }, sam); ok('sales can update an open lead', r.status === 200 && r.body.lead.firm_price === 8600 && r.body.lead.notes.length === 1);
+r = await call('GET', 'leads', null, cal); ok('crew see nothing until a job is scheduled', r.body.leads.length === 0);
+r = await call('POST', 'leads/' + lead.id + '/invite', {}, sam); ok('sales can create the customer login', r.status === 200); const patToken = r.body.link.split('invite=')[1];
+r = await call('POST', 'accept', { token: patToken, password: 'pats-long-password' }); const pat = r.cookie; ok('customer accepts the invite', r.body.me.role === 'client');
+r = await call('GET', 'my-job', null, pat); ok('customer sees their own job and price', r.body.job.firm_price === 8600 && r.body.job.stage === 'Quote sent' && r.body.job.notes === undefined);
+r = await call('GET', 'leads', null, pat); ok('customer cannot read the lead list', r.status === 404);
+r = await call('POST', 'my-job/accept', {}, pat); ok('customer can accept the quote', r.body.job.stage === 'Accepted');
+r = await call('PATCH', 'leads/' + lead.id, { stage: 'Scheduled', job_date: '2026-12-01' }, owner); r = await call('GET', 'leads', null, cal); ok('crew see scheduled jobs without prices', r.body.leads.length === 1 && r.body.leads[0].firm_price === undefined && r.body.leads[0].est_low === undefined);
+r = await call('PATCH', 'leads/' + lead.id, { stage: 'Done' }, cal); ok('crew cannot edit leads', r.status === 404);
+r = await call('POST', 'apply', { name: 'Jo Applicant', phone: '9035550111', position: 'Equipment Operator' }); r = await call('GET', 'applicants', null, owner); ok('job application reaches the owner', r.body.applicants.length === 1);
+r = await call('POST', 'training', { lesson: 'paver-safety' }, cal); ok('crew can mark a lesson done', !!r.body.done['paver-safety'] && r.body.team === undefined);
+r = await call('GET', 'training', null, owner); ok('owner sees team training progress', r.body.team.some((t) => t.name === 'Cal Crew' && t.done['paver-safety']));
+r = await call('PATCH', 'users/' + (await store.get('emails/' + sha('cal@example.com'))).id, { disabled: true }, owner); r = await call('GET', 'leads', null, cal); ok('a disabled login stops working', r.status === 401);
+r = await call('POST', 'logout', {}, sam); r = await call('GET', 'leads', null, sam); ok('signing out ends the session', r.status === 401);
+for (let i = 0; i < 5; i++) await call('POST', 'login', { email: 'sam@example.com', password: 'bad-bad-bad-bad' }); r = await call('POST', 'login', { email: 'sam@example.com', password: 'sams-long-password' }); ok('five bad passwords lock sign-in for a while', r.status === 429);
+ok('no password is stored in readable form', ![...mem.values()].some((v) => v.includes('a-long-password') || v.includes('sams-long-password')));
+console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

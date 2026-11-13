@@ -20,6 +20,7 @@ const links = [
       {links.map((l) => <a href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>{l.label}</a>)}
     </nav>
     <div class="hdr__cta">
+      <a class="hdr__signin" href="/app">Sign in</a>
       <a class="hdr__phone" href={site.phoneHref}>{site.phone}</a>
       <a class="btn btn--paver hdr__btn" href="/quote">Get my price</a>
     </div>
@@ -28,6 +29,7 @@ const links = [
       <div class="menu__panel band">
         {links.map((l) => <a href={l.href}>{l.label}</a>)}
         <a href="/quote">Get my price</a>
+        <a href="/app">Customer and team sign in</a>
         <a href={site.phoneHref}>Call {site.phone}</a>
       </div>
     </details>
@@ -41,10 +43,12 @@ const links = [
   .logo b { font-weight: 900; }
   .logo__mark { width: 34px; height: 34px; border-radius: 7px; background: var(--paver); display: grid; align-content: center; justify-items: center; gap: 4px; }
   .logo__mark i { width: 5px; height: 6px; background: var(--asphalt); border-radius: 1px; }
-  .nav { display: none; gap: 26px; margin-left: auto; }
+  .nav { display: none; gap: 22px; margin-left: auto; }
   .nav a { text-decoration: none; font-weight: 500; font-size: 0.98rem; color: var(--text-2); padding: 6px 0; border-bottom: 2px solid transparent; }
   .nav a:hover, .nav a[aria-current] { color: #fff; border-bottom-color: var(--paver); }
   .hdr__cta { display: none; align-items: center; gap: 18px; }
+  .hdr__signin { text-decoration: none; font-weight: 500; font-size: 0.95rem; color: var(--text-2); white-space: nowrap; }
+  .hdr__signin:hover { color: #fff; }
   .hdr__phone { font-family: var(--font-display); font-weight: 800; text-decoration: none; white-space: nowrap; }
   .hdr__btn { min-height: 44px; padding: 0 18px; font-size: 0.98rem; }
   .menu { margin-left: auto; }
@@ -53,7 +57,7 @@ const links = [
   .menu summary span { width: 20px; height: 2px; background: #fff; }
   .menu__panel { position: absolute; left: 0; right: 0; top: 100%; display: grid; padding: 8px var(--gutter) 20px; border-bottom: 1px solid var(--border); }
   .menu__panel a { padding: 14px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
-  @media (min-width: 1020px) {
+  @media (min-width: 1140px) {
     .nav, .hdr__cta { display: flex; }
     .menu { display: none; }
   }

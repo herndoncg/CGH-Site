@@ -70,6 +70,8 @@ const schema = careers.roles.map((r) => ({
       const data = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
       if (data['bot-field']) return;
       data.page = location.pathname; data.submitted_at = new Date().toISOString();
+      // the application also goes into the CGH app (/app, Applicants)
+      fetch('/api/apply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) }).catch(() => {});
       const endpoint = form.dataset.endpoint;
       if (!endpoint) { status.textContent = 'Online applications are not switched on yet. Please call us to apply.'; return; }
       btn.disabled = true; btn.textContent = 'Sending…';

@@ -63,4 +63,10 @@ export const areas: Area[] = [
   },
 ];
 
+areas.splice(1, 0, {
+  slug: 'texarkana-tx', city: 'Texarkana', county: 'Bowie County', drive: 'Our second base',
+  local: 'Texarkana is our second base. From here we cover Bowie County and both sides of the state line, with Arkansas, Louisiana and Oklahoma all within reach for driveways, lots, private roads and dirt work.',
+  nearby: ['Nash', 'Wake Village', 'New Boston', 'Atlanta', 'Texarkana, Arkansas'],
+});
+
 export const getArea = (slug: string) => areas.find((a) => a.slug === slug);

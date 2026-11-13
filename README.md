@@ -55,3 +55,17 @@ npm run build   # outputs to dist/
 ```
 
 New phone photos: `node scripts/import-photos.mjs /path/photo.jpg=descriptive-name` (shrinks to web size in `public/img/work`).
+
+## The app: sign-in, team side and customer portal (/app)
+
+- Page: `src/pages/app.astro`. Back end: `netlify/functions/api.mjs` and `netlify/functions/lib/core.mjs`.
+- Records are kept in Netlify Blobs (storage that comes with the site; store name `cgh-app`). Nothing to configure.
+- Roles: **owner** (everything), **sales** (their own and unassigned leads), **crew** (scheduled jobs, no prices), **client** (their own project).
+- The owner account is created once at `/app` with a setup code. Team members and customers get a one-time link to choose their own password. No passwords are stored, only salted hashes.
+- Website quotes and job applications are sent to the app (`/api/lead`, `/api/apply`) and to Netlify Forms.
+- Trainings are the `LESSONS` list at the top of `core.mjs`.
+- Test the back end: `node scripts/test-api.mjs` (33 checks).
+
+## The 3D paver at the top of the homepage
+
+`src/lib/paver3d.ts` builds the machine in code with three.js (no downloaded model, no brand markings). The homepage script pins the section and passes the scroll position to it. To use a purchased or free realistic model later, load a `.glb` in that file in place of the code-built parts.

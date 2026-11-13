@@ -171,7 +171,9 @@ import pricing from '../data/pricing.json';
         loads: String(q.loads), est_total: String(Math.round(q.total)), est_low: String(q.low), est_high: String(q.high),
         page: location.pathname, submitted_at: new Date().toISOString(),
       };
-      if (!endpoint) return; // preview build: no lead inbox connected yet
+      // the lead also goes into the CGH app's pipeline (/app)
+      fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+      if (!endpoint) return;
       try {
         const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(payload).toString() });
         if (!r.ok) throw new Error(String(r.status));

@@ -16,12 +16,10 @@ const steps = [
   { name: 'You drive on it', text: 'We clean up and tell you exactly when it is ready for traffic.' },
 ];
 ---
-<Base loader title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and handles the dirt work under them. Based in Longview. Get a price range online in about a minute.">
+<Base title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and handles the dirt work under them. Based in Longview. Get a price range online in about a minute.">
   <section class="drive" data-drive>
     <div class="drive__pin hero band">
-      <video class="hero__video" data-drive-video autoplay muted loop playsinline preload="auto" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
-        <source src="/video/roller-scroll.mp4" type="video/mp4" />
-      </video>
+      <canvas class="hero__canvas" data-paver aria-hidden="true"></canvas>
       <div class="hero__shade"></div>
       <div class="wrap hero__in drive__beat drive__beat--1">
         <div class="hero__copy">
@@ -53,7 +51,7 @@ const steps = [
         <p class="drive__big drive__big--y">CGH brings results.</p>
         <a class="btn btn--paver" href="/quote">Get my price range</a>
       </div>
-      <p class="drive__hint" aria-hidden="true">Scroll to drive the roller</p>
+      <p class="drive__hint" aria-hidden="true">Scroll to run the paver. Drag to turn it.</p>
       <div class="stripe"></div>
     </div>
   </section>
@@ -130,7 +128,7 @@ const steps = [
         <ul class="towns">
           {areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}</a></li>)}
         </ul>
-        <p class="muted">And across East Texas into Louisiana, Arkansas and Oklahoma for larger jobs.</p>
+        <p class="muted">Based out of Longview and Texarkana, serving Texas, Louisiana, Arkansas and Oklahoma.</p>
       </div>
     </div>
   </section>
@@ -156,44 +154,38 @@ const steps = [
 </Base>
 
 <script>
-  // Drive the roller: scrolling through the pinned hero scrubs the real roller video.
+  // The top of the homepage: a live 3D paver. The section stays pinned while the visitor scrolls,
+  // and the scroll position (0 to 1) is handed to the 3D scene, which drives the paver and moves the camera.
   const root = document.querySelector<HTMLElement>('[data-drive]');
-  const video = root?.querySelector<HTMLVideoElement>('[data-drive-video]');
-  const ok = root && video && !matchMedia('(prefers-reduced-motion: reduce)').matches && !matchMedia('(max-height: 540px)').matches;
-  if (ok) {
-    document.documentElement.classList.add('drive-on');
-    video.removeAttribute('autoplay'); video.loop = false; video.pause();
-    let target = 0, cur = 0, raf = 0;
-    const tick = () => {
-      raf = 0;
-      cur += (target - cur) * 0.2;
-      if (Math.abs(target - cur) < 0.0008) cur = target;
-      if (video.duration) { const t = cur * (video.duration - 0.08); if (Math.abs(video.currentTime - t) > 0.02) video.currentTime = t; }
-      if (cur !== target) raf = requestAnimationFrame(tick);
-    };
-    const measure = () => {
-      const r = root.getBoundingClientRect();
-      const span = r.height - innerHeight;
-      const p = Math.min(1, Math.max(0, (68 - r.top) / span));
-      root.style.setProperty('--p', p.toFixed(4));
-      root.dataset.beat = p < 0.28 ? '1' : p < 0.68 ? '2' : '3';
-      target = p;
-      if (!raf) raf = requestAnimationFrame(tick);
-    };
-    addEventListener('scroll', measure, { passive: true });
-    addEventListener('resize', measure);
-    video.addEventListener('loadedmetadata', measure);
-    // phones only let a video be scrubbed after it has been started once by a touch
-    addEventListener('touchstart', () => { video.play().then(() => video.pause()).catch(() => {}); }, { once: true, passive: true });
-    measure();
+  const canvas = root?.querySelector<HTMLCanvasElement>('[data-paver]');
+  const gl = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } })();
+  if (root && canvas && gl) {
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches || matchMedia('(max-height: 540px)').matches;
+    let p = 0;
+    if (!still) {
+      document.documentElement.classList.add('drive-on');
+      const measure = () => {
+        const r = root.getBoundingClientRect();
+        p = Math.min(1, Math.max(0, (68 - r.top) / (r.height - innerHeight)));
+        root.style.setProperty('--p', p.toFixed(4));
+        root.dataset.beat = p < 0.28 ? '1' : p < 0.68 ? '2' : '3';
+      };
+      addEventListener('scroll', measure, { passive: true });
+      addEventListener('resize', measure);
+      measure();
+    }
+    import('../lib/paver3d').then(({ mountPaver }) => { mountPaver(canvas, () => p); root.classList.add('is-3d'); }).catch(() => {});
   }
 </script>
 
 <style>
   .hero { position: relative; overflow: hidden; }
-  .hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .hero__shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(20, 21, 23, 0.94) 0%, rgba(20, 21, 23, 0.82) 42%, rgba(20, 21, 23, 0.5) 100%), linear-gradient(0deg, rgba(20, 21, 23, 0.7), transparent 40%); }
-  .hero__in { position: relative; display: grid; gap: 40px; padding-top: clamp(56px, 8vw, 110px); padding-bottom: clamp(56px, 8vw, 110px); align-items: center; }
+  .drive__pin { background: #16171a; }
+  .hero__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.6s ease; touch-action: pan-y; cursor: grab; }
+  .hero__canvas:active { cursor: grabbing; }
+  .drive.is-3d .hero__canvas { opacity: 1; }
+  .hero__shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(22, 23, 26, 0.9) 0%, rgba(22, 23, 26, 0.55) 34%, rgba(22, 23, 26, 0) 62%); }
+  .hero__in { position: relative; pointer-events: none; display: grid; gap: 40px; padding-top: clamp(56px, 8vw, 110px); padding-bottom: clamp(56px, 8vw, 110px); align-items: center; }
   @media (min-width: 980px) { .hero__in { grid-template-columns: 1.25fr 0.75fr; gap: 64px; } }
   .hero h1 { max-width: 15ch; }
   .hero .lede { color: #e4e1d8; }
@@ -209,7 +201,7 @@ const steps = [
   .drive__pin { display: grid; align-items: center; }
   .drive__pin > .drive__beat { grid-area: 1 / 1; position: relative; }
   .drive__beat--2, .drive__beat--3, .drive__hint { display: none; }
-  .drive__big { margin: 0; font-family: var(--font-display); font-weight: 900; letter-spacing: -0.03em; line-height: 0.98; font-size: clamp(2.6rem, 8.4vw, 7rem); color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55); max-width: 12ch; }
+  .drive__big { margin: 0; font-family: var(--font-display); font-weight: 900; letter-spacing: -0.03em; line-height: 0.98; font-size: clamp(2.6rem, 6vw, 5.4rem); color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55); max-width: 12ch; }
   .drive__big--y { color: var(--paver); max-width: none; font-size: clamp(1.8rem, 5vw, 4rem); margin: 10px 0 26px; }
 
   :global(html.drive-on) .drive { height: 320vh; }
@@ -220,16 +212,33 @@ const steps = [
   :global(html.drive-on) .drive__beat--3 { opacity: clamp(0, calc((var(--p) - 0.7) * 10), 1); }
   :global(html.drive-on) .drive[data-beat='1'] .drive__beat--1, :global(html.drive-on) .drive[data-beat='3'] .drive__beat--3 { pointer-events: auto; }
   :global(html.drive-on) .drive:not([data-beat='1']) .drive__beat--1 { pointer-events: none; }
-  :global(html.drive-on) .hero__shade { opacity: max(0.42, calc(1 - var(--p) * 2.4)); }
-  :global(html.drive-on) .drive__hint { display: block; position: absolute; left: 0; right: 0; bottom: 22px; margin: 0; text-align: center; font-weight: 600; font-size: 0.92rem; color: #fff; opacity: clamp(0, calc((0.12 - var(--p)) * 12), 0.9); }
-  :global(html.drive-on) .drive__hint::after { content: ''; display: block; width: 2px; height: 22px; margin: 8px auto 0; background: var(--paver); animation: drive-nudge 1.4s ease-in-out infinite; }
+  :global(html.drive-on) .hero__shade { opacity: max(0.7, calc(1 - var(--p))); }
+  :global(html.drive-on) .drive__hint { display: block; position: absolute; left: 0; right: 0; bottom: 26px; margin: 0; padding: 0 var(--gutter); text-align: right; font-weight: 600; font-size: 0.92rem; color: #fff; opacity: clamp(0, calc((0.12 - var(--p)) * 12), 0.9); }
+  :global(html.drive-on) .drive__hint::after { content: ''; display: block; width: 2px; height: 22px; margin: 8px 0 0 auto; background: var(--paver); animation: drive-nudge 1.4s ease-in-out infinite; }
   @keyframes drive-nudge { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(8px); opacity: 0.4; } }
+  .hero__copy, .start { pointer-events: auto; }
+  @media (min-width: 980px) {
+    .hero__in { grid-template-columns: minmax(0, 600px); gap: 28px; }
+    .hero h1 { font-size: clamp(2.6rem, 4.6vw, 4rem); max-width: 14ch; }
+    .hero__facts { display: none; }
+    .start { max-width: 600px; padding: 20px 22px; display: grid; grid-template-columns: 1fr auto; gap: 4px 18px; align-items: end; }
+    .start h2, .start > p { grid-column: 1 / -1; }
+    .start > p:first-of-type { margin-bottom: 8px; }
+    .start__row { margin: 0; }
+    .start .btn { width: auto; }
+    .start .start__alt { text-align: left; margin-top: 8px; }
+  }
   @media (max-width: 979px) {
+    .hero__shade { background: linear-gradient(0deg, rgba(22, 23, 26, 0.92) 0%, rgba(22, 23, 26, 0.6) 48%, rgba(22, 23, 26, 0) 70%); }
+    :global(html.drive-on) .drive__beat--1 { align-self: end; padding-bottom: 54px; }
     :global(html.drive-on) .hero__copy .lede, :global(html.drive-on) .hero__facts { display: none; }
     :global(html.drive-on) .hero__in { gap: 20px; }
     :global(html.drive-on) .hero h1 { font-size: clamp(2rem, 8.6vw, 2.6rem); margin-bottom: 0; }
     :global(html.drive-on) .drive__pin { height: calc(100svh - 68px - 56px); }
-    :global(html.drive-on) .drive__hint { bottom: 14px; }
+    :global(html.drive-on) .drive__hint { top: 12px; bottom: auto; }
+    :global(html.drive-on) .drive__hint::after { display: none; }
+    :global(html.drive-on) .drive__beat--2, :global(html.drive-on) .drive__beat--3 { padding-bottom: 34px; }
+    .drive__big { font-size: clamp(2.2rem, 10vw, 3.2rem); }
   }
 
   .start { background: var(--chalk); color: var(--asphalt); border-radius: var(--radius-lg); padding: clamp(22px, 3vw, 32px); --text: var(--asphalt); --surface: #fff; --border-strong: rgba(27, 28, 30, 0.28); --muted: #5f6368; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
