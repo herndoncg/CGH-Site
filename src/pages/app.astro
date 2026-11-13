@@ -14,7 +14,7 @@ import { site } from '../data/site';
 </Base>
 
 <script>
-  type Me = { id: string; name: string; email: string; role: 'owner' | 'sales' | 'crew' | 'client' };
+  type Me = { id: string; name: string; email: string; role: 'owner' | 'sales' | 'crew' | 'client'; mustChange?: boolean };
   const root = document.getElementById('app')!;
   const PHONE = root.dataset.phone!, PHONE_HREF = root.dataset.phoneHref!;
   const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -27,7 +27,16 @@ import { site } from '../data/site';
     return j;
   };
   const S: any = { me: null as Me | null, tab: 'leads', msg: '', filter: 'Open' };
-  const invite = new URLSearchParams(location.search).get('invite');
+
+  // The ready-to-send welcome note for a new login. The temporary password is shown once, here.
+  const welcomeText = (kind: 'team' | 'client', name: string, email: string, temp: string) => {
+    const first = (name || '').trim().split(' ')[0] || 'there', link = location.origin + '/app/';
+    return kind === 'client'
+      ? `Hi ${first}, this is CGH Operations. Your project page is ready.\n\n1. Open ${link}\n2. Sign in with your email (${email}) and this temporary password: ${temp}\n3. You will be asked to choose your own password.\n\nYour price, dates and job status are all there. Questions? Call ${PHONE}.`
+      : `Welcome to the CGH Operations team, ${first}.\n\n1. Open ${link} on your phone.\n2. Sign in with your email (${email}) and this temporary password: ${temp}\n3. You will be asked to choose your own password.\n4. Put the app on your phone. iPhone: open the link in Safari, tap Share, then "Add to Home Screen". Android: tap "Install this app".\n\nThe temporary password works for 14 days. Please do not share your sign-in.`;
+  };
+  const welcomeBox = (w: any) => `<div class="linkbox"><p><b>Send this to ${esc(w.name || 'them')}.</b> The temporary password is shown only once. If it gets lost, press Reset password to make a new one.</p><textarea readonly rows="9" data-welcome>${esc(w.text)}</textarea><p class="row"><button type="button" class="btn btn--dark sm" data-act="copy">Copy message</button><a class="btn btn--line sm" href="mailto:${esc(w.email)}?subject=${encodeURIComponent('Your CGH Operations sign-in')}&body=${encodeURIComponent(w.text)}">Email it</a>${w.phone ? `<a class="btn btn--line sm" href="sms:${esc(w.phone)}?&body=${encodeURIComponent(w.text)}">Text it</a>` : ''}</p></div>`;
+  const accountPanel = () => `<details class="add acct" ${S.acct ? 'open' : ''}><summary class="btn btn--line">Change my password</summary><form data-form="password" class="stack">${field('Current password', 'current', 'password', 'required autocomplete="current-password"')}${field('New password (10 or more characters)', 'next', 'password', 'required minlength="10" autocomplete="new-password"')}<div><button class="btn btn--dark">Change password</button></div><p class="muted small">Changing it signs you out on your other devices.</p></form></details>`;
 
   // ---------- installing the app and lead alerts ----------
   let installEvt: any = null;
@@ -57,10 +66,9 @@ import { site } from '../data/site';
   const field = (label: string, name: string, type = 'text', extra = '') => `<div class="field"><label>${label}<input name="${name}" type="${type}" ${extra} /></label></div>`;
   const authCard = (title: string, lede: string, body: string) => `<div class="auth"><h1>${title}</h1><p class="lede">${lede}</p>${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}<p class="muted small">Trouble signing in? Call <a href="${PHONE_HREF}">${PHONE}</a>.</p></div>`;
 
-  function renderAuth(mode: 'login' | 'setup' | 'invite') {
-    if (mode === 'setup') root.innerHTML = authCard('Set up the owner account', 'This runs once. Enter the setup code you were given and choose your own password.', `<form data-form="setup" class="stack">${field('Setup code', 'code', 'text', 'required autocomplete="off"')}${field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('Email', 'email', 'email', 'required autocomplete="email"')}${field('Choose a password (10 or more characters)', 'password', 'password', 'required minlength="10" autocomplete="new-password"')}<button class="btn btn--paver">Create my account</button></form>`);
-    else if (mode === 'invite') root.innerHTML = authCard('Choose your password', 'Welcome. Pick a password and you are in.', `<form data-form="accept" class="stack">${field('Password (10 or more characters)', 'password', 'password', 'required minlength="10" autocomplete="new-password"')}<button class="btn btn--paver">Save and sign in</button></form>`);
-    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}<button class="btn btn--paver">Sign in</button></form>`);
+  function renderAuth(mode: 'login' | 'first') {
+    if (mode === 'first') root.innerHTML = authCard('Choose your own password', 'You signed in with a temporary password. Pick your own to finish. Nobody at CGH can see it.', `<form data-form="firstpw" class="stack">${S.me.name ? '' : field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('New password (10 or more characters)', 'next', 'password', 'required minlength="10" autocomplete="new-password"')}<button class="btn btn--paver">Save and continue</button></form><button class="btn btn--line" data-act="logout">Sign out</button>`);
+    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}<button class="btn btn--paver">Sign in</button></form>`);
   }
 
   // ---------- customer portal ----------
@@ -86,12 +94,12 @@ import { site } from '../data/site';
           <a class="btn btn--line" href="${PHONE_HREF}">Call ${PHONE}</a>
         </div>
       </div>
-      <div class="panel"><h2>Caring for new asphalt</h2><ul><li>Stay off it until we tell you it is ready. Hot weather means a longer wait.</li><li>For the first few weeks, avoid turning your wheels while parked and keep kickstands, jacks and trailer tongues off it.</li><li>Keep the edges supported. Do not drive off the side of the pavement.</li><li>Ask us when it is time to sealcoat. New asphalt has to cure first.</li></ul></div>`;
+      <div class="panel"><h2>Caring for new asphalt</h2><ul><li>Stay off it until we tell you it is ready. Hot weather means a longer wait.</li><li>For the first few weeks, avoid turning your wheels while parked and keep kickstands, jacks and trailer tongues off it.</li><li>Keep the edges supported. Do not drive off the side of the pavement.</li><li>Ask us when it is time to sealcoat. New asphalt has to cure first.</li></ul></div>${S.ok ? `<p class="ok">${esc(S.ok)}</p>` : ''}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${accountPanel()}`;
   }
 
   // ---------- team ----------
   const TABS: Record<string, [string, string][]> = { owner: [['leads', 'Leads'], ['applicants', 'Applicants'], ['team', 'Team'], ['training', 'Training']], sales: [['leads', 'Leads'], ['training', 'Training']], crew: [['leads', 'Jobs'], ['training', 'Training']] };
-  const shell = (body: string) => `<div class="bar"><div><p class="muted small">${esc(S.me.name)}, ${S.me.role}</p><h1>CGH Operations</h1></div><button class="btn btn--line" data-act="logout">Sign out</button></div><nav class="tabs">${TABS[S.me.role].map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('')}</nav>${alertsBar()}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}`;
+  const shell = (body: string) => `<div class="bar"><div><p class="muted small">${esc(S.me.name)}, ${S.me.role}</p><h1>CGH Operations</h1></div><button class="btn btn--line" data-act="logout">Sign out</button></div><nav class="tabs">${TABS[S.me.role].map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('')}</nav>${alertsBar()}${S.ok ? `<p class="ok">${esc(S.ok)}</p>` : ''}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}${accountPanel()}`;
 
   function leadCard(l: any, d: any) {
     const crew = S.me.role === 'crew';
@@ -111,8 +119,8 @@ import { site } from '../data/site';
           <div class="field"><label>Paving day<input name="job_date" type="date" value="${esc(l.job_date || '')}" /></label></div>
           <div class="field full"><label>Message the customer sees in their portal<textarea name="status_note">${esc(l.status_note || '')}</textarea></label></div>
           <div class="field full"><label>Add a note (team only)<textarea name="note" placeholder="What was said, what is next"></textarea></label></div>
-          <div class="full row"><button class="btn btn--dark">Save</button><button type="button" class="btn btn--line" data-act="client" data-id="${l.id}">${l.clientUid ? 'New customer login link' : 'Create customer login'}</button></div>
-          ${S.link && S.linkFor === l.id ? `<div class="full linkbox"><p>Send this link to the customer. It lets them choose a password and see their project. It works once and expires in 14 days.</p><input readonly value="${esc(location.origin + S.link)}" onclick="this.select()" /></div>` : ''}
+          <div class="full row"><button class="btn btn--dark">Save</button><button type="button" class="btn btn--line" data-act="client" data-id="${l.id}">${l.clientUid ? 'Reset customer password' : 'Create customer login'}</button></div>
+          ${S.welcome && S.welcome.for === l.id ? `<div class="full">${welcomeBox(S.welcome)}</div>` : ''}
         </form>
         ${l.notes?.length ? `<ul class="notes">${l.notes.slice().reverse().map((n: any) => `<li><span class="muted small">${day(n.at)} · ${esc(n.by)}</span><br />${esc(n.text)}</li>`).join('')}</ul>` : ''}`}
       </div></details>`;
@@ -134,8 +142,8 @@ import { site } from '../data/site';
   }
   async function renderTeam() {
     const { users } = await api('users');
-    root.innerHTML = shell(`<details class="add" ${S.link && S.linkFor === 'team' ? 'open' : ''}><summary class="btn btn--paver">Add a team member</summary><form data-form="newuser" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Email', 'email', 'email', 'required')}<div class="field"><label>Role<select name="role"><option value="sales">Sales: sees and works leads</option><option value="crew">Crew: sees scheduled jobs, no prices</option></select></label></div><div class="full"><button class="btn btn--dark">Create login link</button></div></form>${S.link && S.linkFor === 'team' ? `<div class="linkbox"><p>Text or email this link to them. It lets them choose their own password. It works once and expires in 14 days.</p><input readonly value="${esc(location.origin + S.link)}" onclick="this.select()" /></div>` : ''}</details>
-      <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Invited'}</td><td>${u.role === 'owner' ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}">New link</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table>`);
+    root.innerHTML = shell(`<details class="add" ${S.welcome && S.welcome.for === 'team' ? 'open' : ''}><summary class="btn btn--paver">Add a team member</summary><form data-form="newuser" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Email', 'email', 'email', 'required')}<div class="field"><label>Role<select name="role"><option value="sales">Sales: sees and works leads</option><option value="crew">Crew: sees scheduled jobs, no prices</option></select></label></div><div class="full"><button class="btn btn--dark">Create login</button></div></form>${S.welcome && S.welcome.for === 'team' ? welcomeBox(S.welcome) : ''}</details>
+      <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Has not signed in yet'}</td><td>${u.role === 'owner' ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}" data-name="${esc(u.name)}" data-email="${esc(u.email)}" data-kind="${u.role === 'client' ? 'client' : 'team'}">Reset password</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table>`);
   }
   async function renderTraining() {
     const d = await api('training');
@@ -147,37 +155,40 @@ import { site } from '../data/site';
 
   async function render() {
     try {
-      if (!S.me) return renderAuth(invite ? 'invite' : S.needsSetup ? 'setup' : 'login');
+      if (!S.me) return renderAuth('login');
+      if (S.me.mustChange) return renderAuth('first');
       if (S.me.role === 'client') return await renderClient();
       await ({ leads: renderLeads, applicants: renderApplicants, team: renderTeam, training: renderTraining } as any)[S.tab]();
     } catch (e: any) { root.innerHTML = `<p class="err">${esc(e.message)}</p><button class="btn btn--line" data-act="reload">Try again</button>`; }
   }
-  const run = async (fn: () => Promise<void>) => { S.msg = ''; try { await fn(); } catch (e: any) { S.msg = e.message; } await render(); };
+  const run = async (fn: () => Promise<void>) => { S.msg = ''; S.ok = ''; try { await fn(); } catch (e: any) { S.msg = e.message; } await render(); };
 
   root.addEventListener('submit', (e) => {
     const f = (e.target as HTMLElement).closest('form[data-form]') as HTMLFormElement | null; if (!f) return;
     e.preventDefault();
     const data: any = Object.fromEntries(new FormData(f).entries()); const kind = f.dataset.form, id = f.dataset.id;
     run(async () => {
-      if (kind === 'login' || kind === 'setup') { S.me = (await api(kind, 'POST', data)).me; S.needsSetup = false; await syncPush().catch(() => {}); }
-      else if (kind === 'accept') { S.me = (await api('accept', 'POST', { ...data, token: invite })).me; history.replaceState(null, '', '/app/'); }
+      if (kind === 'login') { S.me = (await api('login', 'POST', data)).me; S.tab = 'leads'; S.welcome = null; await syncPush().catch(() => {}); }
+      else if (kind === 'firstpw') { S.me = (await api('password', 'POST', data)).me; S.ok = 'Your password is saved. You are in.'; await syncPush().catch(() => {}); }
+      else if (kind === 'password') { S.acct = true; S.me = (await api('password', 'POST', data)).me; S.acct = false; S.ok = 'Your password is changed.'; }
       else if (kind === 'lead') { S.open = id; await api('leads/' + id, 'PATCH', data); }
       else if (kind === 'newlead') { S.open = (await api('leads', 'POST', data)).lead.id; S.filter = 'Open'; }
       else if (kind === 'applicant') await api('applicants/' + id, 'PATCH', data);
-      else if (kind === 'newuser') { S.link = (await api('users', 'POST', data)).link; S.linkFor = 'team'; }
+      else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
     });
   });
   root.addEventListener('click', (e) => {
     const t = (e.target as HTMLElement).closest('[data-act],[data-tab],[data-filter]') as HTMLElement | null; if (!t) return;
-    if (t.dataset.tab) { S.tab = t.dataset.tab; S.link = null; return void run(async () => {}); }
+    if (t.dataset.tab) { S.tab = t.dataset.tab; S.welcome = null; return void run(async () => {}); }
     if (t.dataset.filter) { S.filter = t.dataset.filter; return void run(async () => {}); }
     const act = t.dataset.act, id = t.dataset.id;
     run(async () => {
-      if (act === 'logout') { await api('logout', 'POST', {}); S.me = null; }
+      if (act === 'logout') { await api('logout', 'POST', {}); S.me = null; S.welcome = null; }
+      else if (act === 'copy') { await navigator.clipboard.writeText(root.querySelector<HTMLTextAreaElement>('[data-welcome]')!.value); S.ok = 'Copied. Paste it into a text or email.'; }
       else if (act === 'accept') await api('my-job/accept', 'POST', {});
-      else if (act === 'client') { S.open = id; S.link = (await api(`leads/${id}/invite`, 'POST', {})).link; S.linkFor = id; }
+      else if (act === 'client') { S.open = id; const r = await api(`leads/${id}/invite`, 'POST', {}); const l = (S.data?.leads || []).find((x: any) => x.id === id); S.welcome = { for: id, name: r.name, email: r.email, phone: l?.phone, text: welcomeText('client', r.name, r.email, r.temp) }; }
       else if (act === 'lesson') await api('training', 'POST', { lesson: id });
-      else if (act === 'relink') { S.link = (await api('users/' + id, 'PATCH', { newLink: true })).link; S.linkFor = 'team'; }
+      else if (act === 'relink') { const r = await api('users/' + id, 'PATCH', { reset: true }); S.welcome = { for: 'team', name: t.dataset.name, email: t.dataset.email, text: welcomeText(t.dataset.kind as any, t.dataset.name || '', t.dataset.email || '', r.temp) }; }
       else if (act === 'toggle') await api('users/' + id, 'PATCH', { disabled: !!t.dataset.off });
       else if (act === 'install' && installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; }
       else if (act === 'alerts') {
@@ -191,7 +202,7 @@ import { site } from '../data/site';
   });
 
   (async () => {
-    try { const st = await api('state'); S.me = st.me; S.needsSetup = st.needsSetup; await syncPush().catch(() => {}); }
+    try { const st = await api('state'); S.me = st.me; await syncPush().catch(() => {}); }
     catch { S.msg = 'The sign-in service is not reachable right now. Try again in a minute.'; }
     render();
   })();
@@ -229,7 +240,8 @@ import { site } from '../data/site';
   .contact, .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; align-items: center; }
   .grid2 { display: grid; gap: 12px; } @media (min-width: 700px) { .grid2 { grid-template-columns: 1fr 1fr; } .grid2 .full { grid-column: 1 / -1; } }
   .appwrap textarea { min-height: 80px; }
-  .linkbox { background: #e3f6f7; border: 1.5px solid var(--paver); border-radius: var(--radius); padding: 14px; margin-top: 12px; } .linkbox p { margin: 0 0 8px; font-size: 0.95rem; } .linkbox input { width: 100%; padding: 10px; font: 0.9rem ui-monospace, monospace; border: 1px solid var(--border-strong); border-radius: 4px; }
+  .linkbox { background: #e3f6f7; border: 1.5px solid var(--paver); border-radius: var(--radius); padding: 14px; margin-top: 12px; } .linkbox p { margin: 0 0 8px; font-size: 0.95rem; } .linkbox textarea { width: 100%; padding: 10px; font: 0.92rem/1.5 var(--font-body); border: 1px solid var(--border-strong); border-radius: 4px; background: #fff; } .linkbox .row { margin: 10px 0 0; }
+  .acct { margin-top: 28px; border-style: solid; }
   .notes { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; } .notes li { background: var(--bg-2); padding: 10px 12px; border-radius: var(--radius); }
   .tbl { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; display: block; overflow-x: auto; } .tbl th, .tbl td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; } .tbl th { font-size: 0.82rem; color: var(--muted); }
   .btn.sm { min-height: 36px; padding: 0 12px; font-size: 0.88rem; }

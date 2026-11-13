@@ -5,10 +5,17 @@
 //
 // Storage is passed in as `store`, so the same code runs on Netlify (Netlify Blobs) and in tests.
 // Passwords are never stored: only a salted scrypt hash. Sign-in sessions last 30 days.
+//
+// New logins start with a temporary password. The first sign-in forces the person to choose their own.
+// Changing or resetting a password signs that person out everywhere else.
 import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 
-// The owner account is created once, at /app, with a setup code. Only the code's fingerprint lives here.
+// The owner's first temporary password (the setup code). Only its fingerprint lives here, and it stops
+// working the moment the owner account exists.
 export const SETUP_HASH = '877f19dc823c32a131f4ac88749165bed3fb5dee888de6a37ffcc902c5cc3a77';
+
+// The fingerprint can also be supplied as a site setting (CGH_SETUP_HASH) instead of living in this file.
+const setupHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_SETUP_HASH) || SETUP_HASH;
 
 export const STAGES = ['New', 'Contacted', 'Site visit set', 'Quote sent', 'Accepted', 'Scheduled', 'Done', 'Lost'];
 const STAFF = ['owner', 'sales', 'crew'];
@@ -28,12 +35,19 @@ const newId = () => randomBytes(9).toString('base64url');
 const sha = (s) => createHash('sha256').update(String(s)).digest('hex');
 const hashPw = (pw, salt = randomBytes(16).toString('hex')) => `${salt}:${scryptSync(pw, salt, 64).toString('hex')}`;
 const checkPw = (pw, stored) => { const [salt, h] = String(stored).split(':'); const a = Buffer.from(h, 'hex'); const b = scryptSync(pw, salt, 64); return a.length === b.length && timingSafeEqual(a, b); };
-const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...headers } });
+const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow', 'x-content-type-options': 'nosniff', ...headers } });
 const bad = (error, status = 400) => json({ error }, status);
 const clean = (v, max = 300) => String(v ?? '').trim().slice(0, max);
 const email = (v) => clean(v, 200).toLowerCase();
 const num = (v) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
-const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: !!u.pass, disabled: !!u.disabled });
+const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: !!u.pass && !u.must_change, disabled: !!u.disabled, mustChange: !!u.must_change });
+const TEMP_DAYS = 14;
+// A temporary password like K7QM-4TXP-9RWD (no look-alike letters such as O/0 or I/1).
+const tempPw = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; const r = randomBytes(12); return [0, 4, 8].map((i) => [...r.subarray(i, i + 4)].map((x) => A[x % A.length]).join('')).join('-'); };
+// Gives a login a fresh temporary password and signs that person out everywhere.
+const setTemp = (u) => { const t = tempPw(); u.pass = hashPw(t); u.must_change = true; u.temp_exp = Date.now() + TEMP_DAYS * 864e5; u.sv = (u.sv || 0) + 1; return t; };
+// Temporary passwords are forgiving about spaces and lower-case typing.
+const matches = (pw, u) => !!u.pass && (checkPw(pw, u.pass) || (!!u.must_change && checkPw(pw.trim().toUpperCase(), u.pass)));
 
 async function readBody(req) {
   const type = req.headers.get('content-type') || '';
@@ -49,11 +63,11 @@ async function currentUser(req, store) {
   const s = await store.get('sessions/' + sha(m[1]), { type: 'json' });
   if (!s || s.exp < Date.now()) return null;
   const u = await store.get('users/' + s.uid, { type: 'json' });
-  return u && !u.disabled ? u : null;
+  return u && !u.disabled && (s.v || 0) === (u.sv || 0) ? u : null;
 }
-async function startSession(store, uid) {
+async function startSession(store, u) {
   const token = randomBytes(32).toString('base64url');
-  await store.setJSON('sessions/' + sha(token), { uid, exp: Date.now() + 30 * 864e5 });
+  await store.setJSON('sessions/' + sha(token), { uid: u.id, v: u.sv || 0, exp: Date.now() + 30 * 864e5 });
   return { 'set-cookie': `cgh_s=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 86400}` };
 }
 async function userByEmail(store, e) {
@@ -61,11 +75,6 @@ async function userByEmail(store, e) {
   return ref ? store.get('users/' + ref.id, { type: 'json' }) : null;
 }
 async function saveUser(store, u) { await store.setJSON('users/' + u.id, u); await store.setJSON('emails/' + sha(u.email), { id: u.id }); }
-async function issueInvite(store, uid) {
-  const token = randomBytes(24).toString('base64url');
-  await store.setJSON('invites/' + sha(token), { uid, exp: Date.now() + 14 * 864e5 });
-  return '/app/?invite=' + token;
-}
 
 // Sends a phone or computer alert to every signed-in device that turned alerts on, for the given roles.
 async function alertTeam(store, push, roles, msg) {
@@ -93,6 +102,9 @@ export async function handle(req, store, push) {
   const path = url.pathname.replace(/^\/api\/?/, '').replace(/\/$/, '');
   const [a, b, c] = path.split('/');
   const m = req.method;
+  // Only this website's own pages may send changes (blocks another site from acting through a signed-in browser).
+  const origin = req.headers.get('origin');
+  if (m !== 'GET' && origin && origin !== 'null') { let host = ''; try { host = new URL(origin).host; } catch {} if (host !== url.host) return bad('Not allowed.', 403); }
   const data = m === 'GET' ? {} : await readBody(req);
 
   // ---------- open to the public website ----------
@@ -138,36 +150,32 @@ export async function handle(req, store, push) {
   }
   if (path === 'setup' && m === 'POST') {
     if (await store.get('meta/owner', { type: 'json' })) return bad('Setup is already done. Sign in instead.', 409);
-    if (sha(clean(data.code, 100)) !== SETUP_HASH) return bad('That setup code is not right.', 403);
+    if (sha(clean(data.code, 100)) !== setupHash()) return bad('That setup code is not right.', 403);
     const e = email(data.email), name = clean(data.name, 120), pw = String(data.password || '');
     if (!name || !/^\S+@\S+\.\S+$/.test(e)) return bad('Enter your name and a valid email.');
     if (pw.length < 10) return bad('Use a password with at least 10 characters.');
     const u = { id: newId(), email: e, name, role: 'owner', pass: hashPw(pw), created: Date.now() };
     await saveUser(store, u); await store.setJSON('meta/owner', { id: u.id });
-    return json({ me: pub(u) }, 200, await startSession(store, u.id));
+    return json({ me: pub(u) }, 200, await startSession(store, u));
   }
   if (path === 'login' && m === 'POST') {
     const e = email(data.email), key = 'fails/' + sha(e);
     const f = (await store.get(key, { type: 'json' })) || { n: 0, until: 0 };
     if (f.until > Date.now()) return bad('Too many tries. Wait 15 minutes and try again.', 429);
-    const u = e ? await userByEmail(store, e) : null;
-    if (!u || u.disabled || !u.pass || !checkPw(String(data.password || ''), u.pass)) {
+    const pw = String(data.password || '');
+    let u = e ? await userByEmail(store, e) : null;
+    // The very first sign-in: the owner's temporary password is the setup code. It works once, for one account.
+    if (!u && /^\S+@\S+\.\S+$/.test(e) && sha(pw.trim().toUpperCase()) === setupHash() && !(await store.get('meta/owner', { type: 'json' }))) {
+      u = { id: newId(), email: e, name: '', role: 'owner', pass: hashPw(pw.trim().toUpperCase()), must_change: true, created: Date.now() };
+      await saveUser(store, u); await store.setJSON('meta/owner', { id: u.id });
+    }
+    if (!u || u.disabled || !matches(pw, u)) {
       const n = f.n + 1; await store.setJSON(key, { n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 });
       return bad('That email and password do not match.', 401);
     }
+    if (u.must_change && u.temp_exp && u.temp_exp < Date.now()) return bad('That temporary password has expired. Ask CGH for a new one.', 401);
     await store.delete(key);
-    return json({ me: pub(u) }, 200, await startSession(store, u.id));
-  }
-  if (path === 'accept' && m === 'POST') {
-    const key = 'invites/' + sha(clean(data.token, 200));
-    const inv = await store.get(key, { type: 'json' });
-    if (!inv || inv.exp < Date.now()) return bad('This link has expired. Ask CGH for a new one.', 410);
-    const pw = String(data.password || '');
-    if (pw.length < 10) return bad('Use a password with at least 10 characters.');
-    const u = await store.get('users/' + inv.uid, { type: 'json' });
-    if (!u || u.disabled) return bad('This account is not active.', 403);
-    u.pass = hashPw(pw); await saveUser(store, u); await store.delete(key);
-    return json({ me: pub(u) }, 200, await startSession(store, u.id));
+    return json({ me: pub(u) }, 200, await startSession(store, u));
   }
   if (path === 'logout' && m === 'POST') {
     const mm = /(?:^|;\s*)cgh_s=([^;]+)/.exec(req.headers.get('cookie') || '');
@@ -179,6 +187,20 @@ export async function handle(req, store, push) {
   const me = await currentUser(req, store);
   if (!me) return bad('Please sign in.', 401);
   const staff = STAFF.includes(me.role), owner = me.role === 'owner';
+
+  // choosing or changing your own password
+  if (path === 'password' && m === 'POST') {
+    const next = String(data.next || '');
+    if (!me.must_change && !checkPw(String(data.current || ''), me.pass)) return bad('Your current password is not right.', 403);
+    if (next.length < 10) return bad('Use a password with at least 10 characters.');
+    if (matches(next, me)) return bad('Choose a password that is different from the one you have now.');
+    if (!me.name) { me.name = clean(data.name, 120); if (!me.name) return bad('Enter your name.'); }
+    me.pass = hashPw(next); delete me.must_change; delete me.temp_exp; me.sv = (me.sv || 0) + 1;
+    await saveUser(store, me);
+    return json({ me: pub(me) }, 200, await startSession(store, me));
+  }
+  // a temporary password only opens the "choose your own password" screen
+  if (me.must_change) return bad('Choose your own password first.', 403);
 
   // the client portal
   if (a === 'my-job') {
@@ -241,9 +263,9 @@ export async function handle(req, store, push) {
       let u = await userByEmail(store, lead.email);
       if (u && u.role !== 'client') return bad('That email already belongs to a team member.');
       if (!u) u = { id: newId(), email: lead.email, name: lead.name, role: 'client', created: Date.now() };
-      u.leadId = lead.id; await saveUser(store, u);
+      u.leadId = lead.id; const temp = setTemp(u); await saveUser(store, u);
       lead.clientUid = u.id; await store.setJSON('leads/' + lead.id, lead);
-      return json({ link: await issueInvite(store, u.id) });
+      return json({ temp, email: u.email, name: u.name });
     }
     if (m === 'PATCH') {
       if (data.stage !== undefined) { if (!STAGES.includes(data.stage)) return bad('Unknown stage.'); lead.stage = data.stage; }
@@ -274,14 +296,15 @@ export async function handle(req, store, push) {
     let u = await userByEmail(store, e);
     if (u && u.role === 'owner') return bad('That email is the owner account.');
     u = { ...(u || { id: newId(), created: Date.now() }), email: e, name, role, disabled: false };
-    await saveUser(store, u);
-    return json({ user: pub(u), link: await issueInvite(store, u.id) });
+    const temp = setTemp(u); await saveUser(store, u);
+    return json({ user: pub(u), temp });
   }
   if (a === 'users' && b && m === 'PATCH') {
     const u = await store.get('users/' + b, { type: 'json' }); if (!u || u.role === 'owner') return bad('Not found.', 404);
     if (data.disabled !== undefined) u.disabled = !!data.disabled;
+    const temp = data.reset ? setTemp(u) : undefined; // "Reset password": a new temporary one
     await saveUser(store, u);
-    return json({ user: pub(u), link: data.newLink ? await issueInvite(store, u.id) : undefined });
+    return json({ user: pub(u), temp });
   }
   return bad('Not found.', 404);
 }
