@@ -1,85 +1,130 @@
 ---
-// The opening moment, seen from straight above: a yellow paver enters at the bottom left,
-// runs an S-curve to the top right laying fresh asphalt, then the asphalt spreads to fill
-// the screen and the site appears on top of it.
+// The opening moment, seen from straight above. A convoy crosses the screen on an S-curve
+// from the bottom left, and each machine leaves its layer behind it:
+//   1. skid steer      : grass becomes dirt
+//   2. rock truck      : dirt becomes rock base (a driving dump)
+//   3. asphalt truck + paver : rock becomes fresh asphalt
+// The line across the bottom reads "From breaking ground to groundbreaking. CGH brings results."
+// Then the asphalt spreads to fill the screen and the homepage appears.
 //
-// This drawn paver is a STAND-IN. The plan is to swap it for a realistic clip (AI-generated
-// first, real drone footage later) that follows the same path and timing.
+// The ground textures are real (cut from Colton's own job photos). The machines are drawn
+// STAND-INS, to be swapped for realistic top-down images.
 //
 // Plays once per visit, needs no script to finish (so it can never get stuck), and is skipped
-// for people who have "reduce motion" turned on. There are two drawings: wide screens and tall
-// phone screens each get their own curve so the paver always starts bottom-left.
+// for people who have "reduce motion" turned on. Wide and tall screens each get their own curve.
 const views = [
-  { cls: 'wide', box: '0 0 1600 900', mat: 190, scale: 1, d: 'M -260 800 C 520 800, 520 470, 800 450 C 1080 430, 1080 100, 1900 100' },
-  { cls: 'tall', box: '0 0 900 1600', mat: 170, scale: 0.9, d: 'M -260 1420 C 620 1420, 230 930, 450 800 C 670 670, 280 180, 1180 180' },
+  { cls: 'wide', box: '0 0 1600 900', band: 190, scale: 1, d: 'M -620 700 C 420 700, 520 440, 800 410 C 1080 380, 1080 90, 2260 90' },
+  { cls: 'tall', box: '0 0 900 1600', band: 170, scale: 0.9, d: 'M -620 1300 C 560 1300, 230 880, 450 760 C 670 640, 280 170, 1560 170' },
 ];
-const DRIVE = '2.5s';   // how long the paver takes to cross
-const SPREAD = '2.35s'; // when the asphalt starts filling the screen
+const DRIVE = 2.3;          // seconds for one machine to cross
+const START = [0.1, 0.52, 1.02]; // when each machine sets off: skid steer, rock truck, paver
+const SPREAD = 3.05;        // when the asphalt starts filling the screen
+const layers = [
+  { tex: 'dirt', base: '#a8663f', begin: START[0] },
+  { tex: 'rock', base: '#c9c6bd', begin: START[1] },
+  { tex: 'asphalt', base: '#151618', begin: START[2] },
+];
 ---
 <div class="paving" aria-hidden="true">
   {views.map((v) => (
     <svg class={`paving__svg paving__svg--${v.cls}`} viewBox={v.box} preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <filter id={`grain-${v.cls}`} x="0" y="0" width="100%" height="100%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" />
-          <feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.3  0 0 0 0 0.22  0 0 0 0.22 0" />
-        </filter>
+        {['grass', 'dirt', 'rock', 'asphalt'].map((t) => (
+          <pattern id={`${t}-${v.cls}`} patternUnits="userSpaceOnUse" width="360" height="360">
+            <image href={`/img/tex/${t}.webp`} width="360" height="360" preserveAspectRatio="none" />
+          </pattern>
+        ))}
         <filter id={`shadow-${v.cls}`} x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="10" dy="14" stdDeviation="9" flood-color="#000" flood-opacity="0.38" />
+          <feDropShadow dx="9" dy="13" stdDeviation="8" flood-color="#000" flood-opacity="0.42" />
         </filter>
         <path id={`route-${v.cls}`} d={v.d} />
+
+        <!-- dump truck, top view, facing right. Origin = rear of the bed. -->
+        <g id={`truck-${v.cls}`}>
+          <rect x="6" y="-58" width="34" height="22" rx="5" fill="#17181a" /><rect x="6" y="36" width="34" height="22" rx="5" fill="#17181a" />
+          <rect x="46" y="-58" width="34" height="22" rx="5" fill="#17181a" /><rect x="46" y="36" width="34" height="22" rx="5" fill="#17181a" />
+          <rect x="196" y="-56" width="30" height="18" rx="5" fill="#17181a" /><rect x="196" y="38" width="30" height="18" rx="5" fill="#17181a" />
+          <rect x="0" y="-52" width="168" height="104" rx="5" fill="#2b2d30" />
+          <rect x="8" y="-44" width="152" height="88" rx="3" fill="currentColor" />
+          <rect x="172" y="-46" width="50" height="92" rx="8" fill="#b3261e" />
+          <rect x="182" y="-38" width="22" height="76" rx="4" fill="#1d2b36" />
+          <rect x="222" y="-40" width="34" height="80" rx="9" fill="#c62f26" />
+          <rect x="250" y="-34" width="5" height="14" rx="2" fill="#f5e9b0" /><rect x="250" y="20" width="5" height="14" rx="2" fill="#f5e9b0" />
+        </g>
       </defs>
 
-      <!-- graded rock base -->
-      <rect width="100%" height="100%" fill="#cdbf9f" />
-      <rect width="100%" height="100%" filter={`url(#grain-${v.cls})`} />
+      <!-- grass -->
+      <rect width="100%" height="100%" fill="#5f8f3a" />
+      <rect width="100%" height="100%" fill={`url(#grass-${v.cls})`} />
 
-      <!-- the asphalt mat, laid along the route as the paver moves -->
-      <path d={v.d} fill="none" stroke="#131416" stroke-width={v.mat} pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1">
-        <animate attributeName="stroke-dashoffset" from="1" to="0" dur={DRIVE} begin="0.15s" fill="freeze" />
-        <animate attributeName="stroke-width" from={v.mat} to="5200" dur="0.65s" begin={SPREAD} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.5 0 0.2 1" />
-      </path>
-      <!-- faint roller marks on the fresh mat -->
-      <path d={v.d} fill="none" stroke="#2a2c2f" stroke-width={v.mat * 0.34} pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" opacity="0.55">
-        <animate attributeName="stroke-dashoffset" from="1" to="0" dur={DRIVE} begin="0.15s" fill="freeze" />
-        <animate attributeName="opacity" to="0" dur="0.3s" begin={SPREAD} fill="freeze" />
-      </path>
+      <!-- the three layers, each laid along the route behind its machine -->
+      {layers.map((l, i) => (
+        <g>
+          <path d={v.d} fill="none" stroke={l.base} stroke-width={v.band} pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1">
+            <animate attributeName="stroke-dashoffset" from="1" to="0" dur={`${DRIVE}s`} begin={`${l.begin}s`} fill="freeze" />
+            {i === 2 && <animate attributeName="stroke-width" from={v.band} to="5600" dur="0.6s" begin={`${SPREAD}s`} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.5 0 0.2 1" />}
+          </path>
+          <path d={v.d} fill="none" stroke={`url(#${l.tex}-${v.cls})`} stroke-width={v.band} pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1">
+            <animate attributeName="stroke-dashoffset" from="1" to="0" dur={`${DRIVE}s`} begin={`${l.begin}s`} fill="freeze" />
+            {i === 2 && <animate attributeName="stroke-width" from={v.band} to="5600" dur="0.6s" begin={`${SPREAD}s`} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.5 0 0.2 1" />}
+          </path>
+        </g>
+      ))}
 
-      <!-- the paver, top view. Its screed (rear edge) sits at the end of the mat. -->
-      <g filter={`url(#shadow-${v.cls})`}>
+      <!-- 1. skid steer. Origin = the bucket's cutting edge, machine sits behind it on the dirt. -->
+      <g filter={`url(#shadow-${v.cls})`} visibility="hidden">
+        <set attributeName="visibility" to="visible" begin={`${START[0]}s`} fill="freeze" />
         <g transform={`scale(${v.scale})`}>
-          <!-- screed with end gates and walkway -->
-          <rect x="-6" y="-100" width="34" height="200" rx="3" fill="#8a6a12" />
-          <rect x="-2" y="-106" width="26" height="12" rx="2" fill="#33363a" /><rect x="-2" y="94" width="26" height="12" rx="2" fill="#33363a" />
-          <rect x="4" y="-92" width="14" height="184" fill="#5c4a14" />
-          <!-- tracks -->
+          <rect x="-150" y="-50" width="96" height="20" rx="8" fill="#17181a" /><rect x="-150" y="30" width="96" height="20" rx="8" fill="#17181a" />
+          <rect x="-146" y="-36" width="92" height="72" rx="8" fill="#f4b400" />
+          <rect x="-128" y="-26" width="50" height="52" rx="5" fill="#2b2d30" />
+          <rect x="-120" y="-18" width="34" height="36" rx="4" fill="#3d4f5c" />
+          <rect x="-58" y="-44" width="40" height="9" rx="3" fill="#b98300" /><rect x="-58" y="35" width="40" height="9" rx="3" fill="#b98300" />
+          <path d={`M -22 ${-v.band / 2 / v.scale} L 4 ${-v.band / 2 / v.scale} L 4 ${v.band / 2 / v.scale} L -22 ${v.band / 2 / v.scale} Z`} fill="#33363a" />
+          <rect x="-4" y={-v.band / 2 / v.scale} width="8" height={v.band / v.scale} fill="#8d9197" />
+        </g>
+        <animateMotion dur={`${DRIVE}s`} begin={`${START[0]}s`} fill="freeze" rotate="auto" calcMode="linear" keyPoints="0;1" keyTimes="0;1"><mpath href={`#route-${v.cls}`} /></animateMotion>
+      </g>
+
+      <!-- 2. rock truck, bed raised, dumping as it drives -->
+      <g filter={`url(#shadow-${v.cls})`} color="#cfccc3" visibility="hidden">
+        <set attributeName="visibility" to="visible" begin={`${START[1]}s`} fill="freeze" />
+        <g transform={`scale(${v.scale})`}>
+          <path d={`M -34 ${-v.band * 0.42 / v.scale} Q -8 0 -34 ${v.band * 0.42 / v.scale} L 6 46 L 6 -46 Z`} fill="#d7d4cb" opacity="0.9" />
+          <use href={`#truck-${v.cls}`} />
+        </g>
+        <animateMotion dur={`${DRIVE}s`} begin={`${START[1]}s`} fill="freeze" rotate="auto" calcMode="linear" keyPoints="0;1" keyTimes="0;1"><mpath href={`#route-${v.cls}`} /></animateMotion>
+      </g>
+
+      <!-- 3. paver with its asphalt truck feeding the hopper. Origin = the screed (rear edge of the paver). -->
+      <g filter={`url(#shadow-${v.cls})`} color="#0f1011" visibility="hidden">
+        <set attributeName="visibility" to="visible" begin={`${START[2]}s`} fill="freeze" />
+        <g transform={`scale(${v.scale})`}>
+          <g transform="translate(252 0)"><use href={`#truck-${v.cls}`} /></g>
+          <rect x="-6" y={-v.band / 2 / v.scale - 4} width="34" height={v.band / v.scale + 8} rx="3" fill="#8a6a12" />
+          <rect x="4" y={-v.band / 2 / v.scale + 6} width="14" height={v.band / v.scale - 12} fill="#5c4a14" />
           <rect x="34" y="-74" width="128" height="20" rx="6" fill="#17181a" /><rect x="34" y="54" width="128" height="20" rx="6" fill="#17181a" />
-          <!-- tractor body -->
           <rect x="28" y="-58" width="134" height="116" rx="8" fill="#f4b400" />
           <rect x="118" y="-46" width="40" height="92" rx="5" fill="#e0a400" />
-          <circle cx="146" cy="-28" r="7" fill="#33363a" /><circle cx="146" cy="-28" r="3.5" fill="#111" />
-          <!-- operator deck, seat and canopy roof -->
-          <rect x="40" y="-48" width="70" height="96" rx="4" fill="#3a3d41" />
-          <rect x="56" y="-14" width="26" height="28" rx="5" fill="#17181a" />
-          <rect x="44" y="-54" width="66" height="108" rx="6" fill="#ffc928" opacity="0.92" />
+          <circle cx="146" cy="-28" r="7" fill="#33363a" />
+          <rect x="44" y="-54" width="66" height="108" rx="6" fill="#ffc928" />
           <rect x="50" y="-48" width="54" height="96" rx="4" fill="none" stroke="#b98300" stroke-width="2" />
-          <!-- hopper full of hot mix, wings open -->
           <path d="M162 -62 L250 -84 L258 -70 L258 70 L250 84 L162 62 Z" fill="#ffc928" />
-          <path d="M170 -50 L246 -68 L246 68 L170 50 Z" fill="#1b1c1e" />
-          <path d="M178 -38 Q210 -52 240 -40 L240 40 Q210 52 178 38 Z" fill="#2c2e31" />
-          <rect x="256" y="-34" width="8" height="26" rx="3" fill="#33363a" /><rect x="256" y="8" width="8" height="26" rx="3" fill="#33363a" />
+          <path d="M170 -50 L246 -68 L246 68 L170 50 Z" fill="#17181a" />
         </g>
-        <animateMotion dur={DRIVE} begin="0.15s" fill="freeze" rotate="auto" calcMode="linear" keyPoints="0;1" keyTimes="0;1">
-          <mpath href={`#route-${v.cls}`} />
-        </animateMotion>
+        <animateMotion dur={`${DRIVE}s`} begin={`${START[2]}s`} fill="freeze" rotate="auto" calcMode="linear" keyPoints="0;1" keyTimes="0;1"><mpath href={`#route-${v.cls}`} /></animateMotion>
       </g>
     </svg>
   ))}
-  <p class="paving__name">CGH Operations</p>
+
+  <div class="paving__line">
+    <p>From breaking ground to groundbreaking.</p>
+    <p><b>CGH</b> brings results.</p>
+  </div>
 </div>
 
 <style>
-  .paving { position: fixed; inset: 0; z-index: 500; overflow: hidden; background: #cdbf9f; animation: paving-out 0.4s ease 3s forwards; }
+  .paving { position: fixed; inset: 0; z-index: 500; overflow: hidden; background: #5f8f3a; animation: paving-out 0.4s ease 3.75s forwards; }
   :global(html.paved) .paving { display: none; }
   .paving__svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .paving__svg--tall { display: none; }
@@ -87,13 +132,18 @@ const SPREAD = '2.35s'; // when the asphalt starts filling the screen
     .paving__svg--wide { display: none; }
     .paving__svg--tall { display: block; }
   }
-  .paving__name {
-    position: absolute; left: var(--gutter); top: clamp(20px, 5vh, 48px); margin: 0;
-    font-family: var(--font-display); font-weight: 900; font-size: clamp(1.5rem, 3.4vw, 2.4rem); letter-spacing: -0.02em; color: var(--asphalt);
-    animation: paving-name 0.5s ease 0.1s both, paving-name-flip 0.3s ease 2.5s forwards;
+
+  .paving__line {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: clamp(16px, 2.6vh, 26px) var(--gutter) calc(clamp(16px, 2.6vh, 26px) + env(safe-area-inset-bottom));
+    background: rgba(19, 20, 22, 0.94); color: #fff;
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0 14px; text-align: center;
+    font-family: var(--font-display); font-weight: 800; letter-spacing: -0.01em; font-size: clamp(1.15rem, 2.5vw, 1.9rem); line-height: 1.2;
   }
-  @keyframes paving-name { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  @keyframes paving-name-flip { to { color: #fff; } }
+  .paving__line p { margin: 0; opacity: 0; animation: paving-word 0.5s var(--ease) 0.25s forwards; }
+  .paving__line p + p { color: var(--paver); animation-delay: 1.5s; }
+  .paving__line b { font-weight: 900; }
+  @keyframes paving-word { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   @keyframes paving-out { to { opacity: 0; visibility: hidden; } }
   @media (prefers-reduced-motion: reduce) { .paving { display: none; } }
 </style>
