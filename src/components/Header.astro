@@ -28,9 +28,11 @@ const links = [
       <summary aria-label="Menu"><span></span><span></span><span></span></summary>
       <div class="menu__panel band">
         {links.map((l) => <a href={l.href}>{l.label}</a>)}
-        <a href="/quote">Get my price</a>
         <a href="/app">Customer and team sign in</a>
-        <a href={site.phoneHref}>Call {site.phone}</a>
+        <div class="menu__btns">
+          <a class="btn btn--paver" href="/quote">Get my price</a>
+          <a class="btn btn--line" href={site.phoneHref}>Call {site.phone}</a>
+        </div>
       </div>
     </details>
   </div>
@@ -55,7 +57,10 @@ const links = [
   .menu summary::-webkit-details-marker { display: none; }
   .menu summary span { width: 20px; height: 2px; background: #fff; }
   .menu__panel { position: absolute; left: 0; right: 0; top: 100%; display: grid; padding: 8px var(--gutter) 20px; border-bottom: 1px solid var(--border); }
-  .menu__panel a { padding: 14px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+  .menu__panel { max-height: calc(100vh - 70px); overflow-y: auto; }
+  .menu__panel > a { padding: 16px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-family: var(--font-display); font-weight: 800; font-size: 1.45rem; }
+  .menu__btns { display: grid; gap: 10px; padding-top: 18px; }
+  .menu__btns .btn { width: 100%; min-height: 54px; font-size: 1.1rem; }
   @media (min-width: 1140px) {
     .nav, .hdr__cta { display: flex; }
     .menu { display: none; }

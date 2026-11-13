@@ -12,7 +12,7 @@ const faqs = [
 const schema = [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }];
 ---
 <Base title="Asphalt Paving Cost Estimate | Instant Price Range" description="Get a price range for your asphalt driveway, parking lot or private road in about a minute. Enter the size and ground conditions. Free site visit confirms it. Longview and East Texas." schema={schema}>
-  <section class="band pagehead qhead">
+  <section class="band pagehead qhead" style="--pagehead-photo:url('/img/work/curved-asphalt-driveway-east-texas.webp')">
     <div class="wrap">
       <h1>Get your price range</h1>
       <p class="lede">Three quick steps. No waiting on a callback to find out if it fits your budget.</p>

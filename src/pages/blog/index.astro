@@ -6,7 +6,7 @@ const posts = (await getCollection('blog', (p) => !p.data.draft)).sort((a, b) =>
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 ---
 <Base title="Paving & Dirt Work Blog | East Texas Asphalt Advice" description="Straight answers about asphalt driveways, parking lots, base work and upkeep in East Texas from the crew at CGH Operations in Longview.">
-  <section class="band pagehead">
+  <section class="band pagehead" style="--pagehead-photo:url('/img/work/asphalt-drive-through-pines.webp')">
     <div class="wrap">
       <ol class="crumbs"><li><a href="/">Home</a></li><li>Blog</li></ol>
       <h1>Straight answers about asphalt</h1>

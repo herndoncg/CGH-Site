@@ -1,14 +1,25 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import Strata from '../components/Strata.astro';
-import CtaBand from '../components/CtaBand.astro';
-import { site, reviews, workPhotos } from '../data/site';
+import QuoteTool from '../components/QuoteTool.astro';
+import { site, reviews, workPhotos, beforeAfter } from '../data/site';
 import { services, groups } from '../data/services';
 import { areas } from '../data/areas';
 
 const posts = (await getCollection('blog', (p) => !p.data.draft)).sort((a, b) => +b.data.date - +a.data.date).slice(0, 3);
 const strip = workPhotos.slice(0, 6);
+const altFor = (src: string, fallback: string) => workPhotos.find((p) => p.src === src)?.alt ?? fallback;
+// The three doors into the services, each with a real job photo.
+const cards = [
+  { group: 'Asphalt', title: 'Asphalt paving', line: 'New driveways, parking lots and private roads.', photo: '/img/work/new-asphalt-driveway-to-garage.webp', alt: 'New asphalt driveway running up to a garage' },
+  { group: 'Upkeep', title: 'Repairs and upkeep', line: 'Patching, sealcoating, crack filling and striping.', photo: '/img/work/parking-lot-patch-after.webp', alt: 'Parking lot section patched with new asphalt' },
+  { group: 'Dirt work', title: 'Dirt work and base', line: 'Grading, rock base and the ground work under the pavement.', photo: '/img/work/dump-truck-and-roller.webp', alt: 'CGH dump truck and roller on a job site' },
+];
+const who = [
+  { title: 'Homes', line: 'Driveways, garage pads and turnarounds.', photo: '/img/work/lake-house-asphalt-driveway.webp', alt: 'Asphalt driveway at a lake house' },
+  { title: 'Ranches and land', line: 'Entrances, long drives and private roads.', photo: '/img/work/ranch-entrance-asphalt-drive.webp', alt: 'Asphalt drive at a ranch entrance' },
+  { title: 'Churches and businesses', line: 'Parking lots, patches, striping and upkeep.', photo: '/img/work/shop-driveway-with-roller.webp', alt: 'Roller finishing an asphalt drive at a shop' },
+];
 const steps = [
   { name: 'Get your price range', text: 'Enter the size of the job and what shape the ground is in. You see a price range in about a minute.' },
   { name: 'We come look at it', text: 'A free site visit confirms the number. We check drainage, soft spots and access, and tell you what the job really needs.' },
@@ -29,11 +40,6 @@ const steps = [
         <p class="hero__tag">From breaking ground to groundbreaking. CGH brings results.</p>
         <h1>Asphalt paving and dirt work, done by one crew.</h1>
         <p class="lede">Driveways, parking lots and private roads across Texas, Louisiana, Arkansas and Oklahoma. We own the paver, the dozer and the dump trucks, so the people who shape your ground are the same people who pave it.</p>
-        <ul class="hero__facts">
-          <li>Based in Longview and Texarkana since {site.foundedYear}</li>
-          <li>Homes, ranches, churches and businesses</li>
-          <li>Free site visit before any work starts</li>
-        </ul>
       </div>
       <form class="start" action="/quote" method="get">
         <h2>See your price in about a minute</h2>
@@ -49,40 +55,90 @@ const steps = [
     </div>
   </section>
 
+  <section class="proof" aria-label="Why CGH Operations">
+    <ul class="wrap proof__in">
+      <li><b>Our own equipment</b><span>Paver, roller, dozer, backhoe, skid steer and dump trucks</span></li>
+      <li><b>Working since {site.foundedYear}</b><span>Based in Longview and Texarkana</span></li>
+      <li><b>Four states</b><span>Texas, Louisiana, Arkansas and Oklahoma</span></li>
+      <li><b>Free site visit</b><span>A firm price before any work starts</span></li>
+    </ul>
+  </section>
+
   <section class="section">
     <div class="wrap">
       <div class="head">
         <h2>Everything asphalt, and the ground under it</h2>
         <p class="lede">New pavement, upkeep that makes it last, and the dirt work that decides whether it holds up.</p>
       </div>
-      <div class="svc">
-        {groups.map((g) => (
-          <div class="svc__col">
-            <h3>{g}</h3>
-            <ul>
-              {services.filter((s) => s.group === g).map((s) => (
-                <li><a href={`/services/${s.slug}`}><b>{s.name}</b><span>{s.line}</span></a></li>
-              ))}
-            </ul>
-          </div>
+      <div class="scards">
+        {cards.map((c) => (
+          <article class="scard">
+            <img src={c.photo} alt={altFor(c.photo, c.alt)} loading="lazy" decoding="async" width="800" height="600" />
+            <div class="scard__body">
+              <h3>{c.title}</h3>
+              <p>{c.line}</p>
+              <ul>
+                {services.filter((s) => s.group === c.group).map((s) => (<li><a href={`/services/${s.slug}`}>{s.name}</a></li>))}
+              </ul>
+            </div>
+          </article>
         ))}
       </div>
     </div>
   </section>
 
-  {strip.length > 0 && (
-    <section class="work">
-      <div class="wrap head head--row">
-        <h2>Recent work around East Texas</h2>
-        <a class="textlink" href="/work">See more of our work</a>
+  <section class="section section--stone seen">
+    <div class="wrap">
+      <div class="head head--row">
+        <h2>See the work</h2>
+        <a class="textlink" href="/work">All of our work</a>
       </div>
+      {beforeAfter.length > 0 && (
+        <div class="pairs">
+          {beforeAfter.slice(0, 2).map((b) => (
+            <figure>
+              <div class="pair">
+                <div><img src={b.before} alt={b.beforeAlt} loading="lazy" decoding="async" width="600" height="600" /><span>Before</span></div>
+                <div><img src={b.after} alt={b.afterAlt} loading="lazy" decoding="async" width="600" height="600" /><span>After</span></div>
+              </div>
+              <figcaption>{b.title}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+    </div>
+    {strip.length > 0 && (
       <div class="work__rail">
         {strip.map((p) => (
           <figure><img src={p.src} alt={p.alt} loading="lazy" decoding="async" width="600" height="800" /><figcaption>{p.caption}</figcaption></figure>
         ))}
       </div>
-    </section>
-  )}
+    )}
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="head"><h2>Who we work for</h2></div>
+      <div class="who">
+        {who.map((w) => (
+          <article>
+            <img src={w.photo} alt={altFor(w.photo, w.alt)} loading="lazy" decoding="async" width="800" height="600" />
+            <h3>{w.title}</h3>
+            <p>{w.line}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--stone">
+    <div class="wrap">
+      <div class="head"><h2>How a job goes</h2></div>
+      <ol class="steps">
+        {steps.map((s) => (<li><h3>{s.name}</h3><p>{s.text}</p></li>))}
+      </ol>
+    </div>
+  </section>
 
   <section class="section know">
     <div class="wrap know__in">
@@ -93,25 +149,16 @@ const steps = [
       <div>
         <h2>Know who you are hiring</h2>
         <p class="lede">{site.motto}</p>
+        <p class="know__about">CGH Operations started in Longview in {site.foundedYear}. We are a small, faith-driven crew with our own equipment. You deal with the people doing the work, and we answer for how it turns out.</p>
         <ul class="know__list">
           <li><b>You get a real price before any work starts.</b> A range online in a minute, then a firm number after we walk your site. The visit is free.</li>
           <li><b>One crew, start to finish.</b> The people who grade your ground are the people who pave it. No handoffs, no finger pointing.</li>
           <li><b>We tell you what the job needs, not what costs the most.</b> If an overlay or a patch will do, we say so.</li>
           <li><b>You can always reach us.</b> Call or text <a href={site.phoneHref}>{site.phone}</a>, {site.hours}.</li>
         </ul>
-        <div class="btn-row"><a class="btn btn--dark" href="/about">Meet CGH Operations</a><a class="btn btn--line" href="/work">See our work</a></div>
+        <p class="verse">"{site.verse.text}" <span>{site.verse.ref}</span></p>
+        <div class="btn-row"><a class="btn btn--dark" href="/about">Meet CGH Operations</a><a class="btn btn--line" href="/careers">We are hiring</a></div>
       </div>
-    </div>
-  </section>
-
-  <Strata />
-
-  <section class="section">
-    <div class="wrap">
-      <div class="head"><h2>How a job goes</h2></div>
-      <ol class="steps">
-        {steps.map((s) => (<li><h3>{s.name}</h3><p>{s.text}</p></li>))}
-      </ol>
     </div>
   </section>
 
@@ -128,21 +175,16 @@ const steps = [
     </section>
   )}
 
-  <section class="section band about">
+  <section class="section band area">
     <div class="wrap split">
       <div>
-        <h2>A faith-driven crew that owns its work</h2>
-        <p class="lede">CGH Operations started in Longview in {site.foundedYear}. We are a small crew with our own paver, roller, dozer, backhoe, skid steer and dump trucks. That means you deal with the people doing the work, and we answer for how it turns out.</p>
-        <p class="verse">"{site.verse.text}" <span>{site.verse.ref}</span></p>
-        <div class="btn-row"><a class="btn btn--line" href="/about">About CGH Operations</a><a class="btn btn--line" href="/careers">We are hiring</a></div>
+        <h2>Based in Longview and Texarkana. Working across four states.</h2>
+        <p class="lede">We travel for the right job anywhere in Texas, Louisiana, Arkansas and Oklahoma. These are the towns we are in most.</p>
+        <div class="btn-row"><a class="btn btn--line" href="/service-areas">All service areas</a></div>
       </div>
-      <div>
-        <h3>Where we work</h3>
-        <ul class="towns">
-          {areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}</a></li>)}
-        </ul>
-        <p class="muted">Based out of Longview and Texarkana, serving Texas, Louisiana, Arkansas and Oklahoma.</p>
-      </div>
+      <ul class="towns">
+        {areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}</a></li>)}
+      </ul>
     </div>
   </section>
 
@@ -163,7 +205,16 @@ const steps = [
     </section>
   )}
 
-  <CtaBand />
+  <section class="section section--stone" id="quote">
+    <div class="wrap narrow">
+      <div class="head">
+        <h2>Get your price range</h2>
+        <p class="lede">Three quick steps. No waiting on a callback to find out if it fits your budget.</p>
+      </div>
+      <QuoteTool />
+      <p class="muted quote__alt">Rather talk it through? Call <a class="textlink" href={site.phoneHref}>{site.phone}</a>, {site.hours}.</p>
+    </div>
+  </section>
 </Base>
 
 <script>
@@ -192,9 +243,6 @@ const steps = [
   .hero__tag { font-family: var(--font-display); font-weight: 700; color: #f1f5f9; font-size: clamp(0.98rem, 1.4vw, 1.12rem); line-height: 1.35; margin: 0 0 18px; padding-left: 14px; border-left: 3px solid var(--paver); max-width: 30ch; }
   .hero h1 { max-width: 15ch; }
   .hero .lede { color: #dbe3ee; }
-  .hero__facts { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 8px; color: #dbe3ee; font-weight: 500; }
-  .hero__facts li { padding-left: 22px; position: relative; }
-  .hero__facts li::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 12px; height: 4px; background: var(--paver); }
 
   .start { background: var(--chalk); color: var(--asphalt); border-radius: var(--radius-lg); padding: clamp(22px, 3vw, 32px); --text: var(--asphalt); --surface: #fff; --border-strong: rgba(11, 18, 32, 0.28); --muted: #5a6677; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
   .start h2 { font-size: 1.6rem; margin-bottom: 6px; }
@@ -211,6 +259,7 @@ const steps = [
   .know__photo img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); box-shadow: 0 30px 70px rgba(11, 18, 32, 0.22); }
   .know__photo figcaption { margin-top: 12px; color: var(--muted); font-size: 0.93rem; }
   .know .lede { font-family: var(--font-display); font-weight: 700; color: var(--clay); font-size: clamp(1.05rem, 1.5vw, 1.25rem); }
+  .know__about { color: var(--text-2); margin: 14px 0 0; }
   .know__list { list-style: none; padding: 0; margin: 26px 0 30px; display: grid; gap: 18px; }
   .know__list li { padding-left: 22px; border-left: 3px solid var(--paver); color: var(--text-2); }
   .know__list b { display: block; color: var(--text); font-family: var(--font-display); font-weight: 800; font-size: 1.12rem; margin-bottom: 2px; }
@@ -221,16 +270,52 @@ const steps = [
   .head--row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px 24px; }
   .head--row h2 { margin: 0; }
 
-  .svc { display: grid; gap: 36px; }
-  @media (min-width: 900px) { .svc { grid-template-columns: repeat(3, 1fr); gap: 48px; } }
-  .svc__col h3 { font-size: 1rem; font-weight: 800; color: var(--clay); padding-bottom: 12px; border-bottom: 3px solid var(--asphalt); margin: 0; }
-  .svc ul { list-style: none; padding: 0; margin: 0; }
-  .svc li a { display: block; padding: 18px 0; border-bottom: 1px solid var(--border-strong); text-decoration: none; }
-  .svc li b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; letter-spacing: -0.01em; }
-  .svc li span { color: var(--muted); font-size: 0.98rem; }
-  .svc li a:hover b { text-decoration: underline; text-decoration-color: var(--paver); text-decoration-thickness: 4px; text-underline-offset: 5px; }
+  /* proof strip directly under the top of the page */
+  .proof { background: var(--asphalt-2); color: #fff; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+  .proof__in { list-style: none; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding-top: 0; padding-bottom: 0; }
+  .proof li { padding: 18px 14px 18px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+  .proof li:nth-child(even) { padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, 0.08); }
+  .proof b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.08rem; }
+  .proof span { display: block; color: #b9c4d3; font-size: 0.9rem; line-height: 1.4; margin-top: 2px; }
+  @media (min-width: 900px) {
+    .proof__in { grid-template-columns: repeat(4, 1fr); }
+    .proof li, .proof li:nth-child(even) { padding: 24px 24px 24px 0; border-bottom: 0; border-left: 0; }
+    .proof li + li { padding-left: 24px; border-left: 1px solid rgba(255, 255, 255, 0.1); }
+  }
 
-  .work { padding-bottom: var(--section); }
+  /* services: three photo cards */
+  .scards { display: grid; gap: 22px; }
+  @media (min-width: 900px) { .scards { grid-template-columns: repeat(3, 1fr); gap: 28px; } }
+  .scard { background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 10px 30px rgba(11, 18, 32, 0.1); display: flex; flex-direction: column; }
+  .scard img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: var(--limestone-2); }
+  .scard__body { padding: 22px 22px 14px; }
+  .scard h3 { font-size: 1.5rem; margin: 0 0 6px; }
+  .scard p { color: var(--text-2); margin: 0 0 12px; }
+  .scard ul { list-style: none; padding: 0; margin: 0; }
+  .scard li a { display: flex; justify-content: space-between; align-items: center; padding: 13px 0; border-top: 1px solid var(--border); text-decoration: none; font-weight: 600; }
+  .scard li a::after { content: '›'; color: var(--muted); font-size: 1.3rem; line-height: 1; }
+  .scard li a:hover { color: var(--clay); }
+
+  /* before and after, side by side, labels on solid tags */
+  .pairs { display: grid; gap: 26px; margin-bottom: clamp(28px, 4vw, 44px); }
+  @media (min-width: 900px) { .pairs { grid-template-columns: 1fr 1fr; } }
+  .pairs figure { margin: 0; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border-radius: var(--radius-lg); overflow: hidden; }
+  .pair div { position: relative; }
+  .pair img { width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; background: var(--limestone-2); display: block; }
+  .pair span { position: absolute; left: 10px; top: 10px; background: var(--asphalt); color: #fff; font-weight: 700; font-size: 0.85rem; padding: 3px 11px; border-radius: 999px; }
+  .pair div:last-child span { background: var(--paver); color: var(--asphalt); }
+  .pairs figcaption { margin-top: 10px; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
+  .seen { padding-bottom: clamp(40px, 6vw, 72px); }
+
+  /* who we work for */
+  .who { display: grid; gap: 26px; }
+  @media (min-width: 800px) { .who { grid-template-columns: repeat(3, 1fr); } }
+  .who img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius-lg); background: var(--limestone-2); margin-bottom: 14px; }
+  .who h3 { font-size: 1.4rem; margin: 0 0 4px; }
+  .who p { margin: 0; color: var(--text-2); }
+
+  .work__rail { margin-top: 4px; }
   .work__rail { display: flex; gap: 14px; overflow-x: auto; padding: 0 max(var(--gutter), calc((100vw - var(--max)) / 2 + var(--gutter))) 14px; scroll-padding-left: max(var(--gutter), calc((100vw - var(--max)) / 2 + var(--gutter))); scroll-snap-type: x proximity; scrollbar-width: thin; }
   .work__rail figure { margin: 0; flex: 0 0 min(72vw, 330px); scroll-snap-align: start; }
   .work__rail img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-lg); background: var(--limestone-2); }
@@ -249,9 +334,12 @@ const steps = [
   .reviews blockquote { margin: 0 0 16px; font-size: 1.08rem; }
   .reviews figcaption span { display: block; color: var(--muted); font-size: 0.92rem; }
 
-  .about .lede { color: var(--text-2); }
+  .area .lede { color: var(--text-2); }
+  .area h2 { max-width: 18ch; }
+  .quote__alt { margin-top: 22px; }
   .verse { border-left: 4px solid var(--paver); padding-left: 18px; font-size: 1.1rem; max-width: 46ch; margin: 28px 0; }
   .verse span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 4px; }
+  .know .verse { margin: 0 0 28px; color: var(--text-2); }
   .towns { list-style: none; padding: 0; margin: 0 0 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
   .towns a { display: block; padding: 11px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-family: var(--font-display); font-weight: 700; font-size: 1.12rem; }
   .towns a:hover { color: #fff; text-decoration: underline; text-decoration-color: var(--paver); }
