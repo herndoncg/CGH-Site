@@ -6,7 +6,7 @@
     - Navy       : the dark base. Steady, professional, and what CGH already looks like.
     - Deep blue  : links and small labels on light pages. Blue is the color most tied to competence and trust.
     - Teal       : the one action color (buttons, key highlights). It stands out on navy and on white.
-    - Soft slate grey : page backgrounds. Colton asked for grey instead of white because bright white
+    - Steel / heather grey : page backgrounds (darkened twice at Colton's request on Nov 12). Colton asked for grey instead of white because bright white
                    was hard on the eyes. Cards sit one step lighter than the page; nothing is pure white.
 
   The variable NAMES are left over from the first design (asphalt, paver, clay, limestone) so the rest of
@@ -20,15 +20,15 @@
   --asphalt-2: #121b2e;
   --asphalt-3: #1c2942;
   --aggregate: #5d6877;
-  --limestone: #cfd6e0;
-  --limestone-2: #bcc6d3;
-  --chalk: #dde2e9;
-  --white: #e9edf2;
+  --limestone: #b7bec9;
+  --limestone-2: #a3adba;
+  --chalk: #c5cad3;
+  --white: #d3d8df;
   --paver: #0ea5a9;
   --paver-bright: #2cc4c8;
   --paver-deep: #005f86;
-  --clay: #005f86;
-  --clay-deep: #00465f;
+  --clay: #00465f;
+  --clay-deep: #00384d;
   --mint: #34d399;
   --danger: #b3261e;
 
@@ -37,7 +37,7 @@
   --surface: var(--white);
   --text: #0f172a;
   --text-2: #334155;
-  --muted: #475569;
+  --muted: #3b4759;
   --border: rgba(14, 23, 38, 0.12);
   --border-strong: rgba(14, 23, 38, 0.28);
   --accent: var(--clay);
