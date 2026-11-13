@@ -9,7 +9,7 @@ const schema = careers.roles.map((r) => ({
   jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: site.city, addressRegion: site.state, addressCountry: 'US' } },
 }));
 ---
-<Base title="Paving & Equipment Operator Jobs in Longview, TX" description="CGH Operations is hiring paving crew laborers, equipment operators and dump truck drivers in Longview, TX. Apply online in about two minutes." schema={schema}>
+<Base title="Paving Jobs in Longview, TX | Paver Operator, Laborer, Driver, Sales" description="CGH Operations is hiring a paver operator, laborers, a dump truck driver and a sales person in Longview, Texas. Apply online in two minutes." schema={schema}>
   <section class="band pagehead" style="--pagehead-photo:url('/img/work/crew-raking-asphalt.webp')">
     <div class="wrap">
       <ol class="crumbs"><li><a href="/">Home</a></li><li>Careers</li></ol>
@@ -26,6 +26,7 @@ const schema = careers.roles.map((r) => ({
           <h2>{r.title}</h2>
           <p>{r.text}</p>
           <ul class="checks">{r.requirements.map((x) => <li>{x}</li>)}</ul>
+          <p><a class="btn btn--dark" href="#apply" data-role={r.title}>Apply for {r.title}</a></p>
         </article>
       ))}
     </div>
@@ -61,6 +62,11 @@ const schema = careers.roles.map((r) => ({
     </div>
   </section>
 </Base>
+
+<script>
+  // Tapping "Apply for ..." picks that job in the form.
+  document.querySelectorAll<HTMLAnchorElement>('[data-role]').forEach((a) => a.addEventListener('click', () => { const sel = document.getElementById('ap-pos') as HTMLSelectElement | null; if (sel) sel.value = a.dataset.role!; }));
+</script>
 <script>
   document.querySelectorAll<HTMLFormElement>('[data-apply]').forEach((form) => {
     form.addEventListener('submit', async (e) => {

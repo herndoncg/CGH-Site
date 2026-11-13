@@ -90,6 +90,16 @@ r = await call('POST', 'equipment', { name: 'Water truck', kind: 'Hauling' }, ow
 r = await call('POST', 'leads', { name: 'Quick Quote', phone: '9035550122', sqft: '1200', est_low: '4050', est_high: '4700', base_work: 'Yes' }, sam); ok('a quick quote saves as a lead with its numbers', r.body.lead.est_low === 4050 && r.body.lead.owner);
 r = await call('GET', 'equipment', null, pat); ok('customers cannot see equipment', r.status === 404);
 
+// ----- follow-ups, job checklist, job log -----
+r = await call('PATCH', 'leads/' + lead.id, { follow_up: '2026-11-10' }, owner); r = await call('GET', 'home?today=2026-11-12', null, owner); ok('a follow-up that has come due shows on Home', r.body.waiting.followups === 1 && r.body.stats.week >= 1 && r.body.stats.booked === 8600);
+r = await call('GET', 'home?today=2026-11-01', null, owner); ok('a follow-up in the future does not', r.body.waiting.followups === 0);
+r = await call('POST', 'leads/' + lead.id + '/check', { item: 'Paved', done: true }, cal); ok('crew can tick the job checklist', r.status === 200 && r.body.lead.checklist.Paved.by === 'Cal Crew' && r.body.lead.firm_price === undefined);
+r = await call('POST', 'leads/' + lead.id + '/check', { item: 'Made up', done: true }, cal); ok('only real checklist items are accepted', r.status === 400);
+r = await call('POST', 'leads/' + lead.id + '/log', { text: 'Soft spot by the gate, added a load of rock.' }, cal); ok('crew can add a job note', r.body.lead.joblog[0].text.includes('Soft spot'));
+r = await call('GET', 'leads', null, owner); ok('owner sees the checklist and the job log', r.body.leads.find((l) => l.id === lead.id).joblog.length === 1 && !!r.body.leads.find((l) => l.id === lead.id).checklist.Paved);
+r = await call('POST', 'leads/' + lead.id + '/log', { text: 'x' }, pat); ok('customers cannot write to the job log', r.status === 404);
+r = await call('GET', 'home', null, cal); ok('crew get no sales numbers on Home', r.body.stats === undefined && r.body.waiting.followups === undefined);
+
 // ----- resetting, changing, turning off -----
 const calId = (await store.get('emails/' + sha('cal@example.com'))).id;
 r = await call('PATCH', 'users/' + calId, { reset: true }, owner); ok('owner can reset a password to a new temporary one', r.status === 200 && TEMP.test(r.body.temp) && r.body.temp !== calTemp); const calTemp2 = r.body.temp;

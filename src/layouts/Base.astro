@@ -90,13 +90,13 @@ if (site.email) business.email = site.email;
         <Footer />
         <nav class="callbar" aria-label="Quick contact">
           <a href={site.phoneHref} class="callbar__call">Call</a>
-          <a href="/quote" class="callbar__quote">Get my price</a>
+          {!Astro.url.pathname.startsWith('/quote') && <a href="/quote" class="callbar__quote">Get my price</a>}
         </nav>
       </Fragment>
     )}
 
     <style>
-      .callbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: none; grid-template-columns: 1fr 1.5fr; padding-bottom: env(safe-area-inset-bottom); background: var(--asphalt); box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18); }
+      .callbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: none; grid-auto-flow: column; grid-auto-columns: 1fr; padding-bottom: env(safe-area-inset-bottom); background: var(--asphalt); box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18); }
       .callbar a { display: flex; align-items: center; justify-content: center; min-height: 56px; font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; text-decoration: none; }
       .callbar__call { color: #fff; }
       .callbar__quote { background: var(--paver); color: var(--asphalt); }
