@@ -37,11 +37,16 @@ export function publicQuote(input, p = PRICES) {
   const make = (key, name, what, lasts, extra) => {
     const total = asphalt + extra * sqft + common;
     let low = Math.max(p.minimumJob, round50(total * (1 - p.rangeLowPct / 100))), high = round50(total * (1 + p.rangeHighPct / 100));
-    // Colton's rule: the leading figure of the range never sits more than 1 below or 1 above the real price's.
-    // ($8,375 may show as 7,xxx to 9,xxx, never 6,xxx or 10,xxx.) 5% under and 10% over already keeps to it;
-    // this makes it a guarantee even if those percentages are changed later.
-    const unit = 10 ** Math.floor(Math.log10(total)), d = Math.floor(total / unit);
-    low = Math.max(low, (d - 1) * unit); high = Math.min(high, (d + 2) * unit - 50);
+    // Colton's rule: the first digit of the low and the high are never more than 1 apart.
+    // $8,375 must not show as 7,950 to 9,200 (a 7 and a 9). It shows as 8,000 to 9,200.
+    // When 5% under and 10% over would span three leading figures, the low end comes up to the next
+    // round figure. The high end stays, because a final price above the range is worse than one below it.
+    // (9,xxx to 10,xxx counts as one step.)
+    const unit = 10 ** Math.floor(Math.log10(total));
+    if (Math.floor(high / unit) - Math.floor(low / unit) > 1) {
+      const up = (Math.floor(high / unit) - 1) * unit; // bring the low end up to the next round figure...
+      if (up <= total) low = up; else high = (Math.floor(low / unit) + 2) * unit - 50; // ...unless that would pass the real price; then trim the high end
+    }
     return { key, name, what, lasts, total: Math.round(total), low, high };
   };
   const includes = [`Hot mix asphalt over about ${sqft.toLocaleString('en-US')} sq ft`];
