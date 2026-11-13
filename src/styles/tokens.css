@@ -1,32 +1,42 @@
 /*
   CGH Operations brand tokens.
-  Colors come from the job itself: fresh hot-mix asphalt, crushed limestone base,
-  paver yellow, and East Texas red clay.
-  Pages are light (limestone) by default. Add class="band" to a section to pave it dark.
+
+  Palette (chosen Nov 12, 2026; reasoning is in the project doc "cgh-color-study"):
+    - Ink navy   : the dark base. Reads as steady and professional, and nobody else paving in East Texas uses it.
+    - Blue       : links and small labels on light pages. Blue is the color most tied to competence and trust.
+    - Green      : the action color (buttons, key highlights). It stands out against navy and white, and says "go".
+    - Cool white : page backgrounds.
+
+  The variable NAMES are left over from the first design (asphalt, paver, clay, limestone) so the rest of
+  the site did not have to be rewritten. Read them as: asphalt = ink navy, paver = green, clay = blue,
+  limestone/chalk = cool whites.
+
+  Pages are light by default. Add class="band" to a section to make it dark.
 */
 :root {
-  --asphalt: #1b1c1e;
-  --asphalt-2: #26282b;
-  --asphalt-3: #33363a;
-  --aggregate: #63676c;
-  --limestone: #ebe8df;
-  --limestone-2: #dcd8cc;
-  --chalk: #f8f7f2;
+  --asphalt: #0e1726;
+  --asphalt-2: #162236;
+  --asphalt-3: #223450;
+  --aggregate: #5d6877;
+  --limestone: #e6ebf0;
+  --limestone-2: #d3dbe4;
+  --chalk: #f6f8fa;
   --white: #ffffff;
-  --paver: #f4b400;
-  --paver-bright: #ffc928;
-  --paver-deep: #b98300;
-  --clay: #9a4427;
-  --clay-deep: #7c3319;
+  --paver: #2fc474;
+  --paver-bright: #52dd90;
+  --paver-deep: #12803f;
+  --clay: #1a5fc4;
+  --clay-deep: #134a9a;
+  --danger: #b3261e;
 
   --bg: var(--chalk);
   --bg-2: var(--limestone);
   --surface: var(--white);
-  --text: #1b1c1e;
-  --text-2: #3a3d41;
-  --muted: #5f6368;
-  --border: rgba(27, 28, 30, 0.12);
-  --border-strong: rgba(27, 28, 30, 0.28);
+  --text: #0e1726;
+  --text-2: #2d3a4d;
+  --muted: #5a6677;
+  --border: rgba(14, 23, 38, 0.12);
+  --border-strong: rgba(14, 23, 38, 0.28);
   --accent: var(--clay);
 
   --font-display: 'Overpass Variable', 'Overpass', 'Arial Narrow', system-ui, sans-serif;
@@ -44,14 +54,14 @@
   --bg: var(--asphalt);
   --bg-2: var(--asphalt-2);
   --surface: var(--asphalt-2);
-  --text: #f4f2ec;
-  --text-2: #d6d3ca;
-  --muted: #a9a79f;
-  --border: rgba(244, 242, 236, 0.12);
-  --border-strong: rgba(244, 242, 236, 0.3);
+  --text: #f2f5f9;
+  --text-2: #cfd7e2;
+  --muted: #9aa6b6;
+  --border: rgba(242, 245, 249, 0.12);
+  --border-strong: rgba(242, 245, 249, 0.3);
   --accent: var(--paver);
   background-color: var(--bg);
-  /* fine aggregate grain, so dark sections read as pavement and not flat black */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* a very fine grain so dark sections are not a flat block of color */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
   color: var(--text);
 }

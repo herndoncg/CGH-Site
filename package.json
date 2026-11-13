@@ -13,10 +13,6 @@
     "@fontsource-variable/overpass": "^5.2.0",
     "@netlify/blobs": "^8.1.0",
     "astro": "^7.3.8",
-    "sharp": "^0.35.5",
-    "three": "^0.170.0"
-  },
-  "devDependencies": {
-    "@types/three": "^0.170.0"
+    "sharp": "^0.35.5"
   }
 }

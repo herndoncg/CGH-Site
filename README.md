@@ -66,6 +66,6 @@ New phone photos: `node scripts/import-photos.mjs /path/photo.jpg=descriptive-na
 - Trainings are the `LESSONS` list at the top of `core.mjs`.
 - Test the back end: `node scripts/test-api.mjs` (33 checks).
 
-## The 3D paver at the top of the homepage
+## Colors
 
-`src/lib/paver3d.ts` builds the machine in code with three.js (no downloaded model, no brand markings). The homepage script pins the section and passes the scroll position to it. To use a purchased or free realistic model later, load a `.glb` in that file in place of the code-built parts.
+Ink navy base, blue for links and labels, green for buttons and highlights. All set in `src/styles/tokens.css`; the reasoning is in the project doc `cgh-color-study`.
