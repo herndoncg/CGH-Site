@@ -16,28 +16,6 @@ media:
   rename: safe
 
 content:
-- name: pricing
-  label: Quote Tool Prices
-  type: file
-  path: src/data/pricing.json
-  format: json
-  fields:
-  - { name: minimumJob, label: 'Minimum job price ($)', type: number, required: true }
-  - { name: minimumSqft, label: 'Size the minimum covers (sq ft)', type: number, required: true }
-  - name: tiers
-    label: 'Price per sq ft at each size (the price slides smoothly between these)'
-    type: object
-    list: { min: 1, max: 6 }
-    fields:
-    - { name: sqft, label: 'At this many sq ft', type: number }
-    - { name: rate, label: 'Price per sq ft ($)', type: number }
-  - { name: baseWorkFee, label: 'Grading / base work flat fee ($)', type: number, required: true }
-  - { name: loadPrice, label: 'Rock, price per dump truck load ($)', type: number, required: true }
-  - { name: loadYards, label: 'Cubic yards per load', type: number, required: true }
-  - { name: fillDepthIn, label: 'Rock depth (inches)', type: number, required: true }
-  - { name: rangeLowPct, label: 'Range: percent UNDER the estimate', type: number, required: true }
-  - { name: rangeHighPct, label: 'Range: percent OVER the estimate', type: number, required: true }
-
 - name: blog
   label: Blog Posts
   type: collection

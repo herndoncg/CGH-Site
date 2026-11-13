@@ -1,18 +1,22 @@
 ---
 // The instant quote: three short steps, then a price range.
 // Job details -> ground conditions -> contact info -> range shown and lead sent.
-// All prices come from src/data/pricing.json (editable in the content portal).
+// The price is worked out on the server (netlify/functions/lib/quote.mjs). No prices or formulas are in this page.
+// Two ways through: Simple (size and ground) and Detailed (more areas, rock depth, what is there now, access, timing).
 import { site } from '../data/site';
-import pricing from '../data/pricing.json';
 ---
-<form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-phone={site.phone} data-endpoint={site.formEndpoint} data-pricing={JSON.stringify(pricing)} novalidate>
+<form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-phone={site.phone} data-endpoint={site.formEndpoint} novalidate>
   <input type="hidden" name="form-name" value="quote" />
-  {['loads', 'est_total', 'est_low', 'est_high', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  {['loads', 'est_low', 'est_high', 'premium_range', 'elite_range', 'details', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
   <ol class="qt__steps" aria-hidden="true">
     <li class="is-on">The job</li><li>The ground</li><li>Your info</li><li>Your price</li>
   </ol>
 
   <fieldset class="qt__panel is-on" data-step="1">
+    <div class="qt__mode" role="radiogroup" aria-label="How much detail">
+      <label><input type="radio" name="mode" value="simple" checked /><span><b>Simple</b> Size and ground. About a minute.</span></label>
+      <label><input type="radio" name="mode" value="advanced" /><span><b>Detailed</b> More areas, rock depth, access, timing.</span></label>
+    </div>
     <legend>What are we paving?</legend>
     <div class="chips" role="radiogroup" aria-label="Type of job">
       <label><input type="radio" name="job_type" value="Driveway" checked /><span>Driveway</span></label>
@@ -30,6 +34,21 @@ import pricing from '../data/pricing.json';
       <div class="field"><label for="qt-sqft">Total square feet</label><input id="qt-sqft" name="sqft" inputmode="numeric" placeholder="1,200" /></div>
     </div>
     <p class="qt__hint">No tape measure? Pace it off. One long step is about 3 feet. A close guess is fine.</p>
+    <div data-adv hidden>
+      <p class="qt__q">More than one area? Add them here and we total it.</p>
+      <div class="qt__size">
+        <div class="field"><label for="qt-l2">Second area, length (feet)</label><input id="qt-l2" name="l2" inputmode="decimal" /></div>
+        <span class="qt__x" aria-hidden="true">×</span>
+        <div class="field"><label for="qt-w2">Width (feet)</label><input id="qt-w2" name="w2" inputmode="decimal" /></div>
+      </div>
+      <div class="qt__size">
+        <div class="field"><label for="qt-l3">Third area, length (feet)</label><input id="qt-l3" name="l3" inputmode="decimal" /></div>
+        <span class="qt__x" aria-hidden="true">×</span>
+        <div class="field"><label for="qt-w3">Width (feet)</label><input id="qt-w3" name="w3" inputmode="decimal" /></div>
+      </div>
+      <p class="qt__fill" data-total aria-live="polite"></p>
+      <div class="field"><label for="qt-existing">What is there now?</label><select id="qt-existing" name="existing"><option>Dirt or grass</option><option>Gravel or rock</option><option>Old asphalt</option><option>Concrete</option></select></div>
+    </div>
     <p class="qt__err" data-err="1" role="alert"></p>
     <div class="qt__nav"><span></span><button type="button" class="btn btn--paver" data-next>Next: the ground</button></div>
   </fieldset>
@@ -47,6 +66,14 @@ import pricing from '../data/pricing.json';
     <input id="qt-fill" class="qt__range" type="range" name="fill_pct" min="0" max="100" step="5" value="0" />
     <p class="qt__fill" data-fill-label aria-live="polite">None. The ground is already solid.</p>
     <p class="qt__hint">Think soft spots, thin gravel or bare dirt. If you are not sure, leave it at none and we will check on the site visit.</p>
+    <div data-adv hidden>
+      <div class="form-grid">
+        <div class="field"><label for="qt-rock">How much rock, and what will drive on it?</label><select id="qt-rock" name="rock_depth"><option value="2">A top-up, about 2 inches</option><option value="4">New base for cars, about 4 inches</option><option value="6">New base for delivery trucks, about 6 inches</option><option value="8">New base for heavy trucks and RVs, about 8 inches</option></select></div>
+        <div class="field"><label for="qt-time">When do you want it done?</label><select id="qt-time" name="timeline"><option>As soon as you can</option><option>This month</option><option>In the next few months</option><option>Just pricing it for now</option></select></div>
+        <div class="field"><label for="qt-access">Anything tight for trucks? (gates, low limbs, septic lines)</label><input id="qt-access" name="access" /></div>
+        <div class="field"><label for="qt-stripe">Need parking stripes?</label><select id="qt-stripe" name="striping"><option>No</option><option>Yes</option></select></div>
+      </div>
+    </div>
     <div class="qt__nav"><button type="button" class="btn btn--line" data-back>Back</button><button type="button" class="btn btn--paver" data-next>Next: your info</button></div>
   </fieldset>
 
@@ -65,12 +92,10 @@ import pricing from '../data/pricing.json';
   </fieldset>
 
   <div class="qt__panel qt__result" data-step="4" tabindex="-1">
-    <p class="qt__label">Your price range</p>
-    <p class="qt__price" data-out="range"></p>
-    <table class="qt__lines">
-      <tbody data-out="lines"></tbody>
-    </table>
-    <p class="qt__note">This is a ballpark from the numbers you entered, before taxes or permits. We confirm the final price with a free site visit before any work starts.</p>
+    <p class="qt__label" data-out="head">Working out your price…</p>
+    <div class="qt__opts" data-out="opts"></div>
+    <ul class="qt__inc" data-out="inc"></ul>
+    <p class="qt__note">These are ballparks from what you entered, before taxes or permits. We confirm the final price with a free site visit before any work starts.</p>
     <p class="qt__sent" data-out="sent"></p>
     <div class="qt__next" data-next-step>
       <p class="qt__nexthead">What would you like to do next?</p>
@@ -79,6 +104,7 @@ import pricing from '../data/pricing.json';
         <label><input type="radio" name="want" value="call" /><span>Call me about it</span></label>
       </div>
       <div class="form-grid">
+        <div class="field"><label for="qt-lean">Which one are you leaning toward?</label><select id="qt-lean" name="lean"><option>Not sure yet</option><option>Economy</option><option>Premium</option><option>Elite</option></select></div>
         <div class="field"><label for="qt-when">Best time to reach you</label><select id="qt-when" name="when"><option>Any time</option><option>Morning</option><option>Afternoon</option><option>Evening</option></select></div>
         <div class="field"><label for="qt-note">Anything we should know? (optional)</label><input id="qt-note" name="want_note" /></div>
       </div>
@@ -100,7 +126,7 @@ import pricing from '../data/pricing.json';
 </form>
 
 <script>
-  import { estimate, money, type Pricing } from '../lib/pricing';
+  const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 
   const num = (v: FormDataEntryValue | null) => parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')) || 0;
   const fillWords = (p: number) =>
@@ -112,7 +138,6 @@ import pricing from '../data/pricing.json';
     : 'All of it.';
 
   document.querySelectorAll<HTMLFormElement>('[data-quote-tool]').forEach((form) => {
-    const pricing: Pricing = JSON.parse(form.dataset.pricing!);
     const panels = [...form.querySelectorAll<HTMLElement>('.qt__panel')];
     const steps = [...form.querySelectorAll<HTMLElement>('.qt__steps li')];
     const el = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
@@ -127,9 +152,12 @@ import pricing from '../data/pricing.json';
       if (top < 0) window.scrollBy({ top: top - 90, behavior: 'smooth' });
     };
 
+    const advanced = () => (form.elements.namedItem('mode') as RadioNodeList).value === 'advanced';
+    const syncMode = () => { form.querySelectorAll<HTMLElement>('[data-adv]').forEach((e) => (e.hidden = !advanced())); const t = form.querySelector<HTMLElement>('[data-total]')!; t.textContent = advanced() && sqft() ? `Total: ${Math.round(sqft()).toLocaleString('en-US')} sq ft` : ''; };
     const sqft = () => {
       const direct = num(el('sqft').value);
-      return direct > 0 ? direct : num(el('length_ft').value) * num(el('width_ft').value);
+      const first = direct > 0 ? direct : num(el('length_ft').value) * num(el('width_ft').value);
+      return advanced() ? first + num(el('l2').value) * num(el('w2').value) + num(el('l3').value) * num(el('w3').value) : first;
     };
 
     // Typing length and width fills the square feet box; typing square feet clears the other two.
@@ -150,14 +178,14 @@ import pricing from '../data/pricing.json';
     else if (q.get('sqft')) el('sqft').value = q.get('sqft')!;
 
     // Keeps what was typed if the page is refreshed or the phone switches apps (this tab only, never sent anywhere).
-    const KEEP = ['job_type', 'length_ft', 'width_ft', 'sqft', 'base_work', 'fill_pct', 'name', 'phone', 'email', 'city'];
+    const KEEP = ['mode', 'job_type', 'length_ft', 'width_ft', 'sqft', 'l2', 'w2', 'l3', 'w3', 'existing', 'base_work', 'fill_pct', 'rock_depth', 'timeline', 'access', 'striping', 'name', 'phone', 'email', 'city'];
     const remember = () => { try { const d = new FormData(form); sessionStorage.setItem('cgh-quote', JSON.stringify(Object.fromEntries(KEEP.map((k) => [k, d.get(k)])))); } catch {} };
     try {
       const saved = JSON.parse(sessionStorage.getItem('cgh-quote') || 'null');
       if (saved && !q.get('length') && !q.get('sqft')) for (const k of KEEP) { const v = saved[k]; if (v == null || v === '') continue; const node = form.elements.namedItem(k); if (node instanceof RadioNodeList) node.value = String(v); else if (node) (node as HTMLInputElement).value = String(v); }
       fillLabel.textContent = fillWords(Number(fill.value));
     } catch {}
-    form.addEventListener('input', remember); form.addEventListener('change', remember);
+    form.addEventListener('input', () => { remember(); syncMode(); }); form.addEventListener('change', () => { remember(); syncMode(); }); syncMode();
     // Phone numbers tidy themselves as they are typed: (903) 555-0100
     el('phone').addEventListener('input', () => { const d = el('phone').value.replace(/\D/g, '').replace(/^1(?=\d{10})/, '').slice(0, 10); el('phone').value = d.length > 6 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d.length > 3 ? `(${d.slice(0, 3)}) ${d.slice(3)}` : d; });
     form.querySelector('[data-print]')!.addEventListener('click', () => window.print());
@@ -186,9 +214,9 @@ import pricing from '../data/pricing.json';
       btn.disabled = true; btn.textContent = 'Sending…'; err(4, '');
       try {
         const { ref } = await leadSent; if (!ref) throw new Error('no ref');
-        const r = await fetch('/api/lead-request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ref, want: d.get('want'), when: d.get('when'), note: d.get('want_note') }) });
+        const r = await fetch('/api/lead-request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ref, want: d.get('want'), when: d.get('when'), note: d.get('want_note'), option: d.get('lean') }) });
         if (!r.ok) throw new Error(String(r.status));
-        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ 'form-name': 'quote-request', name: String(d.get('name')), phone: String(d.get('phone')), wants: d.get('want') === 'call' ? 'A phone call' : 'A free site visit', best_time: String(d.get('when')), note: String(d.get('want_note') || ''), price_range: form.querySelector('[data-out="range"]')!.textContent || '', job: `${d.get('job_type')}, ${sqft().toLocaleString('en-US')} sq ft` }).toString() }).catch(() => {});
+        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ 'form-name': 'quote-request', name: String(d.get('name')), phone: String(d.get('phone')), wants: d.get('want') === 'call' ? 'A phone call' : 'A free site visit', best_time: String(d.get('when')), note: String(d.get('want_note') || ''), price_range: [...form.querySelectorAll('.qt__opt')].map((o) => `${o.querySelector('.qt__optname')!.textContent} ${o.querySelector('.qt__price')!.textContent}`).join('; ') + (d.get('lean') && d.get('lean') !== 'Not sure yet' ? `. Leaning ${d.get('lean')}` : ''), job: `${d.get('job_type')}, ${sqft().toLocaleString('en-US')} sq ft` }).toString() }).catch(() => {});
         form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
         form.querySelector<HTMLElement>('[data-out="requested"]')!.textContent = d.get('want') === 'call' ? `Got it. We will call you at ${d.get('phone')}.` : `Got it. We will call ${d.get('phone')} to set up your free site visit.`;
       } catch { err(4, 'That did not send. Please call us and mention your price range.'); }
@@ -204,40 +232,42 @@ import pricing from '../data/pricing.json';
       if (!name || phone.length < 10) return err(3, 'Add your name and a 10-digit phone number so we can follow up on your price.');
       err(3, '');
 
-      const q = estimate(pricing, { sqft: sqft(), baseWork: data.get('base_work') === 'Yes', fillPct: Number(data.get('fill_pct')) });
       const out = (k: string) => form.querySelector<HTMLElement>(`[data-out="${k}"]`)!;
-      out('range').textContent = `${money(q.low)} to ${money(q.high)}`;
-      const rows: [string, string][] = [[`Asphalt, ${q.sqft.toLocaleString('en-US')} sq ft`, money(q.asphalt)]];
-      if (q.baseWork) rows.push(['Grading and base prep', money(q.baseWork)]);
-      if (q.loads) rows.push([`Rock, ${q.loads} dump truck load${q.loads > 1 ? 's' : ''}`, money(q.fill)]);
-      out('lines').replaceChildren(...rows.map(([a, b]) => { const tr = document.createElement('tr'); const th = document.createElement('th'); th.scope = 'row'; th.textContent = a; const td = document.createElement('td'); td.textContent = b; tr.append(th, td); return tr; }));
-      if (data.get('base_work') === 'Not sure') out('lines').insertAdjacentHTML('beforeend', '<tr><th scope="row">Grading</th><td>We will check on site</td></tr>');
-      out('sent').textContent = '';
-      // "Email me this quote": opens the customer's own mail app with the numbers filled in.
-      const mail = form.querySelector<HTMLAnchorElement>('[data-mailquote]')!; const mine = String(data.get('email') || '').trim();
-      mail.hidden = !mine;
-      if (mine) mail.href = `mailto:${mine.replace(/[?&\s]/g, "")}?subject=${encodeURIComponent('My CGH Operations price range')}&body=${encodeURIComponent(`CGH Operations price range: ${money(q.low)} to ${money(q.high)}\n\n${rows.map(([a, b]) => `${a}: ${b}`).join('\n')}\n\nThis is a ballpark before a free site visit. Call ${form.dataset.phone || ''} with questions.\n${location.origin}/quote`)}`;
-      try { sessionStorage.removeItem('cgh-quote'); } catch {}
-      show(4);
-
-      const endpoint = form.dataset.endpoint;
       const payload: Record<string, string> = {
         'form-name': 'quote', name, phone: String(data.get('phone')), email: String(data.get('email') || ''), city: String(data.get('city') || ''),
-        job_type: String(data.get('job_type')), length_ft: String(data.get('length_ft') || ''), width_ft: String(data.get('width_ft') || ''), sqft: String(q.sqft), base_work: String(data.get('base_work')), fill_pct: String(data.get('fill_pct')),
-        loads: String(q.loads), est_total: String(Math.round(q.total)), est_low: String(q.low), est_high: String(q.high),
-        page: location.pathname, source: cameFrom(), submitted_at: new Date().toISOString(),
+        job_type: String(data.get('job_type')), length_ft: String(data.get('length_ft') || ''), width_ft: String(data.get('width_ft') || ''), sqft: String(Math.round(sqft())), base_work: String(data.get('base_work')), fill_pct: String(data.get('fill_pct')),
+        mode: advanced() ? 'advanced' : 'simple', page: location.pathname, source: cameFrom(), submitted_at: new Date().toISOString(),
       };
-      // the lead also goes into the CGH app's pipeline (/app)
-      leadSent = fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()).catch(() => ({}));
-      form.querySelector<HTMLElement>('[data-next-step]')!.hidden = false; out('requested').textContent = '';
-      if (!endpoint) return;
+      if (advanced()) Object.assign(payload, { rock_depth: String(data.get('rock_depth')), existing: String(data.get('existing')), access: String(data.get('access') || ''), timeline: String(data.get('timeline')), striping: String(data.get('striping')), areas: [[data.get('length_ft'), data.get('width_ft')], [data.get('l2'), data.get('w2')], [data.get('l3'), data.get('w3')]].filter(([a, b]) => num(a) * num(b) > 0).map(([a, b]) => `${a} x ${b}`).join(', ') });
+      out('head').textContent = 'Working out your price…'; out('opts').replaceChildren(); out('inc').replaceChildren(); out('sent').textContent = ''; out('requested').textContent = '';
+      form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
+      const mail = form.querySelector<HTMLAnchorElement>('[data-mailquote]')!; mail.hidden = true;
+      show(4);
+
+      // The server prices it and saves the lead in one step. Nothing about the pricing is in this page.
+      leadSent = fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then(async (r) => ({ ...(await r.json().catch(() => ({}))), status: r.status })).catch(() => ({}));
+      const res: any = await leadSent; const q = res.quote;
+      if (!q) {
+        out('head').textContent = res.status === 429 ? 'That is a lot of quotes in one hour.' : 'We could not work out the price just now.';
+        out('sent').textContent = res.status === 429 ? `Call ${form.dataset.phone} and we will price it with you.` : `Call ${form.dataset.phone} and we will price it with you, or try again in a minute.`;
+      } else {
+        out('head').textContent = `Three ways to do your ${q.sqft.toLocaleString('en-US')} sq ft`;
+        out('opts').replaceChildren(...q.options.map((o: any) => { const d = document.createElement('div'); d.className = 'qt__opt'; const add = (tag: string, cls: string, text: string) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; d.append(e); }; add('p', 'qt__optname', o.name); add('p', 'qt__price', `${money(o.low)} to ${money(o.high)}`); add('p', 'qt__optwhat', o.what + '.'); add('p', 'qt__optlasts', o.lasts + '.'); return d; }));
+        out('inc').replaceChildren(...[...q.includes.map((t: string) => 'Included: ' + t), ...q.flags].map((t: string) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+        form.querySelector<HTMLElement>('[data-next-step]')!.hidden = false;
+        const mine = String(data.get('email') || '').trim(); mail.hidden = !mine;
+        if (mine) mail.href = `mailto:${mine.replace(/[?&\s]/g, '')}?subject=${encodeURIComponent('My CGH Operations price range')}&body=${encodeURIComponent(`CGH Operations price ranges for about ${q.sqft.toLocaleString('en-US')} sq ft:\n\n${q.options.map((o: any) => `${o.name}: ${money(o.low)} to ${money(o.high)}. ${o.what}.`).join('\n')}\n\nThese are ballparks before a free site visit. Call ${form.dataset.phone || ''} with questions.\n${location.origin}/quote`)}`;
+        Object.assign(payload, { loads: String(q.loads), est_low: String(q.options[0].low), est_high: String(q.options[0].high), premium_range: `${money(q.options[1].low)} to ${money(q.options[1].high)}`, elite_range: `${money(q.options[2].low)} to ${money(q.options[2].high)}`, details: [...q.includes, ...q.flags].join(' | ') });
+        try { sessionStorage.removeItem('cgh-quote'); } catch {}
+      }
+      // A copy also goes through Netlify Forms, so it reaches the same inbox even if the app is down.
+      const endpoint = form.dataset.endpoint; if (!endpoint) return;
       try {
         const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(payload).toString() });
         if (!r.ok) throw new Error(String(r.status));
-        out('sent').textContent = `Thanks, ${name.split(' ')[0]}. Your price range is saved with our team.`;
-      } catch {
-        out('sent').textContent = 'Your request did not send from this page. Call us and mention this price range.';
-      }
+        if (q) out('sent').textContent = `Thanks, ${name.split(' ')[0]}. Your price ranges are saved with our team.`;
+        else out('sent').textContent += ' We have your details and will call you.';
+      } catch { if (q) out('sent').textContent = ''; }
     });
   });
 </script>
@@ -275,7 +305,20 @@ import pricing from '../data/pricing.json';
   .qt__fill { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; margin: 6px 0 0; }
   .qt__nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
   .qt .legal { margin: 16px 0 0; }
-  .qt__label { font-weight: 600; color: var(--muted); margin: 0 0 4px; }
+  .qt__label { font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; margin: 0 0 14px; }
+  .qt__mode { display: grid; gap: 10px; margin: 0 0 22px; } @media (min-width: 640px) { .qt__mode { grid-template-columns: 1fr 1fr; } }
+  .qt__mode label { cursor: pointer; } .qt__mode input { position: absolute; opacity: 0; }
+  .qt__mode span { display: block; padding: 12px 16px; border: 1.5px solid var(--border-strong); border-radius: var(--radius); color: var(--text-2); font-size: 0.95rem; line-height: 1.35; }
+  .qt__mode b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; color: var(--text); }
+  .qt__mode input:checked + span { border-color: var(--asphalt); box-shadow: inset 0 0 0 1.5px var(--asphalt); }
+  .qt__mode input:focus-visible + span { outline: 3px solid var(--paver); outline-offset: 2px; }
+  [data-adv] { display: grid; gap: 14px; margin-top: 18px; } [data-adv][hidden] { display: none; }
+  .qt__opts { display: grid; gap: 12px; margin-bottom: 16px; } @media (min-width: 760px) { .qt__opts { grid-template-columns: repeat(3, 1fr); } }
+  .qt__opts :global(.qt__opt) { border: 1.5px solid var(--border-strong); border-radius: var(--radius-lg); padding: 16px; background: var(--bg); }
+  .qt__opts :global(.qt__optname) { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; margin: 0 0 6px; }
+  .qt__opts :global(.qt__price) { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.35rem, 3.4vw, 1.6rem); letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 10px; }
+  .qt__opts :global(.qt__optwhat) { margin: 0 0 4px; color: var(--text-2); font-size: 0.95rem; } .qt__opts :global(.qt__optlasts) { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  .qt__inc { margin: 0 0 16px; padding-left: 18px; color: var(--text-2); font-size: 0.95rem; } .qt__inc:empty { display: none; }
   .qt__price { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.2rem, 6vw, 3.8rem); letter-spacing: -0.03em; line-height: 1; margin: 0 0 22px; }
   .qt__lines { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
   .qt__lines :global(th), .qt__lines :global(td) { padding: 12px 0; border-top: 1px solid var(--border-strong); text-align: left; font-weight: 500; }
