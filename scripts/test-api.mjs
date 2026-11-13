@@ -9,7 +9,8 @@ const ok = (label, cond) => { cond ? pass++ : fail++; console.log(`${cond ? 'PAS
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const pushed = [];
 const push = { key: async () => 'TESTKEY', send: async (sub, msg) => { pushed.push({ to: sub.endpoint, ...msg }); return 'ok'; } };
-const call = async (method, path, body, cookie, extra = {}) => { const r = await core.handle(new Request('https://x.test/api/' + path, { method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(cookie ? { cookie } : {}), ...extra }, body: body ? JSON.stringify(body) : undefined }), store, push); const set = r.headers.get('set-cookie'); return { status: r.status, body: await r.json(), cookie: set ? set.split(';')[0] : undefined }; };
+const call = async (method, path, body, cookie, extra = {}) => { // (extra = more request headers)
+  const r = await core.handle(new Request('https://x.test/api/' + path, { method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(cookie ? { cookie } : {}), ...extra }, body: body ? JSON.stringify(body) : undefined }), store, push); const set = r.headers.get('set-cookie'); return { status: r.status, body: await r.json(), cookie: set ? set.split(';')[0] : undefined }; };
 const TEMP = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 // The real owner code is not in this repo. The test uses its own.
 process.env.CGH_SETUP_HASH = sha('TEST-CODE-12345');
@@ -35,12 +36,20 @@ r = await call('GET', 'leads', null, owner, { origin: 'https://x.test' }); ok('t
 // ----- quotes and alerts -----
 r = await call('POST', 'push-subscribe', { sub: { endpoint: 'https://push.example/owner', keys: {} } }, owner); ok('owner can turn on alerts for a device', r.status === 200);
 r = await call('POST', 'push-subscribe', { sub: { endpoint: 'https://push.example/x', keys: {} } }); ok('signed-out visitors cannot register for alerts', r.status === 401);
-r = await call('POST', 'lead', { name: 'Pat Customer', phone: '903-555-0100', email: 'pat@example.com', job_type: 'Driveway', sqft: '2500', est_low: '7950', est_high: '9200', est_total: '8375' }); ok('website quote is accepted', r.status === 200 && !!r.body.ref); const patRef = r.body.ref;
+r = await call('POST', 'lead', { name: 'Pat Customer', phone: '903-555-0100', email: 'pat@example.com', job_type: 'Driveway', sqft: '2500', est_low: '1', est_high: '2', est_total: '3' }); ok('website quote is accepted', r.status === 200 && !!r.body.ref); const patRef = r.body.ref;
+ok('the server works out three price ranges and ignores numbers sent by the browser', r.body.quote.options.map((o) => `${o.name} ${o.low}-${o.high}`).join(', ') === 'Economy 7950-9200, Premium 8800-10200, Elite 10350-11950');
+ok('the public answer carries no rates, totals or line prices', !JSON.stringify(r.body).match(/rate|total|3\.35|0\.35|1500|600/));
 ok('a new quote alerts the owner', pushed.length === 1 && pushed[0].title.includes('Pat Customer') && pushed[0].body.includes('$7,950'));
 r = await call('POST', 'lead-request', { ref: 'not-a-real-ref', want: 'call' }); ok('a made-up reference cannot touch a lead', r.status === 404);
-r = await call('POST', 'lead-request', { ref: patRef, want: 'visit', when: 'Morning', note: 'Gate code 1234' }); ok('customer can ask for a site visit right after the quote', r.status === 200 && pushed.length === 2 && pushed[1].title.includes('site visit') && Object.keys(r.body).join() === 'ok');
+r = await call('POST', 'lead-request', { ref: patRef, want: 'visit', when: 'Morning', note: 'Gate code 1234', option: 'Premium' }); ok('customer can ask for a site visit right after the quote', r.status === 200 && pushed.length === 2 && pushed[1].title.includes('site visit') && Object.keys(r.body).join() === 'ok');
 r = await call('POST', 'lead', { name: 'Bot', phone: '9035550100', 'bot-field': 'x' }); r = await call('GET', 'leads', null, owner); ok('spam trap submissions are dropped', r.body.leads.length === 1);
 const lead = r.body.leads[0]; ok('owner sees the lead with its price range', lead.est_low === 7950 && lead.stage === 'New');
+
+ok('the lead keeps all three ranges and the option they lean toward', lead.options.length === 3 && lead.options[2].high === 11950 && lead.request.option === 'Premium');
+{ const ipHdr = { 'x-nf-client-connection-ip': '203.0.113.9' }; let last; for (let i = 0; i < 11; i++) last = await call('POST', 'lead', { name: 'Curve Mapper', phone: '9035550199', sqft: String(1000 + i * 100) }, null, ipHdr); ok('one address is cut off after ten quotes in an hour', last.status === 429); for (const k of [...mem.keys()]) if (k.startsWith('leads/') && JSON.parse(mem.get(k)).name === 'Curve Mapper') mem.delete(k); }
+r = await call('POST', 'lead', { name: 'Deep Detail', phone: '9035550188', sqft: '2500', base_work: 'Yes', fill_pct: '50', mode: 'advanced', rock_depth: '6', existing: 'Old asphalt', access: 'Narrow gate', timeline: 'This month' }); ok('a detailed quote prices deeper rock and flags tear-out', r.body.quote.options[0].low === 11100 && r.body.quote.options[0].high === 12850 && r.body.quote.flags.length === 1 && r.body.quote.includes.length === 3);
+for (const k of [...mem.keys()]) if (k.startsWith('leads/') && JSON.parse(mem.get(k)).name === 'Deep Detail') { ok('the detailed answers land on the lead as a note', JSON.parse(mem.get(k)).notes[0].text.includes('Narrow gate')); mem.delete(k); }
+r = await call('GET', 'pricing'); ok('website prices are not readable without signing in', r.status === 401);
 
 // ----- team logins with temporary passwords -----
 r = await call('POST', 'users', { name: 'Sam Sales', email: 'sam@example.com', role: 'sales' }, owner); ok('owner adds a sales login and gets a temporary password', r.status === 200 && TEMP.test(r.body.temp) && r.body.user.mustChange === true); const samTemp = r.body.temp;
@@ -99,6 +108,9 @@ r = await call('POST', 'leads/' + lead.id + '/log', { text: 'Soft spot by the ga
 r = await call('GET', 'leads', null, owner); ok('owner sees the checklist and the job log', r.body.leads.find((l) => l.id === lead.id).joblog.length === 1 && !!r.body.leads.find((l) => l.id === lead.id).checklist.Paved);
 r = await call('POST', 'leads/' + lead.id + '/log', { text: 'x' }, pat); ok('customers cannot write to the job log', r.status === 404);
 r = await call('GET', 'home', null, cal); ok('crew get no sales numbers on Home', r.body.stats === undefined && r.body.waiting.followups === undefined);
+
+r = await call('GET', 'pricing', null, sam); ok('sales can load prices for Quick quote', r.status === 200 && r.body.prices.minimumJob === 3500);
+r = await call('GET', 'pricing', null, cal); ok('crew cannot load prices', r.status === 404);
 
 // ----- estimate settings: contractor cost is the owner's alone -----
 r = await call('POST', 'estimate-settings', { contractor: { hotmix_sqyd: '18' } }, sam); ok('sales cannot change estimate numbers', r.status === 403);

@@ -1,7 +1,7 @@
 // Checks the quote math against the numbers Colton gave. Run: node --experimental-strip-types scripts/test-pricing.mjs
 import { readFileSync } from 'node:fs';
 import { estimate, ratePerSqft } from '../src/lib/pricing.ts';
-const p = JSON.parse(readFileSync(new URL('../src/data/pricing.json', import.meta.url)));
+const { PRICES: p } = await import('../netlify/functions/lib/quote.mjs');
 const rows = [];
 let ok = true;
 const check = (label, got, want) => { const pass = Math.abs(got - want) < 0.005; ok &&= pass; rows.push(`${pass ? 'PASS' : 'FAIL'}  ${label}: got ${got}, want ${want}`); };

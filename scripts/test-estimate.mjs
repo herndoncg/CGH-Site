@@ -1,6 +1,7 @@
 // Checks the app's estimate math against the figures in Colton's sheet.
 // Run: node --experimental-strip-types scripts/test-estimate.mjs
-import { options, layer, liquid, yardage, DEFAULT_PRICES } from '../src/lib/estimate.ts';
+import { options, layer, liquid, yardage } from '../src/lib/estimate.ts';
+import { EST_DEFAULTS as DEFAULT_PRICES } from '../netlify/functions/lib/quote.mjs';
 let pass = 0, fail = 0; const near = (a, b, tol = 0.006) => Math.abs(a - b) <= tol;
 const ok = (label, cond) => { cond ? pass++ : fail++; console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`); };
 // Customer prices are the sheet's. The contractor and supplier prices below are made-up round numbers:

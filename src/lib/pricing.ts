@@ -1,4 +1,5 @@
-// The quote math. Every number comes from src/data/pricing.json, which Colton can change in the content portal.
+// The quote math for the app's Quick quote. No prices live here: this code is sent to browsers.
+// The numbers come from the server after sign-in (netlify/functions/lib/quote.mjs holds them and the public quote math).
 //
 // How the asphalt price works, in plain terms:
 //   - Up to the minimum size (900 sq ft) the job costs the minimum ($3,500).

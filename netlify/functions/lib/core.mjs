@@ -9,6 +9,7 @@
 // New logins start with a temporary password. The first sign-in forces the person to choose their own.
 // Changing or resetting a password signs that person out everywhere else.
 import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import { PRICES, EST_DEFAULTS, publicQuote } from './quote.mjs';
 
 // The owner's first temporary password (the setup code). Only its fingerprint lives here, and it stops
 // working the moment the owner account exists.
@@ -126,13 +127,28 @@ export async function handle(req, store, push) {
     if (data['bot-field'] || data.company_website) return json({ ok: true });
     const name = clean(data.name, 120), phone = clean(data.phone, 40);
     if (!name || phone.replace(/\D/g, '').length < 10) return bad('Name and a 10-digit phone number are required.');
-    const lead = { id: newId(), created: Date.now(), source: 'website' + (clean(data.source, 60) ? ' · ' + clean(data.source, 60) : ''), stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
+    // The price is worked out here, on the server, from the job details. Numbers sent by the browser are ignored.
+    // One address can only ask for so many quotes an hour, so nobody can map the pricing by trying hundreds of sizes.
+    const ip = req.headers.get('x-nf-client-connection-ip') || '';
+    if (ip) {
+      const rk = 'rate/' + sha(ip), now = Date.now(); const seen = ((await store.get(rk, { type: 'json' })) || []).filter((t) => t > now - 36e5);
+      if (seen.length >= 10) return bad('That is a lot of quotes in one hour. Call us and we will price it with you.', 429);
+      await store.setJSON(rk, [...seen, now]);
+    }
+    const advanced = data.mode === 'advanced';
+    const qt = publicQuote({ sqft: num(data.sqft), baseWork: clean(data.base_work, 20), fillPct: num(data.fill_pct), rockDepth: advanced ? clean(data.rock_depth, 2) : '', existing: advanced ? clean(data.existing, 30) : '' });
+    if (qt.sqft < 50) return bad('Enter the size of the job so we can price it.');
+    const lead = { id: newId(), created: Date.now(), source: 'website' + (clean(data.source, 60) ? ' · ' + clean(data.source, 60) : ''), stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: qt.sqft, base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: qt.loads, est_low: qt.options[0].low, est_high: qt.options[0].high, est_total: qt.options[0].total, options: qt.options.map((o) => ({ name: o.name, low: o.low, high: o.high })), notes: [] };
+    if (advanced) {
+      const more = [['Existing surface', data.existing], ['Rock', data.rock_depth ? data.rock_depth + ' in' : ''], ['Areas', data.areas], ['Access', data.access], ['When', data.timeline], ['Striping', data.striping === 'Yes' ? 'wants striping' : '']].filter(([, v]) => clean(v, 300)).map(([k, v]) => `${k}: ${clean(v, 300)}`);
+      if (more.length) lead.notes.push({ at: Date.now(), by: 'Customer (detailed quote)', text: more.join('. ') });
+    }
     await store.setJSON('leads/' + lead.id, lead);
     // a private reference the customer's browser keeps, so they can follow up on this same quote
     const ref = randomBytes(18).toString('base64url');
     await store.setJSON('refs/' + sha(ref), { id: lead.id });
     await alertTeam(store, push, ['owner', 'manager', 'sales'], { title: 'New quote: ' + lead.name, body: [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : '', lead.city].filter(Boolean).join(' · '), url: '/app/' });
-    return json({ ok: true, ref });
+    return json({ ok: true, ref, quote: { sqft: qt.sqft, includes: qt.includes, flags: qt.flags, options: qt.options.map(({ key, name, what, lasts, low, high }) => ({ key, name, what, lasts, low, high })) } });
   }
   // the customer taps "book my site visit" or "call me" right after seeing their price
   if (path === 'lead-request' && m === 'POST') {
@@ -140,10 +156,11 @@ export async function handle(req, store, push) {
     const lead = found ? await store.get('leads/' + found.id, { type: 'json' }) : null;
     if (!lead) return bad('We could not find that quote. Please call us.', 404);
     const want = data.want === 'call' ? 'call' : 'visit', when = clean(data.when, 40), note = clean(data.note, 500);
-    lead.request = { want, when, at: Date.now() };
-    lead.notes.push({ at: Date.now(), by: 'Customer (website)', text: `Asked for ${want === 'call' ? 'a phone call' : 'a free site visit'}${when ? '. Best time: ' + when : ''}${note ? '. Note: ' + note : ''}` });
+    const option = ['Economy', 'Premium', 'Elite'].includes(data.option) ? data.option : '';
+    lead.request = { want, when, option, at: Date.now() };
+    lead.notes.push({ at: Date.now(), by: 'Customer (website)', text: `Asked for ${want === 'call' ? 'a phone call' : 'a free site visit'}${when ? '. Best time: ' + when : ''}${option ? '. Leaning toward: ' + option : ''}${note ? '. Note: ' + note : ''}` });
     await store.setJSON('leads/' + lead.id, lead);
-    await alertTeam(store, push, ['owner', 'manager', 'sales'], { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, when ? 'Best time: ' + when : '', note].filter(Boolean).join(' · '), url: '/app/' });
+    await alertTeam(store, push, ['owner', 'manager', 'sales'], { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, option ? 'Leaning ' + option : '', when ? 'Best time: ' + when : '', note].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true });
   }
   if (path === 'apply' && m === 'POST') {
@@ -337,12 +354,15 @@ export async function handle(req, store, push) {
     }
   }
 
+  // The website's prices, for the app's Quick quote. Signed-in owner, managers and sales only.
+  if (a === 'pricing' && m === 'GET') return me.role === 'crew' ? bad('Not found.', 404) : json({ prices: PRICES });
+
   // Numbers for the estimate tools. Customer prices: owner and sales. What CGH pays its contractor and
   // suppliers: the owner only. These live in private storage, never in the code.
   if (a === 'estimate-settings') {
     if (me.role === 'crew') return bad('Not found.', 404);
     const saved = (await store.get('meta/estimate', { type: 'json' })) || {};
-    if (m === 'GET') return json({ prices: saved.prices || {}, contractor: owner ? saved.contractor || {} : undefined, materials: owner ? saved.materials || {} : undefined });
+    if (m === 'GET') return json({ prices: { ...EST_DEFAULTS, ...(saved.prices || {}) }, contractor: owner ? saved.contractor || {} : undefined, materials: owner ? saved.materials || {} : undefined });
     if (m === 'POST') {
       if (!owner) return bad('Not allowed.', 403);
       const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o && o[k] !== undefined && String(o[k]).trim() !== '').map((k) => [k, num(o[k])]));

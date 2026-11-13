@@ -7,24 +7,22 @@
 // header, and a Bible verse at the foot of every page. Colors are CGH's navy and teal.
 import Base from '../layouts/Base.astro';
 import { site } from '../data/site';
-import pricing from '../data/pricing.json';
 ---
 <Base title="CGH Operations app" description="Sign in for CGH Operations customers and team." noindex bare>
-  <div id="app" data-phone={site.phone} data-phone-href={site.phoneHref} data-pricing={JSON.stringify(pricing)}>
+  <div id="app" data-phone={site.phone} data-phone-href={site.phoneHref}>
     <p class="boot">Loading…</p>
   </div>
 </Base>
 
 <script>
   import { estimate, type Pricing } from '../lib/pricing';
-  import { options, layer, liquid, yardage, DEFAULT_PRICES } from '../lib/estimate';
+  import { options, layer, liquid, yardage } from '../lib/estimate';
   import guide from '../data/field-guide.json';
 
   type Role = 'owner' | 'manager' | 'sales' | 'crew' | 'client';
   type Me = { id: string; name: string; email: string; role: Role; mustChange?: boolean };
   const root = document.getElementById('app')!;
   const PHONE = root.dataset.phone!, PHONE_HREF = root.dataset.phoneHref!;
-  const PRICING = JSON.parse(root.dataset.pricing!) as Pricing;
   const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
   const money = (n: number) => (n ? '$' + Math.round(n).toLocaleString('en-US') : '');
   const num = (v: unknown) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
@@ -174,10 +172,11 @@ import pricing from '../data/pricing.json';
     const range = l.firm_price ? money(l.firm_price) + ' firm' : l.est_low ? `${money(l.est_low)} to ${money(l.est_high)}` : '';
     const sel = (name: string, opts: [string, string][], cur: string) => `<select name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${v === (cur ?? '') ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
     return `<details class="lead" ${S.open === l.id ? 'open' : ''} data-id="${l.id}">
-      <summary>${stagePill(l.stage)}<b>${esc(l.name)}</b><span class="muted">${l.stage === 'New' && Date.now() - l.created > 864e5 ? `<strong class="want">Waiting ${plural(Math.floor((Date.now() - l.created) / 864e5), 'day', 'days')}</strong> · ` : ''}${l.follow_up && !['Done', 'Lost'].includes(l.stage) ? `<strong class="${l.follow_up <= today() ? 'want' : ''}">Follow up ${esc(shortDay(l.follow_up))}</strong> · ` : ''}${l.request ? `<strong class="want">Wants ${l.request.want === 'call' ? 'a call' : 'a site visit'}${l.request.when ? ` (${esc(l.request.when)})` : ''}</strong> · ` : ''}${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}</span><span class="muted small">${l.job_date ? esc(longDay(l.job_date)) : day(l.created)}</span></summary>
+      <summary>${stagePill(l.stage)}<b>${esc(l.name)}</b><span class="muted">${l.stage === 'New' && Date.now() - l.created > 864e5 ? `<strong class="want">Waiting ${plural(Math.floor((Date.now() - l.created) / 864e5), 'day', 'days')}</strong> · ` : ''}${l.follow_up && !['Done', 'Lost'].includes(l.stage) ? `<strong class="${l.follow_up <= today() ? 'want' : ''}">Follow up ${esc(shortDay(l.follow_up))}</strong> · ` : ''}${l.request ? `<strong class="want">Wants ${l.request.want === 'call' ? 'a call' : 'a site visit'}${l.request.when ? ` (${esc(l.request.when)})` : ''}</strong> · ` : ''}${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}${l.options && !l.firm_price ? ` <small>Economy</small>` : ''}</span><span class="muted small">${l.job_date ? esc(longDay(l.job_date)) : day(l.created)}</span></summary>
       <div class="lead__body">
         <p class="contact">${l.phone ? `<a class="btn btn--paver" href="tel:${esc(l.phone)}">Call ${esc(l.phone)}</a><a class="btn btn--line" href="sms:${esc(l.phone)}">Text</a>` : ''}${l.email ? `<a class="btn btn--line" href="mailto:${esc(l.email)}">Email</a>` : ''}</p>
         <p class="muted small">${l.base_work ? `Needs grading: ${esc(l.base_work)}. ` : ''}${l.fill_pct ? `Rock on about ${l.fill_pct}% (${l.loads} load${l.loads === 1 ? '' : 's'}). ` : ''}${l.job_date ? `Paving day: ${esc(longDay(l.job_date))}. ` : ''}${l.source ? `Source: ${esc(l.source)}.` : ''}</p>
+        ${l.options ? `<p class="small">${l.options.map((o: any) => `<b>${esc(o.name)}</b> ${money(o.low)} to ${money(o.high)}`).join(' · ')}${l.request?.option ? ` · <strong class="want">Leaning ${esc(l.request.option)}</strong>` : ''}</p>` : ''}
         ${l.sqft ? `<p class="muted small">Materials at 2 inches thick: about ${tons(l.sqft)} tons of hot mix${l.loads ? `, plus ${plural(l.loads, 'load', 'loads')} of rock` : ''}.</p>` : ''}
         ${['Accepted', 'Scheduled', 'Done'].includes(l.stage) && d.checks ? `<div><p class="eyebrow">Job-day checklist</p><div class="checks">${d.checks.map((c: string) => `<button type="button" class="chk ${l.checklist?.[c] ? 'on' : ''}" data-act="check" data-id="${l.id}" data-item="${esc(c)}" data-done="${l.checklist?.[c] ? '' : '1'}" ${l.checklist?.[c] ? `title="${esc(l.checklist[c].by)}, ${day(l.checklist[c].at)}"` : ''}>${l.checklist?.[c] ? '✓ ' : ''}${esc(c)}</button>`).join('')}</div></div>
         <form data-form="joblog" data-id="${l.id}" class="joblog"><input name="text" placeholder="Add a job note: what was done, what came up" required aria-label="Job note" /><button class="btn btn--line sm">Add note</button></form>
@@ -261,6 +260,7 @@ import pricing from '../data/pricing.json';
         body: list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Customer</th><th>Job</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>${list.map((l: any) => `<tr><td><b>${esc(l.name)}</b><br /><span class="muted small">${esc(l.city || '')}</span></td><td>${esc(l.job_type || '')}${l.sqft ? `<br /><span class="muted small">${Number(l.sqft).toLocaleString('en-US')} sq ft</span>` : ''}</td><td>${money(l.firm_price) || '—'}</td><td>${stagePill(l.stage)}</td><td>${l.phone ? `<a class="btn btn--line sm" href="tel:${esc(l.phone)}">Call</a>` : ''} <button class="btn btn--line sm" data-go="pipeline:open:${l.id}">Open</button></td></tr>`).join('')}</tbody></table></div>` : `<p class="empty">${S.q ? 'No customers match that search.' : 'No customers yet. They show here once a quote is accepted.'}</p>` };
     },
     async quote() {
+      S.pricing = S.pricing || ((await api('pricing')).prices as Pricing); // prices arrive only after sign-in
       return { eyebrow: 'Sales', title: 'Quick quote', sub: 'Same prices as the website. Price it on the spot, then save it as a lead.',
         body: `<div class="cols">${card('The job', `<form data-form="quickquote" class="grid2">${field('Customer name', 'name', 'text', 'required')}${field('Phone', 'phone', 'tel')}${field('Town or address', 'city')}${field('Job (driveway, lot, road…)', 'job_type', 'text', 'value="Driveway"')}${field('Length (ft)', 'length', 'text', 'inputmode="decimal"')}${field('Width (ft)', 'width', 'text', 'inputmode="decimal"')}${field('Or total square feet', 'sqft', 'text', 'inputmode="numeric"')}<div class="field"><label>Grading or washout repair<select name="base_work"><option>No</option><option>Yes</option></select></label></div><div class="field full"><label>How much of it needs rock? <b data-qq="fill">None</b><input name="fill_pct" type="range" min="0" max="100" step="5" value="0" /></label></div><div class="full"><button class="btn btn--paver">Save as a lead</button></div></form>`)}
           ${card('Price', `<p class="price" data-qq="range">Enter a size</p><table class="lines"><tbody data-qq="lines"></tbody></table><p class="muted small">A ballpark before taxes or permits. Confirm it on site before you promise it.</p>`)}</div>` };
@@ -299,7 +299,7 @@ import pricing from '../data/pricing.json';
     },
     async estimate() {
       const st = await api('estimate-settings'); const boss = BOSS.includes(S.me.role);
-      S.est = { p: { ...DEFAULT_PRICES, ...st.prices }, c: st.contractor || {} }; const p = S.est.p, c = S.est.c;
+      S.est = { p: st.prices, c: st.contractor || {} }; const p = S.est.p, c = S.est.c;
       const n = (label: string, name: string, val: unknown, extra = '') => field(label, name, 'text', `inputmode="decimal" value="${esc(val ?? '')}" ${extra}`);
       return { eyebrow: 'Sales', title: 'Three-option estimate', sub: 'Economy, Premium and Elite, priced the way your estimation sheet does it.',
         body: `<form data-form="estimate" class="stack"><div class="cols">
@@ -311,7 +311,7 @@ import pricing from '../data/pricing.json';
         <div class="row"><button class="btn btn--paver">Save the picked option as a lead</button></div></form>` };
     },
     async matcost() {
-      const st = await api('estimate-settings'); const m = st.materials || {}; S.est = { p: { ...DEFAULT_PRICES, ...st.prices }, c: st.contractor || {} };
+      const st = await api('estimate-settings'); const m = st.materials || {}; S.est = { p: st.prices, c: st.contractor || {} };
       const v = (id: string, f: string, d: unknown = '') => esc(m[id]?.[f] ?? d);
       const n = (label: string, name: string, val: unknown, hint = '') => `<div class="field"><label>${label}<input name="${name}" inputmode="decimal" value="${val}" />${hint ? `<small>${hint}</small>` : ''}</label></div>`;
       const tick = (name: string, label: string, on: boolean) => `<label class="showpw"><input type="checkbox" name="${name}" ${on ? 'checked' : ''} /> ${label}</label>`;
@@ -399,7 +399,7 @@ import pricing from '../data/pricing.json';
     const out = (k: string) => root.querySelector<HTMLElement>(`[data-qq="${k}"]`)!;
     out('fill').textContent = fillWords(fillPct);
     if (sqft < 50) { out('range').textContent = 'Enter a size'; out('lines').innerHTML = ''; return null; }
-    const q = estimate(PRICING, { sqft, baseWork: d.get('base_work') === 'Yes', fillPct });
+    const q = estimate(S.pricing, { sqft, baseWork: d.get('base_work') === 'Yes', fillPct });
     out('range').textContent = `${money(q.low)} to ${money(q.high)}`;
     out('lines').innerHTML = [[`Asphalt, ${q.sqft.toLocaleString('en-US')} sq ft`, money(q.asphalt)], ...(q.baseWork ? [['Grading and base prep', money(q.baseWork)]] : []), ...(q.loads ? [[`Rock, ${plural(q.loads, 'load', 'loads')}`, money(q.fill)]] : []), ['Middle of the range', money(q.total)]].map(([a, b]) => `<tr><th scope="row">${a}</th><td>${b}</td></tr>`).join('');
     return q;
@@ -608,6 +608,7 @@ import pricing from '../data/pricing.json';
   .empty { margin: 0; padding: 18px; text-align: center; color: var(--a-dim); background: var(--a-card-2); border-radius: 8px; }
   .alerts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--a-card); border: 1px solid var(--a-line); border-radius: 10px; padding: 12px 14px; }
   .want { color: #fcd34d; }
+  .amt small { font: 600 0.75rem var(--font-body); color: var(--a-dim); }
   .hire { border-top: 1px solid var(--a-line); padding-top: 14px; } .tbl select { background: #0b1322; color: #fff; border: 1px solid rgba(226, 232, 240, 0.22); border-radius: 6px; padding: 7px 8px; font: 0.92rem var(--font-body); }
   .opts { display: grid; gap: 12px; } @media (min-width: 860px) { .opts { grid-template-columns: repeat(3, 1fr); } }
   .opt { display: grid; gap: 4px; align-content: start; background: var(--a-card); border: 2px solid var(--a-line); border-radius: 10px; padding: 16px; cursor: pointer; }

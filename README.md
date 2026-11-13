@@ -11,7 +11,7 @@ Built the same way as the B&H site (`bhp-washing/website`), with its own look.
 
 | To change… | Edit |
 | --- | --- |
-| Quote tool prices (minimum, per-sq-ft tiers, base fee, rock loads, range) | `src/data/pricing.json` |
+| Quote tool prices (minimum, per-sq-ft tiers, base fee, rock loads, range, seal coat, hot oil) | `netlify/functions/lib/quote.mjs` (server only; never sent to browsers) |
 | Phone, email, hours, socials, verse, "insured" switch | `src/data/business.json` |
 | Services (pages are generated) | `src/data/services.ts` |
 | Service-area town pages | `src/data/areas.ts` |
@@ -22,7 +22,7 @@ Built the same way as the B&H site (`bhp-washing/website`), with its own look.
 
 Everything in the JSON files and the blog can also be edited without code at **/admin** (Pages CMS, config in `.pages.yml`).
 
-## How the quote tool prices a job (`src/lib/pricing.ts`)
+## How the quote tool prices a job (`netlify/functions/lib/quote.mjs`, on the server)
 
 1. Up to 900 sq ft costs the minimum ($3,500).
 2. Above that, the price per sq ft slides down smoothly: $3.35 at 2,500 sq ft, $3.20 at 5,000 sq ft and up.

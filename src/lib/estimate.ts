@@ -3,7 +3,7 @@
 
 export interface EstPrices { hotmix_sqyd: number; seal_sqft: number; hotoil_sqft: number; tax_pct: number; min_sqft: number; deposit_pct: number }
 export interface Contractor { hotmix_sqyd?: number; seal_sqft?: number; hotoil_sqft?: number }
-export const DEFAULT_PRICES: EstPrices = { hotmix_sqyd: 32, seal_sqft: 0.35, hotoil_sqft: 1, tax_pct: 8.25, min_sqft: 900, deposit_pct: 45 };
+// The starting prices are not in this file: this code is sent to browsers. They come from the server after sign-in.
 const cents = (n: number) => Math.round(n * 100) / 100;
 
 // Pricing Sheet: three options for the customer. Hot mix is priced by the square yard (9 sq ft).
