@@ -68,7 +68,12 @@ ul, ol { margin: 0 0 1.1em; padding-left: 1.2em; }
 .crumbs li + li::before { content: '/'; margin-right: 8px; opacity: 0.6; }
 .crumbs a { text-underline-offset: 3px; }
 
-.pagehead { padding: clamp(48px, 7vw, 92px) 0 clamp(44px, 6vw, 76px); }
+.pagehead { padding: clamp(48px, 7vw, 92px) 0 clamp(44px, 6vw, 76px); position: relative; overflow: hidden; }
+/* A job photo sits faintly behind every inner page header. The words stay on near-solid navy. */
+.pagehead::before { content: ''; position: absolute; inset: 0; background: var(--pagehead-photo, url('/img/work/long-curved-asphalt-drive.webp')) center / cover no-repeat; opacity: 0.3; }
+.pagehead::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(11, 18, 32, 0.96) 0%, rgba(11, 18, 32, 0.86) 50%, rgba(11, 18, 32, 0.5) 100%); }
+.pagehead > * { position: relative; z-index: 1; }
+@media (max-width: 700px) { .pagehead::after { background: rgba(11, 18, 32, 0.88); } }
 .pagehead h1 { font-size: clamp(2.2rem, 5vw, 3.9rem); max-width: 18ch; }
 .pagehead .lede { margin-bottom: 26px; }
 
