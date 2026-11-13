@@ -34,7 +34,16 @@ export function publicQuote(input, p = PRICES) {
   const yards = (sqft * (fillPct / 100) * (depth / 12)) / 27;
   const loads = fillPct > 0 ? Math.max(1, Math.ceil(yards / p.loadYards - 1e-9)) : 0;
   const common = base + loads * p.loadPrice;
-  const make = (key, name, what, lasts, extra) => { const total = asphalt + extra * sqft + common; return { key, name, what, lasts, total: Math.round(total), low: Math.max(p.minimumJob, round50(total * (1 - p.rangeLowPct / 100))), high: round50(total * (1 + p.rangeHighPct / 100)) }; };
+  const make = (key, name, what, lasts, extra) => {
+    const total = asphalt + extra * sqft + common;
+    let low = Math.max(p.minimumJob, round50(total * (1 - p.rangeLowPct / 100))), high = round50(total * (1 + p.rangeHighPct / 100));
+    // Colton's rule: the leading figure of the range never sits more than 1 below or 1 above the real price's.
+    // ($8,375 may show as 7,xxx to 9,xxx, never 6,xxx or 10,xxx.) 5% under and 10% over already keeps to it;
+    // this makes it a guarantee even if those percentages are changed later.
+    const unit = 10 ** Math.floor(Math.log10(total)), d = Math.floor(total / unit);
+    low = Math.max(low, (d - 1) * unit); high = Math.min(high, (d + 2) * unit - 50);
+    return { key, name, what, lasts, total: Math.round(total), low, high };
+  };
   const includes = [`Hot mix asphalt over about ${sqft.toLocaleString('en-US')} sq ft`];
   if (base) includes.push('Grading and base prep');
   if (loads) includes.push(`${loads} dump truck load${loads > 1 ? 's' : ''} of rock (${ROCK[String(depth)] || 'about ' + depth + ' inches'}) on about ${fillPct}% of the area`);
