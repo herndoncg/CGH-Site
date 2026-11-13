@@ -17,6 +17,8 @@ import pricing from '../data/pricing.json';
 
 <script>
   import { estimate, type Pricing } from '../lib/pricing';
+  import { options, layer, liquid, yardage, DEFAULT_PRICES } from '../lib/estimate';
+  import guide from '../data/field-guide.json';
 
   type Role = 'owner' | 'sales' | 'crew' | 'client';
   type Me = { id: string; name: string; email: string; role: Role; mustChange?: boolean };
@@ -31,7 +33,10 @@ import pricing from '../data/pricing.json';
   const today = () => new Date().toLocaleDateString('en-CA'); // 2026-11-12, in this phone's own time zone
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const shortDay = (iso: string) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const tons = (sqft: number, inches = 2) => (Math.ceil(((sqft * (inches / 12) * 145) / 2000) * 10) / 10).toLocaleString('en-US');
+  // Hot mix figured at 2 tons per cubic yard, the same as the estimation sheet.
+  const tons = (sqft: number, inches = 2) => (Math.ceil((((sqft * (inches / 12)) / 27) * 2) * 10) / 10).toLocaleString('en-US');
+  const usd = (n: number) => '$' + (Number.isFinite(n) ? n : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const dec = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString('en-US', { maximumFractionDigits: d });
   const api = async (path: string, method = 'GET', data?: unknown) => {
     const r = await fetch('/api/' + path, { method, credentials: 'same-origin', headers: data ? { 'content-type': 'application/json' } : {}, body: data ? JSON.stringify(data) : undefined });
     const j = await r.json().catch(() => ({}));
@@ -43,7 +48,7 @@ import pricing from '../data/pricing.json';
   // ---------- the menu, the photo behind each page, and the verse under it ----------
   const ICON: Record<string, string> = {
     home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', schedule: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', jobs: 'M3 8h18v11H3zM8 8V5h8v3',
-    pipeline: 'M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z', customers: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-4 4-6 8-6s8 2 8 6', quote: 'M12 3v18M16 7c0-2-2-3-4-3s-4 1-4 3 2 3 4 3 4 1 4 3-2 3-4 3-4-1-4-3',
+    pipeline: 'M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z', customers: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-4 4-6 8-6s8 2 8 6', quote: 'M12 3v18M16 7c0-2-2-3-4-3s-4 1-4 3 2 3 4 3 4 1 4 3-2 3-4 3-4-1-4-3', estimate: 'M4 6h16M4 12h16M4 18h16M8 4v4M14 10v4M10 16v4', guide: 'M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4', matcost: 'M4 20V10l8-6 8 6v10zM9 20v-6h6v6',
     announcements: 'M4 10v4h3l6 4V6L7 10zM16 9a4 4 0 0 1 0 6', training: 'M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-7v14h7z', team: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', hiring: 'M5 12l4 4L19 7',
     equipment: 'M2 7h11v9H2zM13 10h5l3 3v3h-8zM6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', calc: 'M5 3h14v18H5zM8 7h8M8 12h2M12 12h2M8 16h2M12 16h2', account: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3',
     bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4', phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
@@ -52,14 +57,14 @@ import pricing from '../data/pricing.json';
   const ALL: Role[] = ['owner', 'sales', 'crew'], SELL: Role[] = ['owner', 'sales'], BOSS: Role[] = ['owner'];
   const NAV: [string, [string, string, Role[]][]][] = [
     ['Today', [['home', 'Home', ALL], ['schedule', 'Schedule', ALL], ['jobs', 'Jobs', ALL]]],
-    ['Sales', [['pipeline', 'Pipeline', SELL], ['customers', 'Customers', SELL], ['quote', 'Quick quote', SELL]]],
-    ['Team', [['announcements', 'Announcements', ALL], ['training', 'Training', ALL], ['team', 'Team', BOSS], ['hiring', 'Hiring', BOSS]]],
-    ['Shop', [['equipment', 'Equipment', ALL], ['calc', 'Job calculators', ALL]]],
+    ['Sales', [['pipeline', 'Pipeline', SELL], ['customers', 'Customers', SELL], ['quote', 'Quick quote', SELL], ['estimate', 'Three-option estimate', SELL]]],
+    ['Team', [['announcements', 'Announcements', ALL], ['training', 'Training', ALL], ['guide', 'Field guide', ALL], ['team', 'Team', BOSS], ['hiring', 'Hiring', BOSS]]],
+    ['Shop', [['equipment', 'Equipment', ALL], ['calc', 'Yardage and loads', ALL], ['matcost', 'Materials cost', BOSS]]],
     ['You', [['account', 'My account', ALL]]],
   ];
   const PHOTO: Record<string, string> = {
     home: 'paving-crew-with-leeboy-paver', schedule: 'roller-compacting-new-driveway', jobs: 'leeboy-paver-laying-hot-mix', pipeline: 'new-asphalt-driveway-to-garage', customers: 'lake-house-asphalt-driveway', quote: 'curved-asphalt-driveway-east-texas',
-    announcements: 'crew-raking-asphalt', training: 'compacting-asphalt-patch', team: 'paving-crew-with-leeboy-paver', hiring: 'crew-raking-asphalt', equipment: 'dump-truck-and-roller', calc: 'base-repair-cut-out', account: 'circle-drive-at-sunset', auth: 'circle-drive-at-sunset', client: 'long-curved-asphalt-drive',
+    announcements: 'crew-raking-asphalt', training: 'compacting-asphalt-patch', team: 'paving-crew-with-leeboy-paver', hiring: 'crew-raking-asphalt', equipment: 'dump-truck-and-roller', calc: 'base-repair-cut-out', estimate: 'asphalt-garage-pad', guide: 'asphalt-drive-through-pines', matcost: 'leeboy-paver-laying-hot-mix', account: 'circle-drive-at-sunset', auth: 'circle-drive-at-sunset', client: 'long-curved-asphalt-drive',
   };
   // King James Version (public domain).
   const VERSE: Record<string, [string, string]> = {
@@ -75,6 +80,9 @@ import pricing from '../data/pricing.json';
     hiring: ['Two are better than one; because they have a good reward for their labour.', 'Ecclesiastes 4:9'],
     equipment: ['Except the LORD build the house, they labour in vain that build it.', 'Psalm 127:1'],
     calc: ['Every valley shall be exalted, and every mountain and hill shall be made low: and the crooked shall be made straight, and the rough places plain.', 'Isaiah 40:4'],
+    estimate: ['A false balance is abomination to the LORD: but a just weight is his delight.', 'Proverbs 11:1'],
+    matcost: ['For which of you, intending to build a tower, sitteth not down first, and counteth the cost, whether he have sufficient to finish it?', 'Luke 14:28'],
+    guide: ['Wisdom is the principal thing; therefore get wisdom: and with all thy getting get understanding.', 'Proverbs 4:7'],
     account: ['Prepare ye the way of the LORD, make straight in the desert a highway for our God.', 'Isaiah 40:3'],
     auth: ['Prepare ye the way of the LORD, make straight in the desert a highway for our God.', 'Isaiah 40:3'],
     client: ['For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end.', 'Jeremiah 29:11'],
@@ -283,10 +291,50 @@ import pricing from '../data/pricing.json';
         body: `${equipment.map((e: any) => `<details class="lead" ${S.open === e.id ? 'open' : ''}><summary><span class="stage ${tone(e.status)}">${esc(e.status)}</span><b>${esc(e.name)}</b><span class="muted">${esc(e.kind)}${e.hours ? ` · ${Number(e.hours).toLocaleString('en-US')} hrs` : ''}</span><span class="amt"></span><span class="muted small">${e.log?.[0] ? day(e.log[0].at) : ''}</span></summary><div class="lead__body"><form data-form="equip" data-id="${e.id}" class="grid2"><div class="field"><label>Status<select name="status">${['Ready', 'Needs service', 'Down'].map((s) => `<option ${s === e.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label></div><div class="field"><label>Hours or miles now<input name="hours" inputmode="decimal" value="${e.hours || ''}" /></label></div><div class="field full"><label>Note (what is wrong, what was done)<textarea name="note"></textarea></label></div><div class="full row"><button class="btn btn--paver">Save</button>${boss ? `<button type="button" class="btn btn--line" data-act="equipdel" data-id="${e.id}">${S.confirm === e.id ? 'Tap again to remove' : 'Remove machine'}</button>` : ''}</div></form>${e.log?.length ? `<ul class="notes">${e.log.slice(0, 6).map((n: any) => `<li><span class="muted small">${day(n.at)} · ${esc(n.by)}</span><br />${esc(n.text)}</li>`).join('')}</ul>` : ''}</div></details>`).join('')}
           ${boss ? `<details class="card fold"><summary>Add a machine</summary><form data-form="newequip" class="grid2">${field('Name', 'name', 'text', 'required')}<div class="field"><label>Kind<select name="kind"><option>Paving</option><option>Dirt work</option><option>Hauling</option><option>Other</option></select></label></div><div class="full"><button class="btn btn--paver">Add</button></div></form></details>` : ''}` };
     },
+    async estimate() {
+      const st = await api('estimate-settings'); const boss = S.me.role === 'owner';
+      S.est = { p: { ...DEFAULT_PRICES, ...st.prices }, c: st.contractor || {} }; const p = S.est.p, c = S.est.c;
+      const n = (label: string, name: string, val: unknown, extra = '') => field(label, name, 'text', `inputmode="decimal" value="${esc(val ?? '')}" ${extra}`);
+      return { eyebrow: 'Sales', title: 'Three-option estimate', sub: 'Economy, Premium and Elite, priced the way your estimation sheet does it.',
+        body: `<form data-form="estimate" class="stack"><div class="cols">
+          ${card('The job', `<div class="grid2">${field('Customer name', 'name')}${field('Phone', 'phone', 'tel')}${field('Town or address', 'city')}${n('Length (ft)', 'length', '')}${n('Width (ft)', 'width', '')}${n('Or total square feet', 'sqft', '')}</div><p class="muted small">Jobs under ${p.min_sqft.toLocaleString('en-US')} sq ft are priced at ${p.min_sqft.toLocaleString('en-US')}.</p>`)}
+          ${card('Prices to the customer', `<div class="grid2">${n('Hot mix, $ per square yard', 'hotmix_sqyd', p.hotmix_sqyd)}${n('Seal coat, $ per sq ft', 'seal_sqft', p.seal_sqft)}${n('Hot oil treatment, $ per sq ft', 'hotoil_sqft', p.hotoil_sqft)}${n('Sales tax %', 'tax_pct', p.tax_pct)}${n('Deposit %', 'deposit_pct', p.deposit_pct)}</div><p class="muted small" data-est="persqft"></p>`)}
+        </div>
+        ${boss ? card('What you pay your contractor <span class="pill">only you see this</span>', `<div class="grid2">${n('Hot mix, $ per square yard', 'c_hotmix_sqyd', c.hotmix_sqyd)}${n('Seal coat, $ per sq ft', 'c_seal_sqft', c.seal_sqft)}${n('Hot oil treatment, $ per sq ft', 'c_hotoil_sqft', c.hotoil_sqft)}</div><div class="row"><button type="button" class="btn btn--line" data-act="estsave">Save these numbers as my defaults</button></div><p class="muted small">Kept in the app's private storage. Sales and crew never see this box or the profit lines.</p>`) : ''}
+        <div class="opts" data-est="out"></div>
+        <div class="row"><button class="btn btn--paver">Save the picked option as a lead</button></div></form>` };
+    },
+    async matcost() {
+      const st = await api('estimate-settings'); const m = st.materials || {}; S.est = { p: { ...DEFAULT_PRICES, ...st.prices }, c: st.contractor || {} };
+      const v = (id: string, f: string, d: unknown = '') => esc(m[id]?.[f] ?? d);
+      const n = (label: string, name: string, val: unknown, hint = '') => `<div class="field"><label>${label}<input name="${name}" inputmode="decimal" value="${val}" />${hint ? `<small>${hint}</small>` : ''}</label></div>`;
+      const tick = (name: string, label: string, on: boolean) => `<label class="showpw"><input type="checkbox" name="${name}" ${on ? 'checked' : ''} /> ${label}</label>`;
+      const LAYERS: [string, string, string, number, number, string][] = [['d', 'Type D hot mix', 'Surface layer, ½ inch rock, 1.5 to 2 in thick', 2.015, 25, ''], ['c', 'Type C hot mix', 'Intermediate layer, ¾ inch rock, 2 to 3 in thick', 2, 15, 'Average $88 to $125'], ['b', 'Type B hot mix', 'Base layer, 1 inch rock, 3 to 6 in thick', 2, 15, ''], ['agg', 'Aggregate base', 'TxDOT Item 247, Grade 1, Type A', 1.25, 15, '']];
+      const LIQ: [string, string, string, number, number, string, string][] = [['tack', 'Tack coat (CSS-1H)', 'Bonds one asphalt layer to the next', 0.08, 7.5, 'Average 0.08', 'Average $3.50 to $12'], ['prime', 'Primer (AE-P)', 'Soaks into the rock base before paving', 0.5, 7, 'Average 0.25 to 0.5', 'Average $2.75 to $9'], ['seal', 'Seal coat (MasterSeal AE)', 'Surface sealant', 0.15, 7, 'Average 0.1 to 0.15', 'Average $3.25 to $4.75']];
+      return { eyebrow: 'Shop', title: 'Materials cost', sub: 'What a job costs you in material, layer by layer. Only you see this page.',
+        body: `<form data-form="matcost" class="stack">
+          ${card('Total materials cost', `<p class="price" data-mat="total">$0.00</p><p class="muted small" data-mat="list">Tick the layers this job uses and enter the square feet.</p><div class="row">${n('Sales tax %', 'tax_pct', S.est.p.tax_pct)}<button type="button" class="btn btn--line" data-act="matsave">Save my prices</button></div>`)}
+          ${LAYERS.map(([id, name, what, tpy, truck, hint]) => `<details class="lead" ${m[id]?.on ? 'open' : ''}><summary><span class="stage" data-mat="${id}-tag">Not counted</span><b>${name}</b><span class="muted">${what}</span><span class="amt" data-mat="${id}-amt"></span><span></span></summary><div class="lead__body"><div class="grid2">${n('Square feet', id + '.sqft', v(id, 'sqft'))}${n('Depth laid, inches', id + '.depth', v(id, 'depth'))}${n('$ per ton', id + '.perTon', v(id, 'perTon'), hint)}${n('Tons in one cubic yard', id + '.tonsPerYard', v(id, 'tonsPerYard', tpy))}${n('Dump truck holds, tons', id + '.truckTons', v(id, 'truckTons', truck))}</div><div class="row">${tick(id + '.on', 'Count this in the total', !!m[id]?.on)}${tick(id + '.exempt', 'Tax exempt', !!m[id]?.exempt)}</div><table class="lines"><tbody data-mat="${id}"></tbody></table></div></details>`).join('')}
+          ${LIQ.map(([id, name, what, rate, waste, rhint, chint]) => `<details class="lead" ${m[id]?.on ? 'open' : ''}><summary><span class="stage" data-mat="${id}-tag">Not counted</span><b>${name}</b><span class="muted">${what}</span><span class="amt" data-mat="${id}-amt"></span><span></span></summary><div class="lead__body"><div class="grid2">${n('Square feet', id + '.sqft', v(id, 'sqft'))}${n('Gallons per square yard', id + '.rate', v(id, 'rate', rate), rhint)}${n('$ per gallon', id + '.perGal', v(id, 'perGal'), chint)}${n('Wastage %', id + '.wastePct', v(id, 'wastePct', waste), 'Average 5 to 10')}</div><div class="row">${tick(id + '.on', 'Count this in the total', !!m[id]?.on)}${tick(id + '.exempt', 'Tax exempt', !!m[id]?.exempt)}</div><table class="lines"><tbody data-mat="${id}"></tbody></table></div></details>`).join('')}</form>` };
+    },
+    async guide() {
+      const q = (S.gq || '').toLowerCase(); const has = (o: object) => !q || Object.values(o).join(' ').toLowerCase().includes(q);
+      const row = (k: string, val: unknown) => (val ? `<tr><th scope="row">${k}</th><td>${esc(val)}</td></tr>` : '');
+      const A = (guide as any).asphalt.filter(has), B = (guide as any).base.filter(has), L = (guide as any).liquids.filter(has);
+      const sec = (title: string, n: number, html: string) => (n ? `<h2 class="sep">${title} <span class="pill">${n}</span></h2>${html}` : '');
+      return { eyebrow: 'Team', title: 'Field guide', sub: 'Asphalt types, base rock and liquid coats. Search it while you are standing with the customer.',
+        body: `<label class="search search--wide">${icon('search')}<input data-gsearch type="search" placeholder="Search: tack coat, limestone, cure time, Type D…" value="${esc(S.gq || '')}" aria-label="Search the field guide" /></label>
+          ${sec('Asphalt types', A.length, A.map((x: any) => `<details class="lead"><summary><span class="stage s-New">${esc(x.type)}</span><b>${esc(x.layer)}</b><span class="muted">${esc(x.thickness)} thick · ${esc(x.use)}</span><span class="amt"></span><span></span></summary><div class="lead__body"><table class="lines guide"><tbody>${row('Rock size', x.aggregate)}${row('Common thickness', x.thickness)}${row('Used for', x.use)}${row('Surface', x.surface)}${row('Strength', x.strength)}${row('Notes', x.notes)}</tbody></table></div></details>`).join(''))}
+          ${sec('Road base and rock', B.length, B.map((x: any) => `<details class="lead"><summary><span class="stage">Base</span><b>${esc(x.name)}</b><span class="muted">Compacts ${esc(x.compaction)} · cars ${esc(x.cars)} in</span><span class="amt"></span><span></span></summary><div class="lead__body"><table class="lines guide"><tbody>${row('Compaction', x.compaction)}${row('Cars and light trucks, inches', x.cars)}${row('Light commercial and vans, inches', x.light)}${row('Heavy trucks and RVs, inches', x.heavy)}${row('Semis and industrial, inches', x.semi)}${row('As the driving surface (no asphalt on top)', x.direct)}${row('Good', x.pros)}${row('Watch for', x.cons)}${row('When to use it', x.when)}${row('How long it lasts in East Texas', x.life)}${row('In the field', x.field)}</tbody></table></div></details>`).join(''))}
+          ${sec('Primers, tack coats and seal coats', L.length, L.map((x: any) => `<details class="lead"><summary><span class="stage ${x.applied === 'Hot' ? 's-warn' : 's-Accepted'}">${esc(x.applied)}</span><b>${esc(x.product)}</b><span class="muted">${esc(x.kind)} · ${esc(x.rate)} gal per sq yd · sets in ${esc(x.set)}</span><span class="amt"></span><span></span></summary><div class="lead__body"><table class="lines guide"><tbody>${row('Full name', x.full)}${row('What it is', x.kind)}${row('Gallons per square yard', x.rate)}${row('Typical cost per gallon', x.cost)}${row('Typical wastage', x.waste)}${row('Product temperature', x.productTemp)}${row('Outside temperature', x.outside)}${row('How it goes down', x.method)}${row('Set time', x.set)}${row('Reapply', x.reapply)}${row('Coverage', x.coverage)}${row('Cure', x.cure)}${row('Used for', x.use)}${row('Warnings', x.warn)}${row('Ease / effectiveness / crew-friendly (out of 5)', `${x.ease} / ${x.effect} / ${x.friendly}`)}</tbody></table></div></details>`).join(''))}
+          ${A.length + B.length + L.length ? '' : '<p class="empty">Nothing in the guide matches that. Try a shorter word.</p>'}` };
+    },
     async calc() {
-      return { eyebrow: 'Shop', title: 'Job calculators', sub: 'Quick numbers for ordering hot mix and rock.',
-        body: `<div class="cols">${card('Hot mix: how many tons', `<form data-form="calc-mix" class="grid2">${field('Length (ft)', 'length', 'text', 'inputmode="decimal"')}${field('Width (ft)', 'width', 'text', 'inputmode="decimal"')}${field('Or total square feet', 'sqft', 'text', 'inputmode="numeric"')}${field('Thickness (inches)', 'inches', 'text', 'inputmode="decimal" value="2"')}</form><p class="price" data-out="mix">—</p><p class="muted small">Figured at 145 lb per cubic foot of compacted mix. Order a little over, and confirm the weight with your plant.</p>`)}
-          ${card('Rock: how many loads', `<form data-form="calc-rock" class="grid2">${field('Length (ft)', 'length', 'text', 'inputmode="decimal"')}${field('Width (ft)', 'width', 'text', 'inputmode="decimal"')}${field('Or total square feet', 'sqft', 'text', 'inputmode="numeric"')}${field('Depth (inches)', 'inches', 'text', `inputmode="decimal" value="${PRICING.fillDepthIn}"`)}</form><p class="price" data-out="rock">—</p><p class="muted small">Loads figured at ${PRICING.loadYards} yards a truck, rounded up.</p>`)}</div>` };
+      const n = (label: string, name: string, val: unknown = '') => field(label, name, 'text', `inputmode="decimal" value="${val}"`);
+      return { eyebrow: 'Shop', title: 'Yardage and loads', sub: 'How much material to order and how many truckloads it takes.',
+        body: `<div class="cols">${card('Cubic yards and loads', `<form data-form="calc-yard" class="grid2">${n('Length (ft)', 'length')}${n('Width (ft)', 'width')}${n('Or total square feet', 'sqft')}${n('Depth (inches)', 'depth', 4)}${n('Compaction %', 'compaction', 15)}${n('Yards per truckload', 'perLoad', 12)}</form><p class="price" data-out="yard">—</p><table class="lines"><tbody data-out="yardlines"></tbody></table><p class="muted small">Compaction is the extra loose material it takes to end up at that depth once it is packed. The Field guide lists it for each kind of rock.</p>`)}
+          ${card('Hot mix: how many tons', `<form data-form="calc-mix" class="grid2">${n('Length (ft)', 'length')}${n('Width (ft)', 'width')}${n('Or total square feet', 'sqft')}${n('Thickness laid (inches)', 'inches', 2)}${n('Tons in one cubic yard', 'tpy', 2)}${n('Truck holds (tons)', 'truck', 15)}</form><p class="price" data-out="mix">—</p><p class="muted small" data-out="mixnote">Confirm the weight with your plant.</p>`)}</div>
+          ${card('Yards to tons, tons to yards', `<div class="cols"><form data-form="calc-y2t" class="grid2">${n('Yards', 'yards')}${n('Tons in one yard of this material', 'tpy', 2)}</form><form data-form="calc-t2y" class="grid2">${n('Tons', 'tons')}${n('Yards in one ton of this material', 'ypt', 0.5)}</form></div><p class="price" data-out="conv">—</p>`)}` };
     },
     async account() {
       return { eyebrow: 'You', title: 'My account', sub: `${S.me.name} · ${S.me.email}`,
@@ -311,19 +359,26 @@ import pricing from '../data/pricing.json';
         <main class="page"><div class="stack">${photoHead(S.view, p.eyebrow, p.title, p.sub, p.actions)}${notes()}${p.body}${verseFoot(S.view)}</div></main>
       </div></div>`;
     if (S.view === 'quote') quoteMath();
+    if (S.view === 'estimate') estMath();
+    if (S.view === 'matcost') matMath();
   }
 
   async function render() {
-    const searching = (document.activeElement as HTMLElement | null)?.matches?.('[data-search]');
+    const act = document.activeElement as HTMLElement | null; const searching = act?.matches?.('[data-gsearch]') ? '[data-gsearch]' : act?.matches?.('[data-search]') ? '[data-search]' : '';
     try {
       if (!S.me) renderAuth('login');
       else if (S.me.mustChange) renderAuth('first');
       else if (S.me.role === 'client') await renderClient();
       else await renderStaff();
     } catch (e: any) { root.innerHTML = `<div class="authwrap"><div class="auth"><p class="err">${esc(e.message)}</p><button class="btn btn--line" data-act="reload">Try again</button></div></div>`; }
-    if (searching) { const i = root.querySelector<HTMLInputElement>('[data-search]'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+    if (searching) { const i = root.querySelector<HTMLInputElement>(searching); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
   }
-  const run = async (fn: () => Promise<void> | void) => { S.msg = ''; S.ok = ''; try { await fn(); } catch (e: any) { S.msg = e.message; } await render(); };
+  const run = async (fn: () => Promise<void> | void) => {
+    S.msg = ''; S.ok = ''; S.keep = false; try { await fn(); } catch (e: any) { S.msg = e.message; }
+    // Saving defaults keeps the screen as it is (so typed numbers are not wiped) and just shows the message.
+    if (S.keep && !S.msg) { S.keep = false; const head = root.querySelector('.photo-head'); root.querySelectorAll('.stack > .ok').forEach((e) => e.remove()); head?.insertAdjacentHTML('afterend', `<p class="ok" role="status">${esc(S.ok)}</p>`); return; }
+    await render();
+  };
   const go = (dest: string) => { const [view, a, b] = dest.split(':'); S.view = view; S.drawer = false; S.welcome = null; S.confirm = null; S.adding = a === 'add'; if (a === 'open') { S.open = b; S.filter = 'Open'; const l = (S.data?.leads || []).find((x: any) => x.id === b); if (l && ['Done', 'Lost'].includes(l.stage)) S.filter = l.stage; } else if (a && a !== 'add') S.filter = a; scrollTo(0, 0); };
 
   // ---------- live math on the Quick quote and calculator pages (no saving, no reload) ----------
@@ -340,16 +395,56 @@ import pricing from '../data/pricing.json';
     out('lines').innerHTML = [[`Asphalt, ${q.sqft.toLocaleString('en-US')} sq ft`, money(q.asphalt)], ...(q.baseWork ? [['Grading and base prep', money(q.baseWork)]] : []), ...(q.loads ? [[`Rock, ${plural(q.loads, 'load', 'loads')}`, money(q.fill)]] : []), ['Middle of the range', money(q.total)]].map(([a, b]) => `<tr><th scope="row">${a}</th><td>${b}</td></tr>`).join('');
     return q;
   }
+  function estMath() {
+    const f = root.querySelector<HTMLFormElement>('form[data-form="estimate"]'); if (!f) return null;
+    const d = new FormData(f), g = (k: string) => num(d.get(k)); const boss = S.me.role === 'owner';
+    const p = { hotmix_sqyd: g('hotmix_sqyd'), seal_sqft: g('seal_sqft'), hotoil_sqft: g('hotoil_sqft'), tax_pct: g('tax_pct'), min_sqft: S.est.p.min_sqft, deposit_pct: g('deposit_pct') };
+    const c = boss ? { hotmix_sqyd: g('c_hotmix_sqyd'), seal_sqft: g('c_seal_sqft'), hotoil_sqft: g('c_hotoil_sqft') } : undefined;
+    root.querySelector('[data-est="persqft"]')!.textContent = `Hot mix at ${usd(p.hotmix_sqyd)} a square yard is ${usd(p.hotmix_sqyd / 9)} a square foot.`;
+    const sq = area(f); const out = root.querySelector<HTMLElement>('[data-est="out"]')!;
+    if (!sq) { out.innerHTML = '<p class="empty">Enter a length and width, or the total square feet, to see the three options.</p>'; return null; }
+    const r = options(p, sq, c); const picked = String(d.get('pick') || 'economy');
+    out.innerHTML = r.list.map((o) => `<label class="opt ${picked === o.key ? 'on' : ''}"><input type="radio" name="pick" value="${o.key}" ${picked === o.key ? 'checked' : ''} /><span class="opt__name">${o.name}</span><span class="opt__what">${o.what}. ${o.lasts}.</span><span class="opt__price">${usd(o.total)}</span><span class="muted small">with tax, ${r.sqft.toLocaleString('en-US')} sq ft</span><table class="lines"><tbody><tr><th>Price per sq ft</th><td>${usd(o.ppsf)}</td></tr>${o.extraName ? `<tr><th>${o.extraName}</th><td>${usd(o.extraCost)}</td></tr>` : ''}<tr><th>Subtotal</th><td>${usd(o.subtotal)}</td></tr><tr><th>Tax</th><td>${usd(o.tax)}</td></tr><tr><th>Deposit (${dec(p.deposit_pct)}%)</th><td>${usd(o.deposit)}</td></tr><tr><th>Due when done</th><td>${usd(o.total - o.deposit)}</td></tr>${o.owed !== undefined ? `<tr class="mine"><th>To your contractor</th><td>${usd(o.owed)}</td></tr><tr class="mine"><th>Left for CGH before tax</th><td>${usd(o.profit!)}</td></tr>` : ''}</tbody></table></label>`).join('');
+    return { r, picked, p, c };
+  }
+  function matMath() {
+    const f = root.querySelector<HTMLFormElement>('form[data-form="matcost"]'); if (!f) return {};
+    const d = new FormData(f), g = (k: string) => num(d.get(k)), on = (k: string) => d.get(k) === 'on'; const taxPct = g('tax_pct');
+    const put = (k: string, html: string) => { const e = root.querySelector<HTMLElement>(`[data-mat="${k}"]`); if (e) e.innerHTML = html; };
+    const line = (a: string, b: string) => `<tr><th>${a}</th><td>${b}</td></tr>`; let total = 0; const used: string[] = []; const save: any = {};
+    for (const id of ['d', 'c', 'b', 'agg']) {
+      const i = { sqft: g(id + '.sqft'), depth: g(id + '.depth'), perTon: g(id + '.perTon'), tonsPerYard: g(id + '.tonsPerYard'), truckTons: g(id + '.truckTons'), taxPct, exempt: on(id + '.exempt') }; const r = layer(i);
+      save[id] = { ...i, on: on(id + '.on') }; delete save[id].taxPct;
+      put(id, i.sqft && i.depth ? line('Cubic yards', dec(r.yards)) + line('Tons', dec(r.tons)) + line('Truckloads', dec(r.deliveries)) + line('Depth once compacted', dec(r.compacted) + ' in') + line('Material', usd(r.cost)) + line('Tax', usd(r.tax)) + line('Total', usd(r.total)) + line('Per sq ft', usd(r.perSqft)) : '');
+      put(id + '-tag', on(id + '.on') ? 'Counted' : 'Not counted'); put(id + '-amt', i.sqft && i.depth && i.perTon ? usd(r.total) : '');
+      if (on(id + '.on')) { total += r.total; used.push(id); }
+    }
+    for (const id of ['tack', 'prime', 'seal']) {
+      const i = { sqft: g(id + '.sqft'), rate: g(id + '.rate'), perGal: g(id + '.perGal'), wastePct: g(id + '.wastePct'), taxPct, exempt: on(id + '.exempt') }; const r = liquid(i);
+      save[id] = { ...i, on: on(id + '.on') }; delete save[id].taxPct;
+      put(id, i.sqft && i.rate ? line('Gallons', dec(r.gallons)) + line('Wasted', dec(r.wasted)) + line('Gallons to buy', dec(r.overall)) + line('Material', usd(r.cost)) + line('Tax', usd(r.tax)) + line('Total', usd(r.total)) + line('Per sq ft', usd(r.perSqft)) : '');
+      put(id + '-tag', on(id + '.on') ? 'Counted' : 'Not counted'); put(id + '-amt', i.sqft && i.rate && i.perGal ? usd(r.total) : '');
+      if (on(id + '.on')) { total += r.total; used.push(id); }
+    }
+    root.querySelectorAll('[data-mat$="-tag"]').forEach((e) => e.classList.toggle('s-Accepted', e.textContent === 'Counted'));
+    put('total', usd(total)); put('list', used.length ? `${used.length} of 7 counted.` : 'Tick the layers this job uses and enter the square feet.');
+    return save;
+  }
   root.addEventListener('input', (e) => {
     const t = e.target as HTMLInputElement, f = t.closest('form') as HTMLFormElement | null;
+    if (t.matches('[data-gsearch]')) { S.gq = t.value.trim(); clearTimeout(S.timer); S.timer = setTimeout(render, 220); return; }
     if (t.matches('[data-search]')) { S.q = t.value.trim(); if (!['pipeline', 'customers', 'jobs'].includes(S.view)) { S.view = 'pipeline'; S.filter = 'Open'; } clearTimeout(S.timer); S.timer = setTimeout(render, 220); return; }
     if (!f) return;
     if (f.dataset.form === 'quickquote') quoteMath();
-    if (f.dataset.form === 'calc-mix') { const sq = area(f), inches = num(new FormData(f).get('inches')); root.querySelector('[data-out="mix"]')!.textContent = sq && inches ? `${(Math.ceil(((sq * (inches / 12) * 145) / 2000) * 10) / 10).toLocaleString('en-US')} tons` : '—'; }
-    if (f.dataset.form === 'calc-rock') { const sq = area(f), inches = num(new FormData(f).get('inches')); const yards = (sq * (inches / 12)) / 27; root.querySelector('[data-out="rock"]')!.textContent = sq && inches ? `${plural(Math.max(1, Math.ceil(yards / PRICING.loadYards - 1e-9)), 'load', 'loads')} (${(Math.round(yards * 10) / 10).toLocaleString('en-US')} cubic yards)` : '—'; }
+    if (f.dataset.form === 'estimate' && t.name !== 'pick') estMath();
+    if (f.dataset.form === 'matcost') matMath();
+    const fd = new FormData(f), g = (k: string) => num(fd.get(k)); const set = (k: string, v: string) => { const e = root.querySelector(`[data-out="${k}"]`); if (e) e.innerHTML = v; };
+    if (f.dataset.form === 'calc-mix') { const y = (area(f) * (g('inches') / 12)) / 27, tn = y * g('tpy'); set('mix', area(f) && g('inches') ? `${dec(Math.ceil(tn * 10) / 10, 1)} tons` : '—'); set('mixnote', area(f) && g('inches') ? `${dec(y)} cubic yards. About ${dec(g('truck') ? tn / g('truck') : 0, 1)} truckloads at ${dec(g('truck'))} tons. Confirm the weight with your plant.` : 'Confirm the weight with your plant.'); }
+    if (f.dataset.form === 'calc-yard') { const sq = area(f); if (!sq || !g('depth')) { set('yard', '—'); set('yardlines', ''); } else { const r = yardage({ sqft: sq, depth: g('depth'), compactionPct: g('compaction'), yardsPerLoad: g('perLoad') }); set('yard', `${plural(r.loads, 'load', 'loads')}`); set('yardlines', `<tr><th>Square feet</th><td>${dec(sq, 0)}</td></tr><tr><th>Cubic yards in place</th><td>${dec(r.yards)}</td></tr><tr><th>Yards to order, with compaction</th><td>${dec(r.needed)}</td></tr><tr><th>Loads, before rounding up</th><td>${dec(r.loadsCalc)}</td></tr>`); } }
+    if (f.dataset.form === 'calc-y2t' || f.dataset.form === 'calc-t2y') { const a = root.querySelector<HTMLFormElement>('form[data-form="calc-y2t"]')!, b = root.querySelector<HTMLFormElement>('form[data-form="calc-t2y"]')!; const A = new FormData(a), B = new FormData(b); const parts = []; if (num(A.get('yards'))) parts.push(`${dec(num(A.get('yards')))} yards is ${dec(num(A.get('yards')) * num(A.get('tpy')))} tons`); if (num(B.get('tons'))) parts.push(`${dec(num(B.get('tons')))} tons is ${dec(num(B.get('tons')) * num(B.get('ypt')))} yards`); set('conv', parts.join('. ') || '—'); }
   });
   // "Show what I am typing" on password boxes, so a long temporary password is easy to check.
-  root.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.matches?.('[data-showpw]')) t.closest('form')!.querySelectorAll<HTMLInputElement>('[data-pw]').forEach((i) => (i.type = t.checked ? 'text' : 'password')); });
+  root.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.name === 'pick') estMath(); if (t.closest?.('form[data-form="matcost"]')) matMath(); if (t.matches?.('[data-showpw]')) t.closest('form')!.querySelectorAll<HTMLInputElement>('[data-pw]').forEach((i) => (i.type = t.checked ? 'text' : 'password')); });
 
   root.addEventListener('submit', (e) => {
     const f = (e.target as HTMLElement).closest('form[data-form]') as HTMLFormElement | null; if (!f) return;
@@ -363,6 +458,8 @@ import pricing from '../data/pricing.json';
       else if (kind === 'lead') { S.open = id; await api('leads/' + id, 'PATCH', data); S.ok = 'Saved.'; }
       else if (kind === 'newlead') { S.open = (await api('leads', 'POST', data)).lead.id; S.filter = 'Open'; S.adding = false; }
       else if (kind === 'quickquote') { const q = quoteMath(); if (!q) throw new Error('Enter a length and width, or the total square feet.'); const r = await api('leads', 'POST', { ...data, sqft: q.sqft, loads: q.loads, est_low: q.low, est_high: q.high, est_total: Math.round(q.total), source: 'quick quote', note: `Quoted on the spot: ${money(q.low)} to ${money(q.high)}.` }); go('pipeline:open:' + r.lead.id); S.ok = 'Saved as a lead.'; }
+      else if (kind === 'estimate') { const e = estMath(); if (!e) throw new Error('Enter a length and width, or the total square feet.'); if (!String(data.name || '').trim()) throw new Error('Add the customer name to save this as a lead.'); const o = e.r.list.find((x) => x.key === e.picked)!; const r = await api('leads', 'POST', { name: data.name, phone: data.phone, city: data.city, job_type: 'Paving', sqft: e.r.sqft, firm_price: o.total, est_total: o.subtotal, source: 'three-option estimate', note: `${o.name}: ${usd(o.total)} with tax. ${o.what}. Deposit ${usd(o.deposit)}, ${usd(o.total - o.deposit)} due when done.` }); go('pipeline:open:' + r.lead.id); S.ok = 'Saved as a lead.'; }
+      else if (kind === 'matcost') return;
       else if (kind === 'applicant') await api('applicants/' + id, 'PATCH', data);
       else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
       else if (kind === 'announce') { await api('announcements', 'POST', data); S.ok = 'Posted to the team.'; }
@@ -384,6 +481,8 @@ import pricing from '../data/pricing.json';
       else if (act === 'accept') await api('my-job/accept', 'POST', {});
       else if (act === 'client') { S.open = id; const r = await api(`leads/${id}/invite`, 'POST', {}); const l = (S.data?.leads || []).find((x: any) => x.id === id); S.welcome = { for: id, name: r.name, email: r.email, phone: l?.phone, text: welcomeText('client', r.name, r.email, r.temp) }; }
       else if (act === 'lesson') await api('training', 'POST', { lesson: id });
+      else if (act === 'estsave') { const e = estMath() || { p: null as any, c: null as any }; const f = new FormData(root.querySelector<HTMLFormElement>('form[data-form="estimate"]')!); const g = (k: string) => String(f.get(k) ?? ''); await api('estimate-settings', 'POST', { prices: { hotmix_sqyd: g('hotmix_sqyd'), seal_sqft: g('seal_sqft'), hotoil_sqft: g('hotoil_sqft'), tax_pct: g('tax_pct'), deposit_pct: g('deposit_pct') }, contractor: { hotmix_sqyd: g('c_hotmix_sqyd'), seal_sqft: g('c_seal_sqft'), hotoil_sqft: g('c_hotoil_sqft') } }); S.ok = 'Saved. These are your defaults now.'; S.keep = true; }
+      else if (act === 'matsave') { await api('estimate-settings', 'POST', { materials: matMath() }); S.ok = 'Saved your prices.'; S.keep = true; }
       else if (act === 'check') { S.open = id; await api(`leads/${id}/check`, 'POST', { item: t.dataset.item, done: !!t.dataset.done }); }
       else if (act === 'csv') {
         // A spreadsheet file of every lead, made on this device. Cells that start with = + - @ are made safe for Excel.
@@ -492,6 +591,13 @@ import pricing from '../data/pricing.json';
   .empty { margin: 0; padding: 18px; text-align: center; color: var(--a-dim); background: var(--a-card-2); border-radius: 8px; }
   .alerts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--a-card); border: 1px solid var(--a-line); border-radius: 10px; padding: 12px 14px; }
   .want { color: #fcd34d; }
+  .opts { display: grid; gap: 12px; } @media (min-width: 860px) { .opts { grid-template-columns: repeat(3, 1fr); } }
+  .opt { display: grid; gap: 4px; align-content: start; background: var(--a-card); border: 2px solid var(--a-line); border-radius: 10px; padding: 16px; cursor: pointer; }
+  .opt.on { border-color: var(--paver); } .opt input { position: absolute; opacity: 0; }
+  .opt__name { font: 800 1.3rem var(--font-display); color: #fff; } .opt__what { color: #cbd5e1; font-size: 0.92rem; min-height: 3.2em; } .opt__price { font: 900 1.9rem var(--font-display); color: #fff; margin-top: 6px; }
+  .opt .lines { margin-top: 10px; font-size: 0.92rem; } .lines tr.mine th, .lines tr.mine td { color: #fcd34d; }
+  .guide th { width: 42%; color: var(--a-dim); font-weight: 600; vertical-align: top; padding-right: 12px; } .guide td { text-align: left; font-weight: 500; }
+  .search--wide { max-width: none; } .field small { color: var(--a-dim); }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .stats div { background: var(--a-card); border: 1px solid var(--a-line); border-radius: 10px; padding: 14px; }
   .stats b { display: block; font: 900 clamp(1.3rem, 4vw, 1.9rem) var(--font-display); color: #fff; line-height: 1.1; } .stats span { display: block; margin-top: 4px; color: var(--a-dim); font-size: 0.82rem; line-height: 1.3; }

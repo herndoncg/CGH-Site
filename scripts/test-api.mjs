@@ -100,6 +100,15 @@ r = await call('GET', 'leads', null, owner); ok('owner sees the checklist and th
 r = await call('POST', 'leads/' + lead.id + '/log', { text: 'x' }, pat); ok('customers cannot write to the job log', r.status === 404);
 r = await call('GET', 'home', null, cal); ok('crew get no sales numbers on Home', r.body.stats === undefined && r.body.waiting.followups === undefined);
 
+// ----- estimate settings: contractor cost is the owner's alone -----
+r = await call('POST', 'estimate-settings', { contractor: { hotmix_sqyd: '18' } }, sam); ok('sales cannot change estimate numbers', r.status === 403);
+r = await call('POST', 'estimate-settings', { prices: { hotmix_sqyd: '33', tax_pct: '8.25' }, contractor: { hotmix_sqyd: '18', seal_sqft: '0.1' }, materials: { d: { perTon: '100', exempt: true } } }, owner); ok('owner saves prices, contractor cost and material prices', r.status === 200);
+r = await call('GET', 'estimate-settings', null, owner); ok('owner reads them back', r.body.prices.hotmix_sqyd === 33 && r.body.contractor.hotmix_sqyd === 18 && r.body.materials.d.perTon === 100 && r.body.materials.d.exempt === true);
+r = await call('GET', 'estimate-settings', null, sam); ok('sales get customer prices but never contractor cost or material prices', r.body.prices.hotmix_sqyd === 33 && r.body.contractor === undefined && r.body.materials === undefined);
+r = await call('GET', 'estimate-settings', null, cal); ok('crew cannot open estimate numbers', r.status === 404);
+r = await call('GET', 'estimate-settings', null, pat); ok('customers cannot open estimate numbers', r.status === 404);
+r = await call('POST', 'leads', { name: 'Three Option', phone: '9035550133', sqft: '900', firm_price: '3464', source: 'three-option estimate' }, sam); ok('an estimate saves as a lead with its price', r.body.lead.firm_price === 3464);
+
 // ----- resetting, changing, turning off -----
 const calId = (await store.get('emails/' + sha('cal@example.com'))).id;
 r = await call('PATCH', 'users/' + calId, { reset: true }, owner); ok('owner can reset a password to a new temporary one', r.status === 200 && TEMP.test(r.body.temp) && r.body.temp !== calTemp); const calTemp2 = r.body.temp;
@@ -121,7 +130,7 @@ r = await call('POST', 'login', { email: 'colton@example.com', password: 'recove
 r = await call('GET', 'leads', null, owner2); ok('recovery signs the old owner session out', r.status === 401);
 r = await call('POST', 'login', { email: 'owner@example.com', password: 'owners-second-password' }); ok('the old owner email no longer signs in', r.status === 401);
 r = await call('POST', 'login', { email: 'third@example.com', password: 'RECOVER-CODE-999' }); ok('the recovery code works once', r.status === 401);
-r = await call('POST', 'password', { next: 'recovered-password' }, rec); ok('recovered owner chooses a password and keeps their records', r.status === 200 && r.body.me.name === 'Colton'); r = await call('GET', 'leads', null, r.cookie); ok('recovered owner still sees the leads', r.status === 200 && r.body.leads.length === 2);
+r = await call('POST', 'password', { next: 'recovered-password' }, rec); ok('recovered owner chooses a password and keeps their records', r.status === 200 && r.body.me.name === 'Colton'); r = await call('GET', 'leads', null, r.cookie); ok('recovered owner still sees the leads', r.status === 200 && r.body.leads.length === 3);
 for (let i = 0; i < 5; i++) await call('POST', 'login', { email: 'sam@example.com', password: 'bad-bad-bad-bad' }); r = await call('POST', 'login', { email: 'sam@example.com', password: 'sams-long-password' }); ok('five bad passwords lock sign-in for a while', r.status === 429);
 ok('no password is stored in readable form', ![...mem.values()].some((v) => ['a-long-password', 'sams-long-password', 'owners-second-password', 'TEST-CODE-12345', 'RECOVER-CODE-999', 'recovered-password', samTemp, calTemp2, patTemp].some((p) => v.includes(p))));
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
