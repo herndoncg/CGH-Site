@@ -72,11 +72,29 @@ import pricing from '../data/pricing.json';
     </table>
     <p class="qt__note">This is a ballpark from the numbers you entered, before taxes or permits. We confirm the final price with a free site visit before any work starts.</p>
     <p class="qt__sent" data-out="sent"></p>
+    <div class="qt__next" data-next-step>
+      <p class="qt__nexthead">What would you like to do next?</p>
+      <div class="chips" role="radiogroup" aria-label="Next step">
+        <label><input type="radio" name="want" value="visit" checked /><span>Book my free site visit</span></label>
+        <label><input type="radio" name="want" value="call" /><span>Call me about it</span></label>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label for="qt-when">Best time to reach you</label><select id="qt-when" name="when"><option>Any time</option><option>Morning</option><option>Afternoon</option><option>Evening</option></select></div>
+        <div class="field"><label for="qt-note">Anything we should know? (optional)</label><input id="qt-note" name="want_note" /></div>
+      </div>
+      <button type="button" class="btn btn--paver" data-request>Send my request</button>
+      <p class="qt__err" data-err="4" role="alert"></p>
+    </div>
+    <p class="qt__done" data-out="requested" role="status"></p>
     <div class="btn-row">
-      <a class="btn btn--paver" href={site.phoneHref}>Call {site.phone} to book a site visit</a>
+      <a class="btn btn--line" href={site.phoneHref}>Or call {site.phone} now</a>
       <button type="button" class="btn btn--line" data-restart>Change my numbers</button>
     </div>
   </div>
+</form>
+{/* A second copy of the "book a visit / call me" request goes through Netlify Forms, so it also lands in the same inbox as the quote. */}
+<form name="quote-request" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  {['bot-field', 'name', 'phone', 'wants', 'best_time', 'note', 'price_range', 'job'].map((n) => <input name={n} />)}
 </form>
 
 <script>
@@ -144,6 +162,22 @@ import pricing from '../data/pricing.json';
       else if (t.hasAttribute('data-restart')) show(1);
     });
 
+    // After the price: "book my site visit" or "call me". Goes straight to the CGH team as an alert.
+    let leadSent: Promise<{ ref?: string }> = Promise.resolve({});
+    form.querySelector('[data-request]')!.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement; const d = new FormData(form);
+      btn.disabled = true; btn.textContent = 'Sending…'; err(4, '');
+      try {
+        const { ref } = await leadSent; if (!ref) throw new Error('no ref');
+        const r = await fetch('/api/lead-request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ref, want: d.get('want'), when: d.get('when'), note: d.get('want_note') }) });
+        if (!r.ok) throw new Error(String(r.status));
+        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ 'form-name': 'quote-request', name: String(d.get('name')), phone: String(d.get('phone')), wants: d.get('want') === 'call' ? 'A phone call' : 'A free site visit', best_time: String(d.get('when')), note: String(d.get('want_note') || ''), price_range: form.querySelector('[data-out="range"]')!.textContent || '', job: `${d.get('job_type')}, ${sqft().toLocaleString('en-US')} sq ft` }).toString() }).catch(() => {});
+        form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
+        form.querySelector<HTMLElement>('[data-out="requested"]')!.textContent = d.get('want') === 'call' ? `Got it. We will call you at ${d.get('phone')}.` : `Got it. We will call ${d.get('phone')} to set up your free site visit.`;
+      } catch { err(4, 'That did not send. Please call us and mention your price range.'); }
+      btn.disabled = false; btn.textContent = 'Send my request';
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = new FormData(form);
@@ -172,12 +206,13 @@ import pricing from '../data/pricing.json';
         page: location.pathname, submitted_at: new Date().toISOString(),
       };
       // the lead also goes into the CGH app's pipeline (/app)
-      fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+      leadSent = fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()).catch(() => ({}));
+      form.querySelector<HTMLElement>('[data-next-step]')!.hidden = false; out('requested').textContent = '';
       if (!endpoint) return;
       try {
         const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(payload).toString() });
         if (!r.ok) throw new Error(String(r.status));
-        out('sent').textContent = `Thanks, ${name.split(' ')[0]}. We have your request and will reach out to set up a site visit.`;
+        out('sent').textContent = `Thanks, ${name.split(' ')[0]}. Your price range is saved with our team.`;
       } catch {
         out('sent').textContent = 'Your request did not send from this page. Call us and mention this price range.';
       }
@@ -226,4 +261,10 @@ import pricing from '../data/pricing.json';
   .qt__note { color: var(--text-2); font-size: 0.97rem; max-width: 60ch; }
   .qt__sent { font-weight: 700; }
   .qt__sent:empty { display: none; }
+  .qt__next { background: var(--bg-2); border-radius: var(--radius-lg); padding: 20px; margin: 18px 0; display: grid; gap: 14px; }
+  .qt__next[hidden] { display: none; }
+  .qt__nexthead { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; margin: 0; }
+  .qt__next .btn { justify-self: start; }
+  .qt__done { font-weight: 700; font-size: 1.1rem; color: var(--clay); margin: 16px 0; }
+  .qt__done:empty { display: none; }
 </style>

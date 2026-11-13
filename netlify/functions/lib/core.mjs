@@ -67,6 +67,14 @@ async function issueInvite(store, uid) {
   return '/app/?invite=' + token;
 }
 
+// Sends a phone or computer alert to every signed-in device that turned alerts on, for the given roles.
+async function alertTeam(store, push, roles, msg) {
+  if (!push) return;
+  const subs = (await all(store, 'push/')).filter((s) => roles.includes(s.role));
+  await Promise.all(subs.map(async (s) => { const r = await push.send(s.sub, msg).catch(() => 'failed'); if (r === 'gone') await store.delete('push/' + s.id); }));
+}
+const usd = (n) => '$' + Math.round(n).toLocaleString('en-US');
+
 // What each role may see of a lead. Crew never see prices. Clients only see their own job.
 function leadFor(lead, user) {
   if (user.role === 'owner') return lead;
@@ -80,7 +88,7 @@ function leadFor(lead, user) {
 }
 const clientView = (l) => ({ job_type: l.job_type, sqft: l.sqft, city: l.city, est_low: l.est_low, est_high: l.est_high, firm_price: l.firm_price, stage: l.stage, visit_date: l.visit_date, job_date: l.job_date, status_note: l.status_note, accepted_at: l.accepted_at });
 
-export async function handle(req, store) {
+export async function handle(req, store, push) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/?/, '').replace(/\/$/, '');
   const [a, b, c] = path.split('/');
@@ -94,6 +102,22 @@ export async function handle(req, store) {
     if (!name || phone.replace(/\D/g, '').length < 10) return bad('Name and a 10-digit phone number are required.');
     const lead = { id: newId(), created: Date.now(), source: 'website', stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
     await store.setJSON('leads/' + lead.id, lead);
+    // a private reference the customer's browser keeps, so they can follow up on this same quote
+    const ref = randomBytes(18).toString('base64url');
+    await store.setJSON('refs/' + sha(ref), { id: lead.id });
+    await alertTeam(store, push, ['owner', 'sales'], { title: 'New quote: ' + lead.name, body: [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : '', lead.city].filter(Boolean).join(' · '), url: '/app/' });
+    return json({ ok: true, ref });
+  }
+  // the customer taps "book my site visit" or "call me" right after seeing their price
+  if (path === 'lead-request' && m === 'POST') {
+    const found = await store.get('refs/' + sha(clean(data.ref, 100)), { type: 'json' });
+    const lead = found ? await store.get('leads/' + found.id, { type: 'json' }) : null;
+    if (!lead) return bad('We could not find that quote. Please call us.', 404);
+    const want = data.want === 'call' ? 'call' : 'visit', when = clean(data.when, 40), note = clean(data.note, 500);
+    lead.request = { want, when, at: Date.now() };
+    lead.notes.push({ at: Date.now(), by: 'Customer (website)', text: `Asked for ${want === 'call' ? 'a phone call' : 'a free site visit'}${when ? '. Best time: ' + when : ''}${note ? '. Note: ' + note : ''}` });
+    await store.setJSON('leads/' + lead.id, lead);
+    await alertTeam(store, push, ['owner', 'sales'], { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, when ? 'Best time: ' + when : '', note].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true });
   }
   if (path === 'apply' && m === 'POST') {
@@ -102,6 +126,7 @@ export async function handle(req, store) {
     if (!name || phone.replace(/\D/g, '').length < 10) return bad('Name and a 10-digit phone number are required.');
     const app = { id: newId(), created: Date.now(), status: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), position: clean(data.position, 80), cdl: clean(data.cdl, 30), experience_years: clean(data.experience_years, 30), start: clean(data.start, 80), details: clean(data.details, 2000) };
     await store.setJSON('applicants/' + app.id, app);
+    await alertTeam(store, push, ['owner'], { title: 'New job application: ' + app.name, body: [app.position, app.city, app.phone].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true });
   }
 
@@ -181,6 +206,16 @@ export async function handle(req, store) {
   }
 
   if (!staff) return bad('Not found.', 404);
+
+  // alerts on this device (owner and sales)
+  if (a === 'push-key' && m === 'GET') return json({ key: push ? await push.key() : null });
+  if (a === 'push-subscribe' && m === 'POST') {
+    if (me.role === 'crew') return bad('Not allowed.', 403);
+    const endpoint = clean(data.sub?.endpoint, 1000); if (!endpoint.startsWith('https://')) return bad('That device could not be registered.');
+    const id = sha(endpoint);
+    await store.setJSON('push/' + id, { id, uid: me.id, role: me.role, sub: data.sub, at: Date.now() });
+    return json({ ok: true });
+  }
 
   // leads
   if (a === 'leads' && !b) {

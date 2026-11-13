@@ -29,6 +29,31 @@ import { site } from '../data/site';
   const S: any = { me: null as Me | null, tab: 'leads', msg: '', filter: 'Open' };
   const invite = new URLSearchParams(location.search).get('invite');
 
+  // ---------- installing the app and lead alerts ----------
+  let installEvt: any = null;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; if (S.me) render(); });
+  const canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const keyBytes = (k: string) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  const alertsBar = () => {
+    if (!S.me || S.me.role === 'client') return '';
+    const parts: string[] = [];
+    if (installEvt) parts.push('<button class="btn btn--line sm" data-act="install">Install this app</button>');
+    else if (isIos && !standalone) parts.push('<span class="small">To install on iPhone: tap the Share button, then "Add to Home Screen". Open it from there to turn on alerts.</span>');
+    if (S.me.role !== 'crew') {
+      if (S.pushOn) parts.push('<span class="small ok">Lead alerts are on for this device.</span>');
+      else if (canPush && !(isIos && !standalone)) parts.push('<button class="btn btn--dark sm" data-act="alerts">Turn on lead alerts on this device</button>');
+    }
+    return parts.length ? `<div class="alerts">${parts.join('')}</div>` : '';
+  };
+  async function syncPush() {
+    if (!canPush || !S.me || S.me.role === 'client' || S.me.role === 'crew' || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+    if (sub) { S.pushOn = true; api('push-subscribe', 'POST', { sub: sub.toJSON() }).catch(() => {}); }
+  }
+
   const field = (label: string, name: string, type = 'text', extra = '') => `<div class="field"><label>${label}<input name="${name}" type="${type}" ${extra} /></label></div>`;
   const authCard = (title: string, lede: string, body: string) => `<div class="auth"><h1>${title}</h1><p class="lede">${lede}</p>${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}<p class="muted small">Trouble signing in? Call <a href="${PHONE_HREF}">${PHONE}</a>.</p></div>`;
 
@@ -66,14 +91,14 @@ import { site } from '../data/site';
 
   // ---------- team ----------
   const TABS: Record<string, [string, string][]> = { owner: [['leads', 'Leads'], ['applicants', 'Applicants'], ['team', 'Team'], ['training', 'Training']], sales: [['leads', 'Leads'], ['training', 'Training']], crew: [['leads', 'Jobs'], ['training', 'Training']] };
-  const shell = (body: string) => `<div class="bar"><div><p class="muted small">${esc(S.me.name)}, ${S.me.role}</p><h1>CGH Operations</h1></div><button class="btn btn--line" data-act="logout">Sign out</button></div><nav class="tabs">${TABS[S.me.role].map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('')}</nav>${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}`;
+  const shell = (body: string) => `<div class="bar"><div><p class="muted small">${esc(S.me.name)}, ${S.me.role}</p><h1>CGH Operations</h1></div><button class="btn btn--line" data-act="logout">Sign out</button></div><nav class="tabs">${TABS[S.me.role].map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('')}</nav>${alertsBar()}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}`;
 
   function leadCard(l: any, d: any) {
     const crew = S.me.role === 'crew';
     const range = l.firm_price ? money(l.firm_price) + ' firm' : l.est_low ? `${money(l.est_low)} to ${money(l.est_high)}` : '';
     const sel = (name: string, opts: [string, string][], cur: string) => `<select name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${v === (cur ?? '') ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
     return `<details class="lead" ${S.open === l.id ? 'open' : ''} data-id="${l.id}">
-      <summary><span class="stage s-${l.stage.replace(/\W/g, '')}">${esc(l.stage)}</span><b>${esc(l.name)}</b><span class="muted">${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}</span><span class="muted small">${day(l.created)}</span></summary>
+      <summary><span class="stage s-${l.stage.replace(/\W/g, '')}">${esc(l.stage)}</span><b>${esc(l.name)}</b><span class="muted">${l.request ? `<strong class="want">Wants ${l.request.want === 'call' ? 'a call' : 'a site visit'}${l.request.when ? ` (${esc(l.request.when)})` : ''}</strong> · ` : ''}${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}</span><span class="muted small">${day(l.created)}</span></summary>
       <div class="lead__body">
         <p class="contact">${l.phone ? `<a class="btn btn--paver" href="tel:${esc(l.phone)}">Call ${esc(l.phone)}</a><a class="btn btn--line" href="sms:${esc(l.phone)}">Text</a>` : ''}${l.email ? `<a class="btn btn--line" href="mailto:${esc(l.email)}">Email</a>` : ''}</p>
         <p class="muted small">${l.base_work ? `Needs grading: ${esc(l.base_work)}. ` : ''}${l.fill_pct ? `Rock on about ${l.fill_pct}% (${l.loads} load${l.loads === 1 ? '' : 's'}). ` : ''}${l.job_date ? `Paving day: ${esc(l.job_date)}. ` : ''}${l.source ? `Source: ${esc(l.source)}.` : ''}</p>
@@ -134,7 +159,7 @@ import { site } from '../data/site';
     e.preventDefault();
     const data: any = Object.fromEntries(new FormData(f).entries()); const kind = f.dataset.form, id = f.dataset.id;
     run(async () => {
-      if (kind === 'login' || kind === 'setup') { S.me = (await api(kind, 'POST', data)).me; S.needsSetup = false; }
+      if (kind === 'login' || kind === 'setup') { S.me = (await api(kind, 'POST', data)).me; S.needsSetup = false; await syncPush().catch(() => {}); }
       else if (kind === 'accept') { S.me = (await api('accept', 'POST', { ...data, token: invite })).me; history.replaceState(null, '', '/app/'); }
       else if (kind === 'lead') { S.open = id; await api('leads/' + id, 'PATCH', data); }
       else if (kind === 'newlead') { S.open = (await api('leads', 'POST', data)).lead.id; S.filter = 'Open'; }
@@ -154,11 +179,19 @@ import { site } from '../data/site';
       else if (act === 'lesson') await api('training', 'POST', { lesson: id });
       else if (act === 'relink') { S.link = (await api('users/' + id, 'PATCH', { newLink: true })).link; S.linkFor = 'team'; }
       else if (act === 'toggle') await api('users/' + id, 'PATCH', { disabled: !!t.dataset.off });
+      else if (act === 'install' && installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; }
+      else if (act === 'alerts') {
+        if ((await Notification.requestPermission()) !== 'granted') throw new Error('Alerts are blocked for this site. Allow notifications in your browser or phone settings, then try again.');
+        const reg = await navigator.serviceWorker.ready; const { key } = await api('push-key');
+        if (!key) throw new Error('Alerts are not available right now.');
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
+        await api('push-subscribe', 'POST', { sub: sub.toJSON() }); S.pushOn = true;
+      }
     });
   });
 
   (async () => {
-    try { const st = await api('state'); S.me = st.me; S.needsSetup = st.needsSetup; if (S.me && S.me.role === 'crew') S.tab = 'leads'; }
+    try { const st = await api('state'); S.me = st.me; S.needsSetup = st.needsSetup; await syncPush().catch(() => {}); }
     catch { S.msg = 'The sign-in service is not reachable right now. Try again in a minute.'; }
     render();
   })();
@@ -174,6 +207,8 @@ import { site } from '../data/site';
   .auth .lede { margin: 0; font-size: 1.05rem; }
   .appwrap .err { background: #fbe9e7; color: #8c1d18; border-left: 4px solid var(--danger); padding: 12px 14px; border-radius: var(--radius); font-weight: 600; margin: 0 0 14px; }
   .appwrap .ok { color: #1f6b3a; font-weight: 700; }
+  .alerts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 16px; }
+  .want { color: var(--clay); }
   .bar { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
   .tabs { display: flex; gap: 4px; border-bottom: 3px solid var(--asphalt); margin-bottom: 20px; overflow-x: auto; }
   .tabs button { border: 0; background: none; font: 800 1.05rem var(--font-display); padding: 12px 18px; cursor: pointer; border-radius: var(--radius) var(--radius) 0 0; color: var(--muted); white-space: nowrap; }

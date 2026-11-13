@@ -6,7 +6,9 @@ const mem = new Map();
 const store = { get: async (k) => (mem.has(k) ? JSON.parse(mem.get(k)) : null), setJSON: async (k, v) => void mem.set(k, JSON.stringify(v)), delete: async (k) => void mem.delete(k), list: async ({ prefix }) => ({ blobs: [...mem.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })) }) };
 let pass = 0, fail = 0;
 const ok = (label, cond) => { cond ? pass++ : fail++; console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`); };
-const call = async (method, path, body, cookie) => { const r = await core.handle(new Request('https://x.test/api/' + path, { method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined }), store); const set = r.headers.get('set-cookie'); return { status: r.status, body: await r.json(), cookie: set ? set.split(';')[0] : undefined }; };
+const pushed = [];
+const push = { key: async () => 'TESTKEY', send: async (sub, msg) => { pushed.push({ to: sub.endpoint, ...msg }); return 'ok'; } };
+const call = async (method, path, body, cookie) => { const r = await core.handle(new Request('https://x.test/api/' + path, { method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined }), store, push); const set = r.headers.get('set-cookie'); return { status: r.status, body: await r.json(), cookie: set ? set.split(';')[0] : undefined }; };
 // a known setup code for the test: swap the stored fingerprint in memory by pre-creating nothing and checking rejection, then use a patched module copy
 let r = await call('GET', 'state'); ok('fresh site asks for setup', r.body.needsSetup === true && r.body.me === null);
 r = await call('POST', 'setup', { code: 'wrong', name: 'Colton', email: 'owner@example.com', password: 'a-long-password' }); ok('wrong setup code is refused', r.status === 403);
@@ -20,7 +22,12 @@ r = await call('POST', 'setup', { code: 'x', name: 'x', email: 'x@x.co', passwor
 r = await call('POST', 'login', { email: 'owner@example.com', password: 'nope-nope-nope' }); ok('wrong password is refused', r.status === 401);
 r = await call('POST', 'login', { email: 'OWNER@example.com', password: 'a-long-password' }); ok('owner can sign in', r.status === 200 && r.body.me.role === 'owner');
 r = await call('GET', 'leads'); ok('signed-out visitors cannot read leads', r.status === 401);
-r = await call('POST', 'lead', { name: 'Pat Customer', phone: '903-555-0100', email: 'pat@example.com', job_type: 'Driveway', sqft: '2500', est_low: '7950', est_high: '9200', est_total: '8375' }); ok('website quote is accepted', r.status === 200);
+r = await call('POST', 'push-subscribe', { sub: { endpoint: 'https://push.example/owner', keys: {} } }, owner); ok('owner can turn on alerts for a device', r.status === 200);
+r = await call('POST', 'push-subscribe', { sub: { endpoint: 'https://push.example/x', keys: {} } }); ok('signed-out visitors cannot register for alerts', r.status === 401);
+r = await call('POST', 'lead', { name: 'Pat Customer', phone: '903-555-0100', email: 'pat@example.com', job_type: 'Driveway', sqft: '2500', est_low: '7950', est_high: '9200', est_total: '8375' }); ok('website quote is accepted', r.status === 200 && !!r.body.ref); const patRef = r.body.ref;
+ok('a new quote alerts the owner', pushed.length === 1 && pushed[0].title.includes('Pat Customer') && pushed[0].body.includes('$7,950'));
+r = await call('POST', 'lead-request', { ref: 'not-a-real-ref', want: 'call' }); ok('a made-up reference cannot touch a lead', r.status === 404);
+r = await call('POST', 'lead-request', { ref: patRef, want: 'visit', when: 'Morning', note: 'Gate code 1234' }); ok('customer can ask for a site visit right after the quote', r.status === 200 && pushed.length === 2 && pushed[1].title.includes('site visit'));
 r = await call('POST', 'lead', { name: 'Bot', phone: '9035550100', 'bot-field': 'x' }); r = await call('GET', 'leads', null, owner); ok('spam trap submissions are dropped', r.body.leads.length === 1);
 const lead = r.body.leads[0]; ok('owner sees the lead with its price range', lead.est_low === 7950 && lead.stage === 'New');
 r = await call('POST', 'users', { name: 'Sam Sales', email: 'sam@example.com', role: 'sales' }, owner); ok('owner can add a sales login', r.status === 200 && r.body.link.includes('invite=')); const samToken = r.body.link.split('invite=')[1];
@@ -31,7 +38,7 @@ r = await call('POST', 'accept', { token: calToken, password: 'cals-long-passwor
 r = await call('GET', 'users', null, sam); ok('sales cannot list team logins', r.status === 404);
 r = await call('GET', 'applicants', null, sam); ok('sales cannot read applicants', r.status === 404);
 r = await call('PATCH', 'leads/' + lead.id, { owner: 'own1' }, owner); r = await call('GET', 'leads', null, sam); ok('sales does not see leads assigned to someone else', r.body.leads.length === 0);
-r = await call('PATCH', 'leads/' + lead.id, { owner: '' }, owner); r = await call('PATCH', 'leads/' + lead.id, { stage: 'Quote sent', firm_price: '8600', note: 'Walked the site.' }, sam); ok('sales can update an open lead', r.status === 200 && r.body.lead.firm_price === 8600 && r.body.lead.notes.length === 1);
+r = await call('PATCH', 'leads/' + lead.id, { owner: '' }, owner); r = await call('PATCH', 'leads/' + lead.id, { stage: 'Quote sent', firm_price: '8600', note: 'Walked the site.' }, sam); ok('sales can update an open lead', r.status === 200 && r.body.lead.firm_price === 8600 && r.body.lead.notes.length === 2 && r.body.lead.request.want === 'visit');
 r = await call('GET', 'leads', null, cal); ok('crew see nothing until a job is scheduled', r.body.leads.length === 0);
 r = await call('POST', 'leads/' + lead.id + '/invite', {}, sam); ok('sales can create the customer login', r.status === 200); const patToken = r.body.link.split('invite=')[1];
 r = await call('POST', 'accept', { token: patToken, password: 'pats-long-password' }); const pat = r.cookie; ok('customer accepts the invite', r.body.me.role === 'client');
