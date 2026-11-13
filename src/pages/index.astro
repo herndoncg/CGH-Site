@@ -18,10 +18,12 @@ const steps = [
 ---
 <Base title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and the Ark-La-Tex, and handles the dirt work under them. Based in Longview and Texarkana. Get a price range online in about a minute.">
   <section class="hero band">
-    <video class="hero__video" autoplay muted loop playsinline preload="metadata" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
-      <source src="/video/roller-on-new-driveway.mp4" type="video/mp4" />
-    </video>
-    <div class="hero__shade"></div>
+    <div class="hero__media">
+      <video class="hero__video" autoplay muted loop playsinline preload="metadata" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
+        <source src="/video/roller-on-new-driveway.mp4" type="video/mp4" />
+      </video>
+      <div class="hero__shade"></div>
+    </div>
     <div class="wrap hero__in">
       <div class="hero__copy">
         <p class="hero__tag">From breaking ground to groundbreaking. CGH brings results.</p>
@@ -164,14 +166,30 @@ const steps = [
   <CtaBand />
 </Base>
 
+<script>
+  // Phones in Low Power Mode refuse to play video on their own and would show a play button instead.
+  // If the video cannot start, hide it and leave the still photo that sits behind it.
+  const v = document.querySelector<HTMLVideoElement>('.hero__video');
+  if (v) { const off = () => v.classList.add('is-off'); const p = v.play(); if (p) p.catch(off); v.addEventListener('error', off); }
+</script>
+
 
 <style>
-  .hero { position: relative; overflow: hidden; }
+  /* Phones: the video sits on its own at the top and every word sits on solid navy, so nothing is
+     ever printed over moving footage. Wide screens: the video runs behind, with the words on a solid
+     navy panel that only clears toward the right-hand side. */
+  .hero { position: relative; overflow: hidden; background: var(--asphalt); }
+  .hero__media { position: relative; aspect-ratio: 16 / 11; background: #0b1220 url('/video/roller-on-new-driveway.webp') center / cover no-repeat; }
   .hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .hero__shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8, 13, 24, 0.95) 0%, rgba(8, 13, 24, 0.84) 42%, rgba(8, 13, 24, 0.45) 100%), linear-gradient(0deg, rgba(8, 13, 24, 0.7), transparent 40%); }
-  .hero__in { position: relative; display: grid; gap: 40px; padding-top: clamp(56px, 8vw, 110px); padding-bottom: clamp(56px, 8vw, 110px); align-items: center; }
-  @media (min-width: 980px) { .hero__in { grid-template-columns: 1.25fr 0.75fr; gap: 64px; } }
-  .hero__tag { font-family: var(--font-display); font-weight: 800; color: var(--paver); font-size: clamp(1rem, 1.5vw, 1.2rem); margin: 0 0 16px; }
+  .hero__video.is-off { display: none; }
+  .hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 18, 32, 0) 55%, #0b1220 100%); }
+  .hero__in { position: relative; display: grid; gap: 32px; padding-top: 8px; padding-bottom: 48px; align-items: center; }
+  @media (min-width: 980px) {
+    .hero__media { position: absolute; inset: 0; aspect-ratio: auto; }
+    .hero__shade { background: linear-gradient(90deg, #0b1220 0%, #0b1220 34%, rgba(11, 18, 32, 0.9) 52%, rgba(11, 18, 32, 0.5) 78%, rgba(11, 18, 32, 0.35) 100%); }
+    .hero__in { grid-template-columns: 1.25fr 0.75fr; gap: 64px; padding-top: clamp(64px, 8vw, 110px); padding-bottom: clamp(64px, 8vw, 110px); }
+  }
+  .hero__tag { font-family: var(--font-display); font-weight: 700; color: #f1f5f9; font-size: clamp(0.98rem, 1.4vw, 1.12rem); line-height: 1.35; margin: 0 0 18px; padding-left: 14px; border-left: 3px solid var(--paver); max-width: 30ch; }
   .hero h1 { max-width: 15ch; }
   .hero .lede { color: #dbe3ee; }
   .hero__facts { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 8px; color: #dbe3ee; font-weight: 500; }
@@ -236,7 +254,7 @@ const steps = [
   .verse span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 4px; }
   .towns { list-style: none; padding: 0; margin: 0 0 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
   .towns a { display: block; padding: 11px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-family: var(--font-display); font-weight: 700; font-size: 1.12rem; }
-  .towns a:hover { color: var(--paver); }
+  .towns a:hover { color: #fff; text-decoration: underline; text-decoration-color: var(--paver); }
 
   .posts { display: grid; gap: 24px; }
   @media (min-width: 900px) { .posts { grid-template-columns: repeat(3, 1fr); gap: 36px; } }
