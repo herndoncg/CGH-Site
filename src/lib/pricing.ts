@@ -58,12 +58,16 @@ export function estimate(p: Pricing, input: QuoteInput): Quote {
   const loads = fillPct > 0 ? Math.max(1, Math.ceil(fillYards / p.loadYards - 1e-9)) : 0;
   const fill = loads * p.loadPrice;
   const total = asphalt + baseWork + fill;
-  return {
-    sqft, rate, asphalt, baseWork, fillYards, loads, fill, total,
-    // the low end never dips under the minimum job price
-    low: Math.max(p.minimumJob, round50(total * (1 - p.rangeLowPct / 100))),
-    high: round50(total * (1 + p.rangeHighPct / 100)),
-  };
+  // the low end never dips under the minimum job price
+  let low = Math.max(p.minimumJob, round50(total * (1 - p.rangeLowPct / 100)));
+  let high = round50(total * (1 + p.rangeHighPct / 100));
+  // Same rule as the website quote: the first digit of the low and the high are never more than 1 apart.
+  const unit = 10 ** Math.floor(Math.log10(total));
+  if (Math.floor(high / unit) - Math.floor(low / unit) > 1) {
+    const up = (Math.floor(high / unit) - 1) * unit; // bring the low end up to the next round figure...
+    if (up <= total) low = up; else high = (Math.floor(low / unit) + 2) * unit - 50; // ...unless that would pass the real price; then trim the high end
+  }
+  return { sqft, rate, asphalt, baseWork, fillYards, loads, fill, total, low, high };
 }
 
 export const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');

@@ -37,13 +37,13 @@ r = await call('GET', 'leads', null, owner, { origin: 'https://x.test' }); ok('t
 r = await call('POST', 'push-subscribe', { sub: { endpoint: 'https://push.example/owner', keys: {} } }, owner); ok('owner can turn on alerts for a device', r.status === 200);
 r = await call('POST', 'push-subscribe', { sub: { endpoint: 'https://push.example/x', keys: {} } }); ok('signed-out visitors cannot register for alerts', r.status === 401);
 r = await call('POST', 'lead', { name: 'Pat Customer', phone: '903-555-0100', email: 'pat@example.com', job_type: 'Driveway', sqft: '2500', est_low: '1', est_high: '2', est_total: '3' }); ok('website quote is accepted', r.status === 200 && !!r.body.ref); const patRef = r.body.ref;
-ok('the server works out three price ranges and ignores numbers sent by the browser', r.body.quote.options.map((o) => `${o.name} ${o.low}-${o.high}`).join(', ') === 'Economy 7950-9200, Premium 8800-10200, Elite 10350-11950');
+ok('the server works out three price ranges and ignores numbers sent by the browser', r.body.quote.options.map((o) => `${o.name} ${o.low}-${o.high}`).join(', ') === 'Economy 8000-9200, Premium 9000-10200, Elite 10350-11950');
 ok('the public answer carries no rates, totals or line prices', !JSON.stringify(r.body).match(/rate|total|3\.35|0\.35|1500|600/));
-ok('a new quote alerts the owner', pushed.length === 1 && pushed[0].title.includes('Pat Customer') && pushed[0].body.includes('$7,950'));
+ok('a new quote alerts the owner', pushed.length === 1 && pushed[0].title.includes('Pat Customer') && pushed[0].body.includes('$8,000'));
 r = await call('POST', 'lead-request', { ref: 'not-a-real-ref', want: 'call' }); ok('a made-up reference cannot touch a lead', r.status === 404);
 r = await call('POST', 'lead-request', { ref: patRef, want: 'visit', when: 'Morning', note: 'Gate code 1234', option: 'Premium' }); ok('customer can ask for a site visit right after the quote', r.status === 200 && pushed.length === 2 && pushed[1].title.includes('site visit') && Object.keys(r.body).join() === 'ok');
 r = await call('POST', 'lead', { name: 'Bot', phone: '9035550100', 'bot-field': 'x' }); r = await call('GET', 'leads', null, owner); ok('spam trap submissions are dropped', r.body.leads.length === 1);
-const lead = r.body.leads[0]; ok('owner sees the lead with its price range', lead.est_low === 7950 && lead.stage === 'New');
+const lead = r.body.leads[0]; ok('owner sees the lead with its price range', lead.est_low === 8000 && lead.stage === 'New');
 
 ok('the lead keeps all three ranges and the option they lean toward', lead.options.length === 3 && lead.options[2].high === 11950 && lead.request.option === 'Premium');
 { const ipHdr = { 'x-nf-client-connection-ip': '203.0.113.9' }; let last; for (let i = 0; i < 11; i++) last = await call('POST', 'lead', { name: 'Curve Mapper', phone: '9035550199', sqft: String(1000 + i * 100) }, null, ipHdr); ok('one address is cut off after ten quotes in an hour', last.status === 429); for (const k of [...mem.keys()]) if (k.startsWith('leads/') && JSON.parse(mem.get(k)).name === 'Curve Mapper') mem.delete(k); }
