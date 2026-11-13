@@ -8,10 +8,10 @@ import sharp from 'sharp';
 const OUT = 'public/img/intro';
 // name on the site -> Poly Haven textures to try, in order, plus light color grading
 const wanted = {
-  grass: { from: ['leafy_grass', 'grass_ground', 'aerial_grass_rock'], grade: { saturation: 1.25, hue: 14, brightness: 1.02 } },
+  grass: { from: ['leafy_grass', 'grass_ground', 'aerial_grass_rock'], grade: { saturation: 1.4, hue: 26, brightness: 0.98 } },
   dirt: { from: ['red_dirt_mud_01', 'red_laterite_soil_stones', 'dirt_floor'], grade: { saturation: 1.05 } },
   rock: { from: ['gravel_floor_02', 'gravel_floor', 'gravelly_sand'], grade: { saturation: 0.75, brightness: 1.03 } },
-  asphalt: { from: ['asphalt_track', 'asphalt_pit_lane', 'asphalt_02'], grade: { saturation: 0.6, brightness: 0.82 } },
+  asphalt: { from: ['asphalt_track', 'asphalt_pit_lane', 'asphalt_02'], grade: { saturation: 0.6, brightness: 1.0 } },
 };
 
 mkdirSync(OUT, { recursive: true });
