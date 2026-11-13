@@ -8,6 +8,15 @@ import { areas } from '../data/areas';
 
 const posts = (await getCollection('blog', (p) => !p.data.draft)).sort((a, b) => +b.data.date - +a.data.date).slice(0, 3);
 const strip = workPhotos.slice(0, 6);
+const faqs = [
+  { q: 'How much does an asphalt driveway cost?', a: 'It depends on the size and on what the ground needs. Enter your length and width in the price tool and you will see a range in about a minute. Small jobs have a minimum price, because a crew, the paver, a roller and a truck of hot mix all have to come out no matter how small the area is.' },
+  { q: 'Is the site visit really free?', a: 'Yes. We come out, measure, look at the ground and give you a firm price. No charge and no pressure.' },
+  { q: 'How long does a driveway take?', a: 'Most driveways take a day or two once we start. Bigger lots and jobs that need a lot of base work take longer, and we tell you that up front.' },
+  { q: 'When can I drive on new asphalt?', a: 'We tell you exactly when it is ready before we leave. Hot weather means a longer wait. For the first few weeks, avoid turning your wheels while parked.' },
+  { q: 'Do you do the dirt work too?', a: 'Yes. We own the dozer, backhoe, skid steer and dump trucks, so the same crew grades the ground, builds the rock base and paves it.' },
+  { q: 'Where do you work?', a: 'We are based in Longview and Texarkana and take jobs across Texas, Louisiana, Arkansas and Oklahoma.' },
+];
+const faqSchema = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) };
 const altFor = (src: string, fallback: string) => workPhotos.find((p) => p.src === src)?.alt ?? fallback;
 // The three doors into the services, each with a real job photo.
 const cards = [
@@ -27,7 +36,7 @@ const steps = [
   { name: 'You drive on it', text: 'We clean up and tell you exactly when it is ready for traffic.' },
 ];
 ---
-<Base title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and the Ark-La-Tex, and handles the dirt work under them. Based in Longview and Texarkana. Get a price range online in about a minute.">
+<Base title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and the Ark-La-Tex, and handles the dirt work under them. Based in Longview and Texarkana. Get a price range online in about a minute." schema={[faqSchema]}>
   <section class="hero band">
     <div class="hero__media">
       <video class="hero__video" autoplay muted loop playsinline preload="metadata" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
@@ -205,6 +214,13 @@ const steps = [
     </section>
   )}
 
+  <section class="section">
+    <div class="wrap narrow">
+      <div class="head"><h2>Common questions</h2></div>
+      <div class="faq">{faqs.map((f) => (<details><summary>{f.q}</summary><p>{f.a}</p></details>))}</div>
+    </div>
+  </section>
+
   <section class="section section--stone" id="quote">
     <div class="wrap narrow">
       <div class="head">
@@ -221,7 +237,12 @@ const steps = [
   // Phones in Low Power Mode refuse to play video on their own and would show a play button instead.
   // If the video cannot start, hide it and leave the still photo that sits behind it.
   const v = document.querySelector<HTMLVideoElement>('.hero__video');
-  if (v) { const off = () => v.classList.add('is-off'); const p = v.play(); if (p) p.catch(off); v.addEventListener('error', off); }
+  if (v) {
+    const off = () => { v.pause(); v.classList.add('is-off'); };
+    // People who asked their phone for less motion, or who are saving data, get the still photo.
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || (navigator as any).connection?.saveData) off();
+    else { const p = v.play(); if (p) p.catch(off); v.addEventListener('error', off); }
+  }
 </script>
 
 
@@ -244,11 +265,11 @@ const steps = [
   .hero h1 { max-width: 15ch; }
   .hero .lede { color: #dbe3ee; }
 
-  .start { background: var(--chalk); color: var(--asphalt); border-radius: var(--radius-lg); padding: clamp(22px, 3vw, 32px); --text: var(--asphalt); --surface: #dde1e7; --border-strong: rgba(11, 18, 32, 0.28); --muted: #3b4759; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+  .start { background: var(--chalk); color: var(--asphalt); border-radius: var(--radius-lg); padding: clamp(22px, 3vw, 32px); --text: var(--asphalt); --surface: #d6d8dc; --border-strong: rgba(11, 18, 32, 0.28); --muted: #323f52; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
   .start h2 { font-size: 1.6rem; margin-bottom: 6px; }
   .start p { margin: 0 0 18px; color: #2d3a4d; }
   .start__row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; margin-bottom: 16px; }
-  .start__row span { padding-bottom: 12px; color: #3b4759; font-size: 1.2rem; }
+  .start__row span { padding-bottom: 12px; color: #323f52; font-size: 1.2rem; }
   .start .btn { width: 100%; }
   .start .start__alt { margin: 14px 0 0; font-size: 0.95rem; text-align: center; }
   .start__alt a { font-weight: 700; color: var(--clay); }

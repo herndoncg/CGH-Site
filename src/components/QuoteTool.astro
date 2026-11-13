@@ -5,9 +5,9 @@
 import { site } from '../data/site';
 import pricing from '../data/pricing.json';
 ---
-<form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-endpoint={site.formEndpoint} data-pricing={JSON.stringify(pricing)} novalidate>
+<form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-phone={site.phone} data-endpoint={site.formEndpoint} data-pricing={JSON.stringify(pricing)} novalidate>
   <input type="hidden" name="form-name" value="quote" />
-  {['loads', 'est_total', 'est_low', 'est_high', 'page', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  {['loads', 'est_total', 'est_low', 'est_high', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
   <ol class="qt__steps" aria-hidden="true">
     <li class="is-on">The job</li><li>The ground</li><li>Your info</li><li>Your price</li>
   </ol>
@@ -88,6 +88,8 @@ import pricing from '../data/pricing.json';
     <p class="qt__done" data-out="requested" role="status"></p>
     <div class="btn-row">
       <a class="btn btn--line" href={site.phoneHref}>Or call {site.phone} now</a>
+      <a class="btn btn--line" data-mailquote href="#" hidden>Email me this quote</a>
+      <button type="button" class="btn btn--line" data-print>Print or save</button>
       <button type="button" class="btn btn--line" data-restart>Change my numbers</button>
     </div>
   </div>
@@ -147,6 +149,21 @@ import pricing from '../data/pricing.json';
     if (num(q.get('length')) * num(q.get('width')) > 0) el('sqft').value = Math.round(num(q.get('length')) * num(q.get('width'))).toLocaleString('en-US');
     else if (q.get('sqft')) el('sqft').value = q.get('sqft')!;
 
+    // Keeps what was typed if the page is refreshed or the phone switches apps (this tab only, never sent anywhere).
+    const KEEP = ['job_type', 'length_ft', 'width_ft', 'sqft', 'base_work', 'fill_pct', 'name', 'phone', 'email', 'city'];
+    const remember = () => { try { const d = new FormData(form); sessionStorage.setItem('cgh-quote', JSON.stringify(Object.fromEntries(KEEP.map((k) => [k, d.get(k)])))); } catch {} };
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('cgh-quote') || 'null');
+      if (saved && !q.get('length') && !q.get('sqft')) for (const k of KEEP) { const v = saved[k]; if (v == null || v === '') continue; const node = form.elements.namedItem(k); if (node instanceof RadioNodeList) node.value = String(v); else if (node) (node as HTMLInputElement).value = String(v); }
+      fillLabel.textContent = fillWords(Number(fill.value));
+    } catch {}
+    form.addEventListener('input', remember); form.addEventListener('change', remember);
+    // Phone numbers tidy themselves as they are typed: (903) 555-0100
+    el('phone').addEventListener('input', () => { const d = el('phone').value.replace(/\D/g, '').replace(/^1(?=\d{10})/, '').slice(0, 10); el('phone').value = d.length > 6 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d.length > 3 ? `(${d.slice(0, 3)}) ${d.slice(3)}` : d; });
+    form.querySelector('[data-print]')!.addEventListener('click', () => window.print());
+    // Where this visitor came from, so the team can see what is bringing in work.
+    const cameFrom = () => { const u = new URLSearchParams(location.search).get('utm_source'); if (u) return u.slice(0, 40); try { const h = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; return h && h !== location.hostname ? h : 'came straight to the site'; } catch { return ''; } };
+
     form.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest('button');
       if (!t) return;
@@ -196,6 +213,11 @@ import pricing from '../data/pricing.json';
       out('lines').replaceChildren(...rows.map(([a, b]) => { const tr = document.createElement('tr'); const th = document.createElement('th'); th.scope = 'row'; th.textContent = a; const td = document.createElement('td'); td.textContent = b; tr.append(th, td); return tr; }));
       if (data.get('base_work') === 'Not sure') out('lines').insertAdjacentHTML('beforeend', '<tr><th scope="row">Grading</th><td>We will check on site</td></tr>');
       out('sent').textContent = '';
+      // "Email me this quote": opens the customer's own mail app with the numbers filled in.
+      const mail = form.querySelector<HTMLAnchorElement>('[data-mailquote]')!; const mine = String(data.get('email') || '').trim();
+      mail.hidden = !mine;
+      if (mine) mail.href = `mailto:${mine.replace(/[?&\s]/g, "")}?subject=${encodeURIComponent('My CGH Operations price range')}&body=${encodeURIComponent(`CGH Operations price range: ${money(q.low)} to ${money(q.high)}\n\n${rows.map(([a, b]) => `${a}: ${b}`).join('\n')}\n\nThis is a ballpark before a free site visit. Call ${form.dataset.phone || ''} with questions.\n${location.origin}/quote`)}`;
+      try { sessionStorage.removeItem('cgh-quote'); } catch {}
       show(4);
 
       const endpoint = form.dataset.endpoint;
@@ -203,7 +225,7 @@ import pricing from '../data/pricing.json';
         'form-name': 'quote', name, phone: String(data.get('phone')), email: String(data.get('email') || ''), city: String(data.get('city') || ''),
         job_type: String(data.get('job_type')), length_ft: String(data.get('length_ft') || ''), width_ft: String(data.get('width_ft') || ''), sqft: String(q.sqft), base_work: String(data.get('base_work')), fill_pct: String(data.get('fill_pct')),
         loads: String(q.loads), est_total: String(Math.round(q.total)), est_low: String(q.low), est_high: String(q.high),
-        page: location.pathname, submitted_at: new Date().toISOString(),
+        page: location.pathname, source: cameFrom(), submitted_at: new Date().toISOString(),
       };
       // the lead also goes into the CGH app's pipeline (/app)
       leadSent = fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()).catch(() => ({}));

@@ -116,3 +116,10 @@ ul, ol { margin: 0 0 1.1em; padding-left: 1.2em; }
 
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 12px; top: 12px; z-index: 200; background: var(--paver); color: var(--asphalt); padding: 10px 14px; border-radius: var(--radius); }
+
+/* Printing a quote: just the price, no menus or buttons. */
+@media print {
+  .hdr, .ftr, .callbar, .qt__steps, .qt__next, .btn-row, .pagehead, video, .faq, .strata, .skip { display: none !important; }
+  body, .section, .section--stone, .qt { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+  main > section:not(:has(.qt)) { display: none !important; }
+}

@@ -25,6 +25,8 @@ const setupHash = () => (typeof process !== 'undefined' && process.env && proces
 
 export const STAGES = ['New', 'Contacted', 'Site visit set', 'Quote sent', 'Accepted', 'Scheduled', 'Done', 'Lost'];
 const STAFF = ['owner', 'sales', 'crew'];
+// The job-day checklist the crew ticks off, in order.
+export const CHECKS = ['Layout marked', 'Grade set', 'Base in', 'Paved', 'Rolled', 'Edges tamped', 'Cleaned up'];
 const ROLES = [...STAFF, 'client'];
 
 export const LESSONS = [
@@ -97,7 +99,7 @@ function leadFor(lead, user) {
   if (user.role === 'crew') {
     if (!['Scheduled', 'Done'].includes(lead.stage)) return null;
     const { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created } = lead;
-    return { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created, notes: [] };
+    return { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created, notes: [], checklist: lead.checklist, joblog: lead.joblog };
   }
   return null;
 }
@@ -118,7 +120,7 @@ export async function handle(req, store, push) {
     if (data['bot-field'] || data.company_website) return json({ ok: true });
     const name = clean(data.name, 120), phone = clean(data.phone, 40);
     if (!name || phone.replace(/\D/g, '').length < 10) return bad('Name and a 10-digit phone number are required.');
-    const lead = { id: newId(), created: Date.now(), source: 'website', stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
+    const lead = { id: newId(), created: Date.now(), source: 'website' + (clean(data.source, 60) ? ' · ' + clean(data.source, 60) : ''), stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
     await store.setJSON('leads/' + lead.id, lead);
     // a private reference the customer's browser keeps, so they can follow up on this same quote
     const ref = randomBytes(18).toString('base64url');
@@ -267,6 +269,14 @@ export async function handle(req, store, push) {
     }
     const done = (await store.get('training/' + me.id, { type: 'json' })) || {};
     waiting.lessons = LESSONS.filter((l) => !done[l.id]).length;
+    // follow-ups that have come due (the phone sends its own date so "today" matches the user's time zone)
+    const today = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('today') || '') ? url.searchParams.get('today') : new Date().toISOString().slice(0, 10);
+    let stats;
+    if (me.role !== 'crew') {
+      waiting.followups = count((l) => l.follow_up && l.follow_up <= today && !['Done', 'Lost'].includes(l.stage));
+      const sum = (fn) => leads.filter(fn).reduce((t, l) => t + (l.firm_price || l.est_total || 0), 0);
+      stats = { week: count((l) => l.created > Date.now() - 7 * 864e5), quoted: sum((l) => l.stage === 'Quote sent'), booked: sum((l) => ['Accepted', 'Scheduled'].includes(l.stage)) };
+    }
     const dated = [];
     for (const l of leads) {
       if (['Lost', 'Done'].includes(l.stage)) continue;
@@ -274,7 +284,7 @@ export async function handle(req, store, push) {
       if (l.job_date) dated.push({ date: l.job_date, kind: 'Paving day', id: l.id, name: l.name, city: l.city, phone: l.phone, job_type: l.job_type, sqft: l.sqft });
     }
     const announcements = (await all(store, 'ann/')).sort((x, y) => y.at - x.at).slice(0, 3);
-    return json({ waiting, dated: dated.sort((x, y) => x.date.localeCompare(y.date)), announcements });
+    return json({ waiting, stats, dated: dated.sort((x, y) => x.date.localeCompare(y.date)), announcements });
   }
 
   // announcements: the owner posts, the whole team reads
@@ -325,7 +335,7 @@ export async function handle(req, store, push) {
     if (m === 'GET') {
       const leads = (await all(store, 'leads/')).map((l) => leadFor(l, me)).filter(Boolean).sort((x, y) => y.created - x.created);
       const team = (await all(store, 'users/')).filter((u) => ['owner', 'sales'].includes(u.role) && !u.disabled).map((u) => ({ id: u.id, name: u.name }));
-      return json({ leads, stages: STAGES, team });
+      return json({ leads, stages: STAGES, team, checks: CHECKS });
     }
     if (m === 'POST') {
       if (me.role === 'crew') return bad('Not allowed.', 403);
@@ -338,7 +348,20 @@ export async function handle(req, store, push) {
   }
   if (a === 'leads' && b) {
     const lead = await store.get('leads/' + b, { type: 'json' });
-    if (!lead || !leadFor(lead, me) || me.role === 'crew') return bad('Not found.', 404);
+    if (!lead || !leadFor(lead, me)) return bad('Not found.', 404);
+    // the crew's part of a job: tick the checklist, add a note to the job log
+    if (c === 'check' && m === 'POST') {
+      if (!CHECKS.includes(data.item)) return bad('Unknown checklist item.');
+      lead.checklist = lead.checklist || {};
+      if (data.done) lead.checklist[data.item] = { at: Date.now(), by: me.name }; else delete lead.checklist[data.item];
+      await store.setJSON('leads/' + lead.id, lead); return json({ lead: leadFor(lead, me) });
+    }
+    if (c === 'log' && m === 'POST') {
+      const text = clean(data.text, 1000); if (!text) return bad('Write a note first.');
+      lead.joblog = [{ at: Date.now(), by: me.name, text }, ...(lead.joblog || [])].slice(0, 60);
+      await store.setJSON('leads/' + lead.id, lead); return json({ lead: leadFor(lead, me) });
+    }
+    if (me.role === 'crew') return bad('Not found.', 404);
     if (c === 'invite' && m === 'POST') {
       if (!lead.email) return bad('Add the customer\'s email to this lead first.');
       let u = await userByEmail(store, lead.email);
@@ -350,7 +373,7 @@ export async function handle(req, store, push) {
     }
     if (m === 'PATCH') {
       if (data.stage !== undefined) { if (!STAGES.includes(data.stage)) return bad('Unknown stage.'); lead.stage = data.stage; }
-      for (const k of ['phone', 'city', 'job_type', 'visit_date', 'job_date']) if (data[k] !== undefined) lead[k] = clean(data[k], 200);
+      for (const k of ['phone', 'city', 'job_type', 'visit_date', 'job_date', 'follow_up']) if (data[k] !== undefined) lead[k] = clean(data[k], 200);
       if (data.email !== undefined) lead.email = email(data.email);
       if (data.status_note !== undefined) lead.status_note = clean(data.status_note, 1000);
       if (data.firm_price !== undefined) lead.firm_price = num(data.firm_price);

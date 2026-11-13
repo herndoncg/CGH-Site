@@ -30,6 +30,8 @@ import pricing from '../data/pricing.json';
   const longDay = (iso: string) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   const today = () => new Date().toLocaleDateString('en-CA'); // 2026-11-12, in this phone's own time zone
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const shortDay = (iso: string) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const tons = (sqft: number, inches = 2) => (Math.ceil(((sqft * (inches / 12) * 145) / 2000) * 10) / 10).toLocaleString('en-US');
   const api = async (path: string, method = 'GET', data?: unknown) => {
     const r = await fetch('/api/' + path, { method, credentials: 'same-origin', headers: data ? { 'content-type': 'application/json' } : {}, body: data ? JSON.stringify(data) : undefined });
     const j = await r.json().catch(() => ({}));
@@ -77,7 +79,9 @@ import pricing from '../data/pricing.json';
     auth: ['Prepare ye the way of the LORD, make straight in the desert a highway for our God.', 'Isaiah 40:3'],
     client: ['For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end.', 'Jeremiah 29:11'],
   };
-  const verseFoot = (k: string) => `<p class="verse-foot">“${VERSE[k][0]}”<span>${VERSE[k][1]} (KJV)</span></p>`;
+  // Home shows a different verse each day; every other page keeps its own.
+  const daily = () => { const all = [...new Map(Object.values(VERSE).map((v) => [v[1], v])).values()]; return all[Math.floor(Date.now() / 864e5) % all.length]; };
+  const verseFoot = (k: string) => { const v = k === 'home' ? daily() : VERSE[k]; return `<p class="verse-foot">“${v[0]}”<span>${v[1]} (KJV)</span></p>`; };
   const photoHead = (k: string, eyebrow: string, title: string, sub = '', actions = '') => `<div class="photo-head" style="--photo:url('/img/work/${PHOTO[k]}.webp')"><div><p class="eyebrow">${esc(eyebrow)}</p><h1>${esc(title)}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ''}</div>${actions ? `<div class="row">${actions}</div>` : ''}</div>`;
   const BRAND = '<img src="/img/cgh-mark.png" alt="CGH" width="34" height="34" /><span>Operations</span>';
   const notes = () => `${S.ok ? `<p class="ok" role="status">${esc(S.ok)}</p>` : ''}${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}`;
@@ -123,7 +127,7 @@ import pricing from '../data/pricing.json';
   const authCard = (title: string, lede: string, body: string) => `<div class="authwrap" style="--photo:url('/img/work/${PHOTO.auth}.webp')"><div class="auth"><p class="auth__brand">${BRAND}</p><h1>${title}</h1><p class="lede">${lede}</p>${notes()}${body}<p class="muted small">Trouble signing in? Call <a href="${PHONE_HREF}">${PHONE}</a>.</p></div>${verseFoot('auth')}<p class="motto">For a better future</p></div>`;
   function renderAuth(mode: 'login' | 'first') {
     if (mode === 'first') root.innerHTML = authCard('Choose your own password', 'You signed in with a temporary password. Pick your own to finish. Nobody at CGH can see it.', `<form data-form="firstpw" class="stack">${S.me.name ? '' : field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('New password', 'next', 'password', 'required autocomplete="new-password"')}${showPw}<p class="rule">Make it at least 10 letters or numbers. It cannot be the temporary one.</p><button class="btn btn--paver">Save and continue</button></form><button class="btn btn--line" data-act="logout">Sign out</button>`);
-    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}${showPw}<button class="btn btn--paver">Sign in</button></form>`);
+    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}${showPw}<button class="btn btn--paver">Sign in</button></form><details class="forgot"><summary>Forgot your password?</summary><p>Call or text CGH at <a href="${PHONE_HREF}">${PHONE}</a> and ask for a reset. You get a new temporary password and choose your own again.</p></details>`);
   }
 
   // ---------- customer portal ----------
@@ -158,10 +162,14 @@ import pricing from '../data/pricing.json';
     const range = l.firm_price ? money(l.firm_price) + ' firm' : l.est_low ? `${money(l.est_low)} to ${money(l.est_high)}` : '';
     const sel = (name: string, opts: [string, string][], cur: string) => `<select name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${v === (cur ?? '') ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
     return `<details class="lead" ${S.open === l.id ? 'open' : ''} data-id="${l.id}">
-      <summary>${stagePill(l.stage)}<b>${esc(l.name)}</b><span class="muted">${l.request ? `<strong class="want">Wants ${l.request.want === 'call' ? 'a call' : 'a site visit'}${l.request.when ? ` (${esc(l.request.when)})` : ''}</strong> · ` : ''}${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}</span><span class="muted small">${l.job_date ? esc(longDay(l.job_date)) : day(l.created)}</span></summary>
+      <summary>${stagePill(l.stage)}<b>${esc(l.name)}</b><span class="muted">${l.stage === 'New' && Date.now() - l.created > 864e5 ? `<strong class="want">Waiting ${plural(Math.floor((Date.now() - l.created) / 864e5), 'day', 'days')}</strong> · ` : ''}${l.follow_up && !['Done', 'Lost'].includes(l.stage) ? `<strong class="${l.follow_up <= today() ? 'want' : ''}">Follow up ${esc(shortDay(l.follow_up))}</strong> · ` : ''}${l.request ? `<strong class="want">Wants ${l.request.want === 'call' ? 'a call' : 'a site visit'}${l.request.when ? ` (${esc(l.request.when)})` : ''}</strong> · ` : ''}${esc(l.job_type || '')}${l.sqft ? ` · ${Number(l.sqft).toLocaleString('en-US')} sq ft` : ''}${l.city ? ` · ${esc(l.city)}` : ''}</span><span class="amt">${range}</span><span class="muted small">${l.job_date ? esc(longDay(l.job_date)) : day(l.created)}</span></summary>
       <div class="lead__body">
         <p class="contact">${l.phone ? `<a class="btn btn--paver" href="tel:${esc(l.phone)}">Call ${esc(l.phone)}</a><a class="btn btn--line" href="sms:${esc(l.phone)}">Text</a>` : ''}${l.email ? `<a class="btn btn--line" href="mailto:${esc(l.email)}">Email</a>` : ''}</p>
         <p class="muted small">${l.base_work ? `Needs grading: ${esc(l.base_work)}. ` : ''}${l.fill_pct ? `Rock on about ${l.fill_pct}% (${l.loads} load${l.loads === 1 ? '' : 's'}). ` : ''}${l.job_date ? `Paving day: ${esc(longDay(l.job_date))}. ` : ''}${l.source ? `Source: ${esc(l.source)}.` : ''}</p>
+        ${l.sqft ? `<p class="muted small">Materials at 2 inches thick: about ${tons(l.sqft)} tons of hot mix${l.loads ? `, plus ${plural(l.loads, 'load', 'loads')} of rock` : ''}.</p>` : ''}
+        ${['Accepted', 'Scheduled', 'Done'].includes(l.stage) && d.checks ? `<div><p class="eyebrow">Job-day checklist</p><div class="checks">${d.checks.map((c: string) => `<button type="button" class="chk ${l.checklist?.[c] ? 'on' : ''}" data-act="check" data-id="${l.id}" data-item="${esc(c)}" data-done="${l.checklist?.[c] ? '' : '1'}" ${l.checklist?.[c] ? `title="${esc(l.checklist[c].by)}, ${day(l.checklist[c].at)}"` : ''}>${l.checklist?.[c] ? '✓ ' : ''}${esc(c)}</button>`).join('')}</div></div>
+        <form data-form="joblog" data-id="${l.id}" class="joblog"><input name="text" placeholder="Add a job note: what was done, what came up" required aria-label="Job note" /><button class="btn btn--line sm">Add note</button></form>
+        ${l.joblog?.length ? `<ul class="notes">${l.joblog.slice(0, 6).map((n: any) => `<li><span class="muted small">${day(n.at)} · ${esc(n.by)}</span><br />${esc(n.text)}</li>`).join('')}</ul>` : ''}` : ''}
         ${crew ? '' : `<form data-form="lead" data-id="${l.id}" class="grid2">
           <div class="field"><label>Stage${sel('stage', d.stages.map((s: string) => [s, s]), l.stage)}</label></div>
           ${S.me.role === 'owner' ? `<div class="field"><label>Assigned to${sel('owner', [['', 'Nobody yet'], ...d.team.map((u: any) => [u.id, u.name])], l.owner)}</label></div>` : ''}
@@ -169,6 +177,7 @@ import pricing from '../data/pricing.json';
           <div class="field"><label>Customer email<input name="email" type="email" value="${esc(l.email || '')}" /></label></div>
           <div class="field"><label>Site visit<input name="visit_date" type="date" value="${esc(l.visit_date || '')}" /></label></div>
           <div class="field"><label>Paving day<input name="job_date" type="date" value="${esc(l.job_date || '')}" /></label></div>
+          <div class="field"><label>Follow up on<input name="follow_up" type="date" value="${esc(l.follow_up || '')}" /></label></div>
           <div class="field full"><label>Message the customer sees in their portal<textarea name="status_note">${esc(l.status_note || '')}</textarea></label></div>
           <div class="field full"><label>Add a note (team only)<textarea name="note" placeholder="What was said, what is next"></textarea></label></div>
           <div class="full row"><button class="btn btn--paver">Save</button><button type="button" class="btn btn--line" data-act="client" data-id="${l.id}">${l.clientUid ? 'Reset customer password' : 'Create customer login'}</button></div>
@@ -183,9 +192,10 @@ import pricing from '../data/pricing.json';
   type Page = { eyebrow: string; title: string; sub?: string; actions?: string; body: string };
   const PAGES: Record<string, () => Promise<Page>> = {
     async home() {
-      const d = await api('home'); const w = d.waiting, role = S.me.role as Role;
+      const d = await api('home?today=' + today()); const w = d.waiting, role = S.me.role as Role;
       const h = new Date().getHours(), first = (S.me.name || '').split(' ')[0];
       const rows: [string, string, string][] = []; // tone, text, where it goes
+      if (w.followups) rows.push(['hot', `${plural(w.followups, 'follow-up is', 'follow-ups are')} due`, 'pipeline:Open']);
       if (w.asked) rows.push(['hot', `${plural(w.asked, 'customer', 'customers')} asked for a call or site visit`, 'pipeline:New']);
       if (w.fresh) rows.push(['warn', `${plural(w.fresh, 'new lead', 'new leads')} to call`, 'pipeline:New']);
       if (w.quoted) rows.push(['warn', `${plural(w.quoted, 'firm quote', 'firm quotes')} waiting on the customer`, 'pipeline:Quote sent']);
@@ -202,6 +212,7 @@ import pricing from '../data/pricing.json';
         sub: role === 'owner' ? 'Here is the whole company today.' : role === 'sales' ? 'Here is your pipeline today.' : 'Here is what is coming up.',
         actions: role === 'crew' ? '' : '<button class="btn btn--paver" data-go="quote">+ Quick quote</button><button class="btn btn--line" data-go="pipeline:add">+ New lead</button>',
         body: `${S.pushOn ? '' : alertsBar()}
+          ${d.stats ? `<div class="stats"><div><b>${d.stats.week}</b><span>new ${d.stats.week === 1 ? 'lead' : 'leads'} this week</span></div><div><b>${money(d.stats.quoted) || '$0'}</b><span>quoted, waiting on an answer</span></div><div><b>${money(d.stats.booked) || '$0'}</b><span>booked work</span></div></div>` : ''}
           ${next ? card('Your next job', `<div class="nextjob"><p class="eyebrow">${esc(longDay(next.date))}</p><p class="big">${esc(next.name)}</p><p class="muted">${esc([next.job_type, next.sqft ? Number(next.sqft).toLocaleString('en-US') + ' sq ft' : '', next.city].filter(Boolean).join(' · '))}</p>${next.phone ? `<a class="btn btn--paver" href="tel:${esc(next.phone)}">${icon('phone')} Call the customer</a>` : ''}</div>`, '<button class="link" data-go="jobs">All jobs →</button>') : ''}
           ${card(`Waiting on you ${total ? `<span class="pill">${total}</span>` : ''}`, total ? `<ul class="rows">${rows.map(([tone, text, go]) => `<li><button class="rowbtn t-${tone}" data-go="${go}"><span>${esc(text)}</span><i>›</i></button></li>`).join('')}</ul>` : '<p class="empty">Nothing is waiting on you right now.</p>')}
           ${card(`${icon('announcements')} Announcements`, d.announcements.length ? `<ul class="rows">${d.announcements.map((a: any) => `<li><details class="ann"><summary><b>${esc(a.title)}</b><span class="muted small">${day(a.at)} · ${esc(a.by)}</span></summary><p>${esc(a.body)}</p></details></li>`).join('')}</ul>` : `<p class="empty">No announcements yet.${role === 'owner' ? ' Post one from Announcements and the whole team sees it here.' : ''}</p>`, '<button class="link" data-go="announcements">All →</button>')}
@@ -209,7 +220,7 @@ import pricing from '../data/pricing.json';
       };
     },
     async schedule() {
-      const d = await api('home'); const coming = d.dated.filter((x: any) => x.date >= today());
+      const d = await api('home?today=' + today()); const coming = d.dated.filter((x: any) => x.date >= today());
       const days: Record<string, any[]> = {}; coming.forEach((x: any) => (days[x.date] ||= []).push(x));
       return { eyebrow: 'Today', title: 'Schedule', sub: S.me.role === 'crew' ? 'Paving days you are on.' : 'Site visits and paving days, soonest first.',
         body: Object.keys(days).length ? Object.entries(days).map(([date, list]) => card(`${date === today() ? 'Today · ' : ''}${esc(longDay(date))}`, `<ul class="rows">${list.map((x: any) => `<li class="when"><span class="tag ${x.kind === 'Paving day' ? 'tag--pave' : ''}">${x.kind}</span><b>${esc(x.name)}</b><span class="muted">${esc([x.job_type, x.city].filter(Boolean).join(' · '))}</span>${x.phone ? `<a class="btn btn--line sm" href="tel:${esc(x.phone)}">Call</a>` : ''}</li>`).join('')}</ul>`)).join('') : `<p class="empty">Nothing is scheduled yet. ${S.me.role === 'crew' ? 'Jobs show here once they have a paving day.' : 'Open a lead in Pipeline and set a site visit or paving day.'}</p>` };
@@ -227,7 +238,7 @@ import pricing from '../data/pricing.json';
       const filters = ['Open', ...d.stages];
       const pool = d.leads.filter(hit);
       const shown = pool.filter((l: any) => (S.filter === 'Open' ? open(l) : l.stage === S.filter));
-      return { eyebrow: 'Sales', title: 'Pipeline', sub: 'Every lead, from first call to finished job.', actions: '<button class="btn btn--paver" data-go="quote">+ Quick quote</button>',
+      return { eyebrow: 'Sales', title: 'Pipeline', sub: 'Every lead, from first call to finished job.', actions: `<button class="btn btn--paver" data-go="quote">+ Quick quote</button>${S.me.role === 'owner' ? '<button class="btn btn--line" data-act="csv">Download list</button>' : ''}`,
         body: `${newLeadForm()}<div class="chips">${filters.map((f) => `<button data-filter="${esc(f)}" class="${S.filter === f ? 'on' : ''}">${esc(f)} <span>${pool.filter((l: any) => (f === 'Open' ? open(l) : l.stage === f)).length}</span></button>`).join('')}</div>
           ${shown.length ? shown.map((l: any) => leadCard(l, d)).join('') : `<p class="empty">${S.q ? 'No leads match that search.' : 'Nothing here yet. Website quotes land here automatically, or add a lead above.'}</p>`}` };
     },
@@ -355,6 +366,7 @@ import pricing from '../data/pricing.json';
       else if (kind === 'applicant') await api('applicants/' + id, 'PATCH', data);
       else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
       else if (kind === 'announce') { await api('announcements', 'POST', data); S.ok = 'Posted to the team.'; }
+      else if (kind === 'joblog') { S.open = id; await api(`leads/${id}/log`, 'POST', data); }
       else if (kind === 'equip') { S.open = id; await api('equipment/' + id, 'PATCH', data); S.ok = 'Saved.'; }
       else if (kind === 'newequip') await api('equipment', 'POST', data);
     });
@@ -372,6 +384,14 @@ import pricing from '../data/pricing.json';
       else if (act === 'accept') await api('my-job/accept', 'POST', {});
       else if (act === 'client') { S.open = id; const r = await api(`leads/${id}/invite`, 'POST', {}); const l = (S.data?.leads || []).find((x: any) => x.id === id); S.welcome = { for: id, name: r.name, email: r.email, phone: l?.phone, text: welcomeText('client', r.name, r.email, r.temp) }; }
       else if (act === 'lesson') await api('training', 'POST', { lesson: id });
+      else if (act === 'check') { S.open = id; await api(`leads/${id}/check`, 'POST', { item: t.dataset.item, done: !!t.dataset.done }); }
+      else if (act === 'csv') {
+        // A spreadsheet file of every lead, made on this device. Cells that start with = + - @ are made safe for Excel.
+        const cell = (v: unknown) => { let x = String(v ?? ''); if (/^[=+\-@]/.test(x)) x = "'" + x; return '"' + x.replace(/"/g, '""') + '"'; };
+        const cols: [string, (l: any) => unknown][] = [['Name', (l) => l.name], ['Phone', (l) => l.phone], ['Email', (l) => l.email], ['Town', (l) => l.city], ['Job', (l) => l.job_type], ['Square feet', (l) => l.sqft], ['Stage', (l) => l.stage], ['Range low', (l) => l.est_low], ['Range high', (l) => l.est_high], ['Firm price', (l) => l.firm_price], ['Site visit', (l) => l.visit_date], ['Paving day', (l) => l.job_date], ['Follow up', (l) => l.follow_up], ['Source', (l) => l.source], ['Created', (l) => new Date(l.created).toLocaleDateString('en-US')]];
+        const csv = [cols.map(([h]) => cell(h)).join(','), ...(S.data?.leads || []).map((l: any) => cols.map(([, f]) => cell(f(l))).join(','))].join('\r\n');
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = `cgh-leads-${today()}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); S.ok = 'Downloaded. Open it in Excel or Google Sheets.';
+      }
       else if (act === 'relink') { const r = await api('users/' + id, 'PATCH', { reset: true }); S.welcome = { for: 'team', name: t.dataset.name, email: t.dataset.email, text: welcomeText(t.dataset.kind as any, t.dataset.name || '', t.dataset.email || '', r.temp) }; }
       else if (act === 'toggle') await api('users/' + id, 'PATCH', { disabled: !!t.dataset.off });
       else if (act === 'anndel' || act === 'equipdel') { if (S.confirm !== id) { S.confirm = id; if (act === 'equipdel') S.open = id; return; } S.confirm = null; await api((act === 'anndel' ? 'announcements/' : 'equipment/') + id, 'DELETE'); }
@@ -472,6 +492,14 @@ import pricing from '../data/pricing.json';
   .empty { margin: 0; padding: 18px; text-align: center; color: var(--a-dim); background: var(--a-card-2); border-radius: 8px; }
   .alerts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--a-card); border: 1px solid var(--a-line); border-radius: 10px; padding: 12px 14px; }
   .want { color: #fcd34d; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stats div { background: var(--a-card); border: 1px solid var(--a-line); border-radius: 10px; padding: 14px; }
+  .stats b { display: block; font: 900 clamp(1.3rem, 4vw, 1.9rem) var(--font-display); color: #fff; line-height: 1.1; } .stats span { display: block; margin-top: 4px; color: var(--a-dim); font-size: 0.82rem; line-height: 1.3; }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chk { border: 1px solid rgba(226, 232, 240, 0.28); background: none; color: #dbe3ee; border-radius: 999px; padding: 9px 14px; font: 600 0.9rem var(--font-body); cursor: pointer; }
+  .chk.on { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5); color: #86efac; }
+  .joblog { display: flex; gap: 8px; } .joblog input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 6px; border: 1px solid rgba(226, 232, 240, 0.22); background: #0b1322; color: #fff; font: 0.95rem var(--font-body); }
+  .forgot summary { cursor: pointer; color: #cbd5e1; font-size: 0.95rem; } .forgot p { margin: 8px 0 0; color: #cbd5e1; font-size: 0.95rem; }
   .fold > summary { cursor: pointer; font: 700 1rem var(--font-display); color: #fff; } .fold[open] > summary { margin-bottom: 4px; }
   .cols { display: grid; gap: 14px; align-items: start; } @media (min-width: 860px) { .cols { grid-template-columns: 1.15fr 1fr; } }
   .grid2 { display: grid; gap: 12px; } @media (min-width: 640px) { .grid2 { grid-template-columns: 1fr 1fr; } .grid2 .full { grid-column: 1 / -1; } }
