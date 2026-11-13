@@ -330,6 +330,23 @@ export async function handle(req, store, push) {
     }
   }
 
+  // Numbers for the estimate tools. Customer prices: owner and sales. What CGH pays its contractor and
+  // suppliers: the owner only. These live in private storage, never in the code.
+  if (a === 'estimate-settings') {
+    if (me.role === 'crew') return bad('Not found.', 404);
+    const saved = (await store.get('meta/estimate', { type: 'json' })) || {};
+    if (m === 'GET') return json({ prices: saved.prices || {}, contractor: owner ? saved.contractor || {} : undefined, materials: owner ? saved.materials || {} : undefined });
+    if (m === 'POST') {
+      if (!owner) return bad('Not allowed.', 403);
+      const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o && o[k] !== undefined && String(o[k]).trim() !== '').map((k) => [k, num(o[k])]));
+      if (data.prices) saved.prices = pick(data.prices, ['hotmix_sqyd', 'seal_sqft', 'hotoil_sqft', 'tax_pct', 'min_sqft', 'deposit_pct']);
+      if (data.contractor) saved.contractor = pick(data.contractor, ['hotmix_sqyd', 'seal_sqft', 'hotoil_sqft']);
+      if (data.materials && typeof data.materials === 'object') saved.materials = Object.fromEntries(Object.entries(data.materials).slice(0, 12).map(([k, v]) => [clean(k, 20), Object.fromEntries(Object.entries(v || {}).slice(0, 10).map(([f, x]) => [clean(f, 20), typeof x === 'boolean' ? x : num(x)]))]));
+      await store.setJSON('meta/estimate', saved);
+      return json({ ok: true });
+    }
+  }
+
   // leads
   if (a === 'leads' && !b) {
     if (m === 'GET') {
@@ -341,6 +358,7 @@ export async function handle(req, store, push) {
       if (me.role === 'crew') return bad('Not allowed.', 403);
       const name = clean(data.name, 120); if (!name) return bad('A name is required.');
       const lead = { id: newId(), created: Date.now(), source: clean(data.source, 60) || 'manual', stage: 'New', owner: me.id, name, phone: clean(data.phone, 40), email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
+      if (num(data.firm_price)) lead.firm_price = num(data.firm_price);
       if (clean(data.note, 1000)) lead.notes.push({ at: Date.now(), by: me.name, text: clean(data.note, 1000) });
       await store.setJSON('leads/' + lead.id, lead);
       return json({ lead });
