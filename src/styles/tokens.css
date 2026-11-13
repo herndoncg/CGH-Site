@@ -1,40 +1,42 @@
 /*
   CGH Operations brand tokens.
 
-  Palette (chosen Nov 12, 2026; reasoning is in the project doc "cgh-color-study"):
-    - Ink navy   : the dark base. Reads as steady and professional, and nobody else paving in East Texas uses it.
-    - Blue       : links and small labels on light pages. Blue is the color most tied to competence and trust.
-    - Green      : the action color (buttons, key highlights). It stands out against navy and white, and says "go".
+  Palette: CGH's own colors, taken from the site Colton already had (navy #0b1220, teal #0ea5a9,
+  deep blue #005F86, mint #34d399). Reasoning is in the project doc "cgh-color-study".
+    - Navy       : the dark base. Steady, professional, and what CGH already looks like.
+    - Deep blue  : links and small labels on light pages. Blue is the color most tied to competence and trust.
+    - Teal       : the one action color (buttons, key highlights). It stands out on navy and on white.
     - Cool white : page backgrounds.
 
   The variable NAMES are left over from the first design (asphalt, paver, clay, limestone) so the rest of
-  the site did not have to be rewritten. Read them as: asphalt = ink navy, paver = green, clay = blue,
+  the site did not have to be rewritten. Read them as: asphalt = navy, paver = teal, clay = deep blue,
   limestone/chalk = cool whites.
 
   Pages are light by default. Add class="band" to a section to make it dark.
 */
 :root {
-  --asphalt: #0e1726;
-  --asphalt-2: #162236;
-  --asphalt-3: #223450;
+  --asphalt: #0b1220;
+  --asphalt-2: #121b2e;
+  --asphalt-3: #1c2942;
   --aggregate: #5d6877;
-  --limestone: #e6ebf0;
-  --limestone-2: #d3dbe4;
-  --chalk: #f6f8fa;
+  --limestone: #eef3f8;
+  --limestone-2: #dbe4ee;
+  --chalk: #f8fafc;
   --white: #ffffff;
-  --paver: #2fc474;
-  --paver-bright: #52dd90;
-  --paver-deep: #12803f;
-  --clay: #1a5fc4;
-  --clay-deep: #134a9a;
+  --paver: #0ea5a9;
+  --paver-bright: #2cc4c8;
+  --paver-deep: #005f86;
+  --clay: #005f86;
+  --clay-deep: #00465f;
+  --mint: #34d399;
   --danger: #b3261e;
 
   --bg: var(--chalk);
   --bg-2: var(--limestone);
   --surface: var(--white);
-  --text: #0e1726;
-  --text-2: #2d3a4d;
-  --muted: #5a6677;
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #475569;
   --border: rgba(14, 23, 38, 0.12);
   --border-strong: rgba(14, 23, 38, 0.28);
   --accent: var(--clay);

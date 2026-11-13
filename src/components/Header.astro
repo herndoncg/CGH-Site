@@ -13,8 +13,8 @@ const links = [
 <header class="hdr band">
   <div class="wrap hdr__in">
     <a class="logo" href="/" aria-label="CGH Operations home">
-      <span class="logo__mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span class="logo__text"><b>CGH</b> Operations</span>
+      <img class="logo__mark" src="/img/cgh-mark.png" alt="CGH" width="36" height="36" />
+      <span class="logo__text">Operations</span>
     </a>
     <nav class="nav" aria-label="Main">
       {links.map((l) => <a href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>{l.label}</a>)}
@@ -39,10 +39,9 @@ const links = [
 <style>
   .hdr { position: sticky; top: 0; z-index: 80; border-bottom: 1px solid var(--border); }
   .hdr__in { display: flex; align-items: center; gap: 28px; min-height: 68px; }
-  .logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; font-family: var(--font-display); font-size: 1.2rem; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
   .logo b { font-weight: 900; }
-  .logo__mark { width: 34px; height: 34px; border-radius: 7px; background: var(--paver); display: grid; align-content: center; justify-items: center; gap: 4px; }
-  .logo__mark i { width: 5px; height: 6px; background: var(--asphalt); border-radius: 1px; }
+  .logo__mark { width: 36px; height: 36px; border-radius: 8px; display: block; }
   .nav { display: none; gap: 22px; margin-left: auto; }
   .nav a { text-decoration: none; font-weight: 500; font-size: 0.98rem; color: var(--text-2); padding: 6px 0; border-bottom: 2px solid transparent; }
   .nav a:hover, .nav a[aria-current] { color: #fff; border-bottom-color: var(--paver); }
