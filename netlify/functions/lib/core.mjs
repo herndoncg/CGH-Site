@@ -24,7 +24,13 @@ const recoveryHash = () => (typeof process !== 'undefined' && process.env && pro
 const setupHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_SETUP_HASH) || SETUP_HASH;
 
 export const STAGES = ['New', 'Contacted', 'Site visit set', 'Quote sent', 'Accepted', 'Scheduled', 'Done', 'Lost'];
-const STAFF = ['owner', 'sales', 'crew'];
+// Roles, from most access to least:
+//   owner   - everything, and the only one who can make or change managers
+//   manager - everything the owner sees and does, except touching the owner or other managers
+//   sales   - their own leads plus unassigned ones, quotes, customers, schedule
+//   crew    - scheduled jobs (no prices), training, equipment, calculators
+//   client  - only their own project
+const STAFF = ['owner', 'manager', 'sales', 'crew'];
 // The job-day checklist the crew ticks off, in order.
 export const CHECKS = ['Layout marked', 'Grade set', 'Base in', 'Paved', 'Rolled', 'Edges tamped', 'Cleaned up'];
 const ROLES = [...STAFF, 'client'];
@@ -48,7 +54,7 @@ const bad = (error, status = 400) => json({ error }, status);
 const clean = (v, max = 300) => String(v ?? '').trim().slice(0, max);
 const email = (v) => clean(v, 200).toLowerCase();
 const num = (v) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
-const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: !!u.pass && !u.must_change, disabled: !!u.disabled, mustChange: !!u.must_change });
+const pub = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, active: !!u.pass && !u.must_change, disabled: !!u.disabled, mustChange: !!u.must_change });
 const TEMP_DAYS = 14;
 // A temporary password like K7QM-4TXP-9RWD (no look-alike letters such as O/0 or I/1).
 const tempPw = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; const r = randomBytes(12); return [0, 4, 8].map((i) => [...r.subarray(i, i + 4)].map((x) => A[x % A.length]).join('')).join('-'); };
@@ -94,7 +100,7 @@ const usd = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
 // What each role may see of a lead. Crew never see prices. Clients only see their own job.
 function leadFor(lead, user) {
-  if (user.role === 'owner') return lead;
+  if (user.role === 'owner' || user.role === 'manager') return lead;
   if (user.role === 'sales') return !lead.owner || lead.owner === user.id ? lead : null;
   if (user.role === 'crew') {
     if (!['Scheduled', 'Done'].includes(lead.stage)) return null;
@@ -125,7 +131,7 @@ export async function handle(req, store, push) {
     // a private reference the customer's browser keeps, so they can follow up on this same quote
     const ref = randomBytes(18).toString('base64url');
     await store.setJSON('refs/' + sha(ref), { id: lead.id });
-    await alertTeam(store, push, ['owner', 'sales'], { title: 'New quote: ' + lead.name, body: [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : '', lead.city].filter(Boolean).join(' · '), url: '/app/' });
+    await alertTeam(store, push, ['owner', 'manager', 'sales'], { title: 'New quote: ' + lead.name, body: [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : '', lead.city].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true, ref });
   }
   // the customer taps "book my site visit" or "call me" right after seeing their price
@@ -137,7 +143,7 @@ export async function handle(req, store, push) {
     lead.request = { want, when, at: Date.now() };
     lead.notes.push({ at: Date.now(), by: 'Customer (website)', text: `Asked for ${want === 'call' ? 'a phone call' : 'a free site visit'}${when ? '. Best time: ' + when : ''}${note ? '. Note: ' + note : ''}` });
     await store.setJSON('leads/' + lead.id, lead);
-    await alertTeam(store, push, ['owner', 'sales'], { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, when ? 'Best time: ' + when : '', note].filter(Boolean).join(' · '), url: '/app/' });
+    await alertTeam(store, push, ['owner', 'manager', 'sales'], { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, when ? 'Best time: ' + when : '', note].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true });
   }
   if (path === 'apply' && m === 'POST') {
@@ -146,7 +152,7 @@ export async function handle(req, store, push) {
     if (!name || phone.replace(/\D/g, '').length < 10) return bad('Name and a 10-digit phone number are required.');
     const app = { id: newId(), created: Date.now(), status: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), position: clean(data.position, 80), cdl: clean(data.cdl, 30), experience_years: clean(data.experience_years, 30), start: clean(data.start, 80), details: clean(data.details, 2000) };
     await store.setJSON('applicants/' + app.id, app);
-    await alertTeam(store, push, ['owner'], { title: 'New job application: ' + app.name, body: [app.position, app.city, app.phone].filter(Boolean).join(' · '), url: '/app/' });
+    await alertTeam(store, push, ['owner', 'manager'], { title: 'New job application: ' + app.name, body: [app.position, app.city, app.phone].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true });
   }
 
@@ -205,7 +211,8 @@ export async function handle(req, store, push) {
   // ---------- everything below needs a signed-in person ----------
   const me = await currentUser(req, store);
   if (!me) return bad('Please sign in.', 401);
-  const staff = STAFF.includes(me.role), owner = me.role === 'owner';
+  // `owner` below means "the owner or a manager". `realOwner` is the one owner account.
+  const staff = STAFF.includes(me.role), realOwner = me.role === 'owner', owner = realOwner || me.role === 'manager';
 
   // choosing or changing your own password
   if (path === 'password' && m === 'POST') {
@@ -325,7 +332,7 @@ export async function handle(req, store, push) {
       const note = clean(data.note, 1000);
       if (note || e.status !== was) e.log = [{ at: Date.now(), by: me.name, text: [e.status !== was ? `Marked ${e.status}` : '', note].filter(Boolean).join('. ') }, ...(e.log || [])].slice(0, 40);
       await store.setJSON('equip/' + e.id, e);
-      if (e.status !== was && e.status !== 'Ready') await alertTeam(store, push, ['owner'], { title: `${e.name}: ${e.status}`, body: [me.name, note].filter(Boolean).join(' · '), url: '/app/' });
+      if (e.status !== was && e.status !== 'Ready') await alertTeam(store, push, ['owner', 'manager'], { title: `${e.name}: ${e.status}`, body: [me.name, note].filter(Boolean).join(' · '), url: '/app/' });
       return json({ item: e });
     }
   }
@@ -351,7 +358,7 @@ export async function handle(req, store, push) {
   if (a === 'leads' && !b) {
     if (m === 'GET') {
       const leads = (await all(store, 'leads/')).map((l) => leadFor(l, me)).filter(Boolean).sort((x, y) => y.created - x.created);
-      const team = (await all(store, 'users/')).filter((u) => ['owner', 'sales'].includes(u.role) && !u.disabled).map((u) => ({ id: u.id, name: u.name }));
+      const team = (await all(store, 'users/')).filter((u) => ['owner', 'manager', 'sales'].includes(u.role) && !u.disabled).map((u) => ({ id: u.id, name: u.name }));
       return json({ leads, stages: STAGES, team, checks: CHECKS });
     }
     if (m === 'POST') {
@@ -414,15 +421,26 @@ export async function handle(req, store, push) {
   if (a === 'users' && !b && m === 'POST') {
     const e = email(data.email), name = clean(data.name, 120), role = clean(data.role, 20);
     if (!name || !/^\S+@\S+\.\S+$/.test(e)) return bad('Enter a name and a valid email.');
-    if (!ROLES.includes(role) || role === 'owner' || role === 'client') return bad('Pick sales or crew.');
+    if (!['manager', 'sales', 'crew'].includes(role)) return bad('Pick manager, sales or crew.');
+    if (role === 'manager' && !realOwner) return bad('Only the owner can add a manager.', 403);
     let u = await userByEmail(store, e);
     if (u && u.role === 'owner') return bad('That email is the owner account.');
+    if (u && u.role === 'manager' && !realOwner) return bad('Only the owner can change a manager.', 403);
     u = { ...(u || { id: newId(), created: Date.now() }), email: e, name, role, disabled: false };
+    if (clean(data.phone, 40)) u.phone = clean(data.phone, 40);
     const temp = setTemp(u); await saveUser(store, u);
     return json({ user: pub(u), temp });
   }
   if (a === 'users' && b && m === 'PATCH') {
-    const u = await store.get('users/' + b, { type: 'json' }); if (!u || u.role === 'owner') return bad('Not found.', 404);
+    const u = await store.get('users/' + b, { type: 'json' }); if (!u || u.role === 'owner' || (u.role === 'manager' && !realOwner)) return bad('Not found.', 404);
+    if (data.role !== undefined) {
+      if (!realOwner) return bad('Only the owner can change roles.', 403);
+      if (u.role === 'client' || !['manager', 'sales', 'crew'].includes(data.role)) return bad('Pick manager, sales or crew.');
+      u.role = data.role;
+      // alerts already turned on for this person follow the new role
+      for (const sub of (await all(store, 'push/')).filter((x) => x.uid === u.id)) await store.setJSON('push/' + sub.id, { ...sub, role: u.role });
+    }
+    if (data.phone !== undefined) u.phone = clean(data.phone, 40);
     if (data.disabled !== undefined) u.disabled = !!data.disabled;
     const temp = data.reset ? setTemp(u) : undefined; // "Reset password": a new temporary one
     await saveUser(store, u);

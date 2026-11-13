@@ -20,7 +20,7 @@ import pricing from '../data/pricing.json';
   import { options, layer, liquid, yardage, DEFAULT_PRICES } from '../lib/estimate';
   import guide from '../data/field-guide.json';
 
-  type Role = 'owner' | 'sales' | 'crew' | 'client';
+  type Role = 'owner' | 'manager' | 'sales' | 'crew' | 'client';
   type Me = { id: string; name: string; email: string; role: Role; mustChange?: boolean };
   const root = document.getElementById('app')!;
   const PHONE = root.dataset.phone!, PHONE_HREF = root.dataset.phoneHref!;
@@ -54,7 +54,9 @@ import pricing from '../data/pricing.json';
     bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4', phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
   };
   const icon = (k: string) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`;
-  const ALL: Role[] = ['owner', 'sales', 'crew'], SELL: Role[] = ['owner', 'sales'], BOSS: Role[] = ['owner'];
+  // Who gets which screens. A manager sees everything the owner sees.
+  const ALL: Role[] = ['owner', 'manager', 'sales', 'crew'], SELL: Role[] = ['owner', 'manager', 'sales'], BOSS: Role[] = ['owner', 'manager'];
+  const ROLE_WORDS: Record<string, string> = { manager: 'Manager: sees and does everything', sales: 'Sales: sees and works leads', crew: 'Crew: sees scheduled jobs, no prices' };
   const NAV: [string, [string, string, Role[]][]][] = [
     ['Today', [['home', 'Home', ALL], ['schedule', 'Schedule', ALL], ['jobs', 'Jobs', ALL]]],
     ['Sales', [['pipeline', 'Pipeline', SELL], ['customers', 'Customers', SELL], ['quote', 'Quick quote', SELL], ['estimate', 'Three-option estimate', SELL]]],
@@ -128,7 +130,9 @@ import pricing from '../data/pricing.json';
       ? `Hi ${first}, this is CGH Operations. Your project page is ready.\n\n1. Open ${link}\n2. Sign in with your email (${email}) and this temporary password: ${temp}\n3. You will be asked to choose your own password.\n\nYour price, dates and job status are all there. Questions? Call ${PHONE}.`
       : `Welcome to the CGH Operations team, ${first}.\n\n1. Open ${link} on your phone.\n2. Sign in with your email (${email}) and this temporary password: ${temp}\n3. You will be asked to choose your own password.\n4. Put the app on your phone. iPhone: open the link in Safari, tap Share, then "Add to Home Screen". Android: tap "Install this app".\n\nThe temporary password works for 14 days. Please do not share your sign-in.`;
   };
-  const welcomeBox = (w: any) => `<div class="linkbox"><p><b>Send this to ${esc(w.name || 'them')}.</b> The temporary password is shown only once. If it gets lost, press Reset password to make a new one.</p><textarea readonly rows="9" data-welcome>${esc(w.text)}</textarea><p class="row"><button type="button" class="btn btn--paver sm" data-act="copy">Copy message</button><a class="btn btn--line sm" href="mailto:${esc(w.email)}?subject=${encodeURIComponent('Your CGH Operations sign-in')}&body=${encodeURIComponent(w.text)}">Email it</a>${w.phone ? `<a class="btn btn--line sm" href="sms:${esc(w.phone)}?&body=${encodeURIComponent(w.text)}">Text it</a>` : ''}</p></div>`;
+  // Opens the phone's Messages app with the note already written. With a number it is addressed; without one the "To" line is left for you.
+  const smsHref = (phone: string | undefined, text: string) => { const to = String(phone || '').replace(/[^\d+]/g, ''); return `sms:${to}${isIos ? '&' : '?'}body=${encodeURIComponent(text)}`; };
+  const welcomeBox = (w: any) => `<div class="linkbox"><p><b>Send this to ${esc(w.name || 'them')}.</b> The temporary password is shown only once. If it gets lost, press Reset password to make a new one.</p><textarea readonly rows="9" data-welcome>${esc(w.text)}</textarea><p class="row"><button type="button" class="btn btn--line sm" data-act="copy">Copy message</button><a class="btn btn--line sm" href="mailto:${esc(w.email)}?subject=${encodeURIComponent('Your CGH Operations sign-in')}&body=${encodeURIComponent(w.text)}">Email it</a><a class="btn btn--paver sm" href="${esc(smsHref(w.phone, w.text))}">${w.phone ? `Text it to ${esc(w.phone)}` : 'Text it'}</a></p>${w.phone ? '' : '<p class="muted small">Text it opens your Messages with this written out. You fill in who it goes to.</p>'}</div>`;
   const passwordForm = () => `<form data-form="password" class="stack narrow">${field('Current password', 'current', 'password', 'required autocomplete="current-password"')}${field('New password (10 or more letters or numbers)', 'next', 'password', 'required autocomplete="new-password"')}${showPw}<div><button class="btn btn--paver">Change password</button></div><p class="muted small">Changing it signs you out on your other devices.</p></form>`;
 
   // ---------- signed out ----------
@@ -180,7 +184,7 @@ import pricing from '../data/pricing.json';
         ${l.joblog?.length ? `<ul class="notes">${l.joblog.slice(0, 6).map((n: any) => `<li><span class="muted small">${day(n.at)} · ${esc(n.by)}</span><br />${esc(n.text)}</li>`).join('')}</ul>` : ''}` : ''}
         ${crew ? '' : `<form data-form="lead" data-id="${l.id}" class="grid2">
           <div class="field"><label>Stage${sel('stage', d.stages.map((s: string) => [s, s]), l.stage)}</label></div>
-          ${S.me.role === 'owner' ? `<div class="field"><label>Assigned to${sel('owner', [['', 'Nobody yet'], ...d.team.map((u: any) => [u.id, u.name])], l.owner)}</label></div>` : ''}
+          ${BOSS.includes(S.me.role) ? `<div class="field"><label>Assigned to${sel('owner', [['', 'Nobody yet'], ...d.team.map((u: any) => [u.id, u.name])], l.owner)}</label></div>` : ''}
           <div class="field"><label>Firm price ($)<input name="firm_price" inputmode="decimal" value="${l.firm_price || ''}" /></label></div>
           <div class="field"><label>Customer email<input name="email" type="email" value="${esc(l.email || '')}" /></label></div>
           <div class="field"><label>Site visit<input name="visit_date" type="date" value="${esc(l.visit_date || '')}" /></label></div>
@@ -217,7 +221,7 @@ import pricing from '../data/pricing.json';
       return {
         eyebrow: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
         title: `Good ${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}${first ? ', ' + first : ''}.`,
-        sub: role === 'owner' ? 'Here is the whole company today.' : role === 'sales' ? 'Here is your pipeline today.' : 'Here is what is coming up.',
+        sub: BOSS.includes(role) ? 'Here is the whole company today.' : role === 'sales' ? 'Here is your pipeline today.' : 'Here is what is coming up.',
         actions: role === 'crew' ? '' : '<button class="btn btn--paver" data-go="quote">+ Quick quote</button><button class="btn btn--line" data-go="pipeline:add">+ New lead</button>',
         body: `${S.pushOn ? '' : alertsBar()}
           ${d.stats ? `<div class="stats"><div><b>${d.stats.week}</b><span>new ${d.stats.week === 1 ? 'lead' : 'leads'} this week</span></div><div><b>${money(d.stats.quoted) || '$0'}</b><span>quoted, waiting on an answer</span></div><div><b>${money(d.stats.booked) || '$0'}</b><span>booked work</span></div></div>` : ''}
@@ -246,7 +250,7 @@ import pricing from '../data/pricing.json';
       const filters = ['Open', ...d.stages];
       const pool = d.leads.filter(hit);
       const shown = pool.filter((l: any) => (S.filter === 'Open' ? open(l) : l.stage === S.filter));
-      return { eyebrow: 'Sales', title: 'Pipeline', sub: 'Every lead, from first call to finished job.', actions: `<button class="btn btn--paver" data-go="quote">+ Quick quote</button>${S.me.role === 'owner' ? '<button class="btn btn--line" data-act="csv">Download list</button>' : ''}`,
+      return { eyebrow: 'Sales', title: 'Pipeline', sub: 'Every lead, from first call to finished job.', actions: `<button class="btn btn--paver" data-go="quote">+ Quick quote</button>${BOSS.includes(S.me.role) ? '<button class="btn btn--line" data-act="csv">Download list</button>' : ''}`,
         body: `${newLeadForm()}<div class="chips">${filters.map((f) => `<button data-filter="${esc(f)}" class="${S.filter === f ? 'on' : ''}">${esc(f)} <span>${pool.filter((l: any) => (f === 'Open' ? open(l) : l.stage === f)).length}</span></button>`).join('')}</div>
           ${shown.length ? shown.map((l: any) => leadCard(l, d)).join('') : `<p class="empty">${S.q ? 'No leads match that search.' : 'Nothing here yet. Website quotes land here automatically, or add a lead above.'}</p>`}` };
     },
@@ -262,7 +266,7 @@ import pricing from '../data/pricing.json';
           ${card('Price', `<p class="price" data-qq="range">Enter a size</p><table class="lines"><tbody data-qq="lines"></tbody></table><p class="muted small">A ballpark before taxes or permits. Confirm it on site before you promise it.</p>`)}</div>` };
     },
     async announcements() {
-      const { announcements } = await api('announcements'); const boss = S.me.role === 'owner';
+      const { announcements } = await api('announcements'); const boss = BOSS.includes(S.me.role);
       return { eyebrow: 'Team', title: 'Announcements', sub: boss ? 'Post once and the whole team sees it, with an alert on their phone.' : 'From the office to the whole team.',
         body: `${boss ? card('New announcement', `<form data-form="announce" class="stack">${field('Title', 'title', 'text', 'required maxlength="120"')}<div class="field"><label>Message<textarea name="body" rows="4"></textarea></label></div><div><button class="btn btn--paver">Post to the team</button></div></form>`) : ''}
           ${announcements.length ? announcements.map((a: any) => `<section class="card"><div class="card__head"><h2>${esc(a.title)}</h2><span class="muted small">${day(a.at)} · ${esc(a.by)}</span></div><p class="pre">${esc(a.body)}</p>${boss ? `<button class="btn btn--line sm" data-act="anndel" data-id="${a.id}">${S.confirm === a.id ? 'Tap again to remove' : 'Remove'}</button>` : ''}</section>`).join('') : '<p class="empty">No announcements yet.</p>'}` };
@@ -276,23 +280,25 @@ import pricing from '../data/pricing.json';
     async team() {
       const { users } = await api('users');
       return { eyebrow: 'Team', title: 'Team', sub: 'Who can sign in, and what they can see.',
-        body: `<details class="card fold" ${S.welcome && S.welcome.for === 'team' ? 'open' : ''}><summary>Add a team member</summary><form data-form="newuser" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Email', 'email', 'email', 'required')}<div class="field"><label>Role<select name="role"><option value="sales">Sales: sees and works leads</option><option value="crew">Crew: sees scheduled jobs, no prices</option></select></label></div><div class="full"><button class="btn btn--paver">Create login</button></div></form>${S.welcome && S.welcome.for === 'team' ? welcomeBox(S.welcome) : ''}</details>
-          <div class="tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Has not signed in yet'}</td><td>${u.role === 'owner' ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}" data-name="${esc(u.name)}" data-email="${esc(u.email)}" data-kind="${u.role === 'client' ? 'client' : 'team'}">Reset password</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table></div>` };
+        body: `<details class="card fold" ${S.welcome && S.welcome.for === 'team' ? 'open' : ''}><summary>Add a team member</summary><form data-form="newuser" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Email', 'email', 'email', 'required')}${field('Cell phone (optional, for texting their sign-in)', 'phone', 'tel')}<div class="field"><label>Role<select name="role">${(S.me.role === ('owner' as Role) ? ['manager', 'sales', 'crew'] : ['sales', 'crew']).map((r) => `<option value="${r}" ${r === 'sales' ? 'selected' : ''}>${ROLE_WORDS[r]}</option>`).join('')}</select></label></div><div class="full"><button class="btn btn--paver">Create login</button></div></form>${S.welcome && S.welcome.for === 'team' ? welcomeBox(S.welcome) : ''}</details>
+          <div class="tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${S.me.role === ('owner' as Role) && ['manager', 'sales', 'crew'].includes(u.role) ? `<select data-role-for="${u.id}" aria-label="Role for ${esc(u.name)}">${['manager', 'sales', 'crew'].map((r) => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r[0].toUpperCase() + r.slice(1)}</option>`).join('')}</select>` : u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Has not signed in yet'}</td><td>${u.role === 'owner' || (u.role === 'manager' && S.me.role !== ('owner' as Role)) ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}" data-name="${esc(u.name)}" data-email="${esc(u.email)}" data-phone="${esc(u.phone || '')}" data-kind="${u.role === 'client' ? 'client' : 'team'}">Reset password</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table></div>` };
     },
     async hiring() {
       const { applicants } = await api('applicants');
       return { eyebrow: 'Team', title: 'Hiring', sub: 'Applications from the Careers page.',
-        body: applicants.length ? applicants.map((a: any) => `<details class="lead"><summary><span class="stage ${a.status === 'New' ? 's-New' : ''}">${esc(a.status)}</span><b>${esc(a.name)}</b><span class="muted">${esc(a.position || '')}${a.city ? ` · ${esc(a.city)}` : ''}</span><span class="amt"></span><span class="muted small">${day(a.created)}</span></summary><div class="lead__body"><p class="contact"><a class="btn btn--paver" href="tel:${esc(a.phone)}">Call ${esc(a.phone)}</a>${a.email ? `<a class="btn btn--line" href="mailto:${esc(a.email)}">Email</a>` : ''}</p><p class="muted small">CDL: ${esc(a.cdl || 'not given')}. Experience: ${esc(a.experience_years || 'not given')}. Can start: ${esc(a.start || 'not given')}.</p><p>${esc(a.details || '')}</p><form data-form="applicant" data-id="${a.id}" class="row"><select name="status">${['New', 'Called', 'Interview', 'Hired', 'Not a fit'].map((s) => `<option ${s === a.status ? 'selected' : ''}>${s}</option>`).join('')}</select><button class="btn btn--paver">Save</button></form></div></details>`).join('') : '<p class="empty">No applications yet. They arrive here from the Careers page.</p>' };
+        body: applicants.length ? applicants.map((a: any) => `<details class="lead" ${S.open === a.id ? 'open' : ''}><summary><span class="stage ${a.status === 'New' ? 's-New' : ''}">${esc(a.status)}</span><b>${esc(a.name)}</b><span class="muted">${esc(a.position || '')}${a.city ? ` · ${esc(a.city)}` : ''}</span><span class="amt"></span><span class="muted small">${day(a.created)}</span></summary><div class="lead__body"><p class="contact"><a class="btn btn--paver" href="tel:${esc(a.phone)}">Call ${esc(a.phone)}</a>${a.email ? `<a class="btn btn--line" href="mailto:${esc(a.email)}">Email</a>` : ''}</p><p class="muted small">CDL: ${esc(a.cdl || 'not given')}. Experience: ${esc(a.experience_years || 'not given')}. Can start: ${esc(a.start || 'not given')}.</p><p>${esc(a.details || '')}</p><form data-form="applicant" data-id="${a.id}" class="row"><select name="status">${['New', 'Called', 'Interview', 'Hired', 'Not a fit'].map((s) => `<option ${s === a.status ? 'selected' : ''}>${s}</option>`).join('')}</select><button class="btn btn--paver">Save</button></form>
+          <form data-form="hire" data-id="${a.id}" data-name="${esc(a.name)}" data-phone="${esc(a.phone)}" class="grid2 hire"><p class="eyebrow full">Hiring ${esc(a.name.split(' ')[0])}? Make their app login</p>${field('Their email', 'email', 'email', `required value="${esc(a.email || '')}"`)}<div class="field"><label>Role<select name="role">${(S.me.role === ('owner' as Role) ? ['crew', 'sales', 'manager'] : ['crew', 'sales']).map((r) => `<option value="${r}">${ROLE_WORDS[r]}</option>`).join('')}</select></label></div><div class="full"><button class="btn btn--line">Create login and text it to ${esc(a.phone)}</button></div></form>
+          ${S.welcome && S.welcome.for === 'hire-' + a.id ? welcomeBox(S.welcome) : ''}</div></details>`).join('') : '<p class="empty">No applications yet. They arrive here from the Careers page.</p>' };
     },
     async equipment() {
-      const { equipment } = await api('equipment'); const boss = S.me.role === 'owner';
+      const { equipment } = await api('equipment'); const boss = BOSS.includes(S.me.role);
       const tone = (s: string) => (s === 'Ready' ? 's-Accepted' : s === 'Down' ? 's-Lost' : 's-warn');
       return { eyebrow: 'Shop', title: 'Equipment', sub: 'Hours, status and a running log for every machine. Anyone on the crew can report a problem.',
         body: `${equipment.map((e: any) => `<details class="lead" ${S.open === e.id ? 'open' : ''}><summary><span class="stage ${tone(e.status)}">${esc(e.status)}</span><b>${esc(e.name)}</b><span class="muted">${esc(e.kind)}${e.hours ? ` · ${Number(e.hours).toLocaleString('en-US')} hrs` : ''}</span><span class="amt"></span><span class="muted small">${e.log?.[0] ? day(e.log[0].at) : ''}</span></summary><div class="lead__body"><form data-form="equip" data-id="${e.id}" class="grid2"><div class="field"><label>Status<select name="status">${['Ready', 'Needs service', 'Down'].map((s) => `<option ${s === e.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label></div><div class="field"><label>Hours or miles now<input name="hours" inputmode="decimal" value="${e.hours || ''}" /></label></div><div class="field full"><label>Note (what is wrong, what was done)<textarea name="note"></textarea></label></div><div class="full row"><button class="btn btn--paver">Save</button>${boss ? `<button type="button" class="btn btn--line" data-act="equipdel" data-id="${e.id}">${S.confirm === e.id ? 'Tap again to remove' : 'Remove machine'}</button>` : ''}</div></form>${e.log?.length ? `<ul class="notes">${e.log.slice(0, 6).map((n: any) => `<li><span class="muted small">${day(n.at)} · ${esc(n.by)}</span><br />${esc(n.text)}</li>`).join('')}</ul>` : ''}</div></details>`).join('')}
           ${boss ? `<details class="card fold"><summary>Add a machine</summary><form data-form="newequip" class="grid2">${field('Name', 'name', 'text', 'required')}<div class="field"><label>Kind<select name="kind"><option>Paving</option><option>Dirt work</option><option>Hauling</option><option>Other</option></select></label></div><div class="full"><button class="btn btn--paver">Add</button></div></form></details>` : ''}` };
     },
     async estimate() {
-      const st = await api('estimate-settings'); const boss = S.me.role === 'owner';
+      const st = await api('estimate-settings'); const boss = BOSS.includes(S.me.role);
       S.est = { p: { ...DEFAULT_PRICES, ...st.prices }, c: st.contractor || {} }; const p = S.est.p, c = S.est.c;
       const n = (label: string, name: string, val: unknown, extra = '') => field(label, name, 'text', `inputmode="decimal" value="${esc(val ?? '')}" ${extra}`);
       return { eyebrow: 'Sales', title: 'Three-option estimate', sub: 'Economy, Premium and Elite, priced the way your estimation sheet does it.',
@@ -344,6 +350,9 @@ import pricing from '../data/pricing.json';
 
   // ---------- the frame around every page ----------
   const allowed = (v: string) => NAV.some(([, items]) => items.some(([k, , roles]) => k === v && roles.includes(S.me.role)));
+  const QUICK: Record<string, string[]> = { owner: ['home', 'jobs', 'schedule', 'pipeline', 'team'], manager: ['home', 'jobs', 'schedule', 'pipeline', 'team'], sales: ['home', 'jobs', 'schedule', 'pipeline', 'estimate'], crew: ['home', 'jobs', 'schedule', 'training', 'equipment'] };
+  const SHORT: Record<string, string> = { home: 'Home', jobs: 'Jobs', schedule: 'Schedule', pipeline: 'Leads', team: 'Team', estimate: 'Estimate', training: 'Training', equipment: 'Equipment' };
+  const tabbar = () => `<nav class="tabbar" aria-label="Quick access">${QUICK[S.me.role].map((k) => `<button class="tab ${S.view === k ? 'active' : ''}" data-go="${k}">${icon(k)}<span>${SHORT[k]}</span></button>`).join('')}<button class="tab ${QUICK[S.me.role].includes(S.view) ? '' : 'active'}" data-act="drawer">${icon('menu')}<span>More</span></button></nav>`;
   async function renderStaff() {
     if (!allowed(S.view)) S.view = 'home';
     const p = await PAGES[S.view]();
@@ -357,7 +366,7 @@ import pricing from '../data/pricing.json';
           ${S.me.role === 'crew' ? '<span class="top__title">CGH Operations</span>' : `<label class="search">${icon('search')}<input data-search type="search" placeholder="Search leads, customers, jobs…" value="${esc(S.q)}" aria-label="Search" /></label>`}
           <div class="top__right"><button class="iconbtn ${S.pushOn ? 'on' : ''}" data-go="account" aria-label="Alerts and account">${icon('bell')}</button><button class="avatar" data-go="account" aria-label="My account">${esc(initials)}</button></div></header>
         <main class="page"><div class="stack">${photoHead(S.view, p.eyebrow, p.title, p.sub, p.actions)}${notes()}${p.body}${verseFoot(S.view)}</div></main>
-      </div></div>`;
+      </div>${tabbar()}</div>`;
     if (S.view === 'quote') quoteMath();
     if (S.view === 'estimate') estMath();
     if (S.view === 'matcost') matMath();
@@ -397,7 +406,7 @@ import pricing from '../data/pricing.json';
   }
   function estMath() {
     const f = root.querySelector<HTMLFormElement>('form[data-form="estimate"]'); if (!f) return null;
-    const d = new FormData(f), g = (k: string) => num(d.get(k)); const boss = S.me.role === 'owner';
+    const d = new FormData(f), g = (k: string) => num(d.get(k)); const boss = BOSS.includes(S.me.role);
     const p = { hotmix_sqyd: g('hotmix_sqyd'), seal_sqft: g('seal_sqft'), hotoil_sqft: g('hotoil_sqft'), tax_pct: g('tax_pct'), min_sqft: S.est.p.min_sqft, deposit_pct: g('deposit_pct') };
     const c = boss ? { hotmix_sqyd: g('c_hotmix_sqyd'), seal_sqft: g('c_seal_sqft'), hotoil_sqft: g('c_hotoil_sqft') } : undefined;
     root.querySelector('[data-est="persqft"]')!.textContent = `Hot mix at ${usd(p.hotmix_sqyd)} a square yard is ${usd(p.hotmix_sqyd / 9)} a square foot.`;
@@ -444,7 +453,7 @@ import pricing from '../data/pricing.json';
     if (f.dataset.form === 'calc-y2t' || f.dataset.form === 'calc-t2y') { const a = root.querySelector<HTMLFormElement>('form[data-form="calc-y2t"]')!, b = root.querySelector<HTMLFormElement>('form[data-form="calc-t2y"]')!; const A = new FormData(a), B = new FormData(b); const parts = []; if (num(A.get('yards'))) parts.push(`${dec(num(A.get('yards')))} yards is ${dec(num(A.get('yards')) * num(A.get('tpy')))} tons`); if (num(B.get('tons'))) parts.push(`${dec(num(B.get('tons')))} tons is ${dec(num(B.get('tons')) * num(B.get('ypt')))} yards`); set('conv', parts.join('. ') || '—'); }
   });
   // "Show what I am typing" on password boxes, so a long temporary password is easy to check.
-  root.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.name === 'pick') estMath(); if (t.closest?.('form[data-form="matcost"]')) matMath(); if (t.matches?.('[data-showpw]')) t.closest('form')!.querySelectorAll<HTMLInputElement>('[data-pw]').forEach((i) => (i.type = t.checked ? 'text' : 'password')); });
+  root.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.dataset?.roleFor) return void run(async () => { await api('users/' + t.dataset.roleFor, 'PATCH', { role: t.value }); S.ok = 'Role changed. It takes effect the next time they open the app.'; }); if (t.name === 'pick') estMath(); if (t.closest?.('form[data-form="matcost"]')) matMath(); if (t.matches?.('[data-showpw]')) t.closest('form')!.querySelectorAll<HTMLInputElement>('[data-pw]').forEach((i) => (i.type = t.checked ? 'text' : 'password')); });
 
   root.addEventListener('submit', (e) => {
     const f = (e.target as HTMLElement).closest('form[data-form]') as HTMLFormElement | null; if (!f) return;
@@ -461,7 +470,8 @@ import pricing from '../data/pricing.json';
       else if (kind === 'estimate') { const e = estMath(); if (!e) throw new Error('Enter a length and width, or the total square feet.'); if (!String(data.name || '').trim()) throw new Error('Add the customer name to save this as a lead.'); const o = e.r.list.find((x) => x.key === e.picked)!; const r = await api('leads', 'POST', { name: data.name, phone: data.phone, city: data.city, job_type: 'Paving', sqft: e.r.sqft, firm_price: o.total, est_total: o.subtotal, source: 'three-option estimate', note: `${o.name}: ${usd(o.total)} with tax. ${o.what}. Deposit ${usd(o.deposit)}, ${usd(o.total - o.deposit)} due when done.` }); go('pipeline:open:' + r.lead.id); S.ok = 'Saved as a lead.'; }
       else if (kind === 'matcost') return;
       else if (kind === 'applicant') await api('applicants/' + id, 'PATCH', data);
-      else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
+      else if (kind === 'hire') { S.open = id; const r = await api('users', 'POST', { name: f.dataset.name, email: data.email, role: data.role, phone: f.dataset.phone }); S.welcome = { for: 'hire-' + id, name: r.user.name, email: r.user.email, phone: f.dataset.phone, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; await api('applicants/' + id, 'PATCH', { status: 'Hired' }).catch(() => {}); }
+      else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, phone: r.user.phone, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
       else if (kind === 'announce') { await api('announcements', 'POST', data); S.ok = 'Posted to the team.'; }
       else if (kind === 'joblog') { S.open = id; await api(`leads/${id}/log`, 'POST', data); }
       else if (kind === 'equip') { S.open = id; await api('equipment/' + id, 'PATCH', data); S.ok = 'Saved.'; }
@@ -491,7 +501,7 @@ import pricing from '../data/pricing.json';
         const csv = [cols.map(([h]) => cell(h)).join(','), ...(S.data?.leads || []).map((l: any) => cols.map(([, f]) => cell(f(l))).join(','))].join('\r\n');
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = `cgh-leads-${today()}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); S.ok = 'Downloaded. Open it in Excel or Google Sheets.';
       }
-      else if (act === 'relink') { const r = await api('users/' + id, 'PATCH', { reset: true }); S.welcome = { for: 'team', name: t.dataset.name, email: t.dataset.email, text: welcomeText(t.dataset.kind as any, t.dataset.name || '', t.dataset.email || '', r.temp) }; }
+      else if (act === 'relink') { const r = await api('users/' + id, 'PATCH', { reset: true }); S.welcome = { for: 'team', name: t.dataset.name, email: t.dataset.email, phone: t.dataset.phone, text: welcomeText(t.dataset.kind as any, t.dataset.name || '', t.dataset.email || '', r.temp) }; }
       else if (act === 'toggle') await api('users/' + id, 'PATCH', { disabled: !!t.dataset.off });
       else if (act === 'anndel' || act === 'equipdel') { if (S.confirm !== id) { S.confirm = id; if (act === 'equipdel') S.open = id; return; } S.confirm = null; await api((act === 'anndel' ? 'announcements/' : 'equipment/') + id, 'DELETE'); }
       else if (act === 'install' && installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; }
@@ -553,7 +563,14 @@ import pricing from '../data/pricing.json';
   .avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--paver); color: #06222a; font: 800 0.85rem var(--font-display); cursor: pointer; }
   .page { padding: clamp(14px, 3vw, 24px); } .page > .stack { max-width: 980px; }
   .solo .page > .stack { margin: 0 auto; }
+  .tabbar { display: none; }
   @media (max-width: 900px) {
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; height: calc(68px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--a-side); border-top: 1px solid var(--a-line); }
+    .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 0; background: none; color: #8391a6; font: 700 0.66rem var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; padding: 0 2px; }
+    .tab svg { width: 22px; height: 22px; }
+    .tab.active { color: #fff; } .tab.active svg { color: var(--paver-bright); }
+    .page { padding-bottom: calc(68px + env(safe-area-inset-bottom) + 20px); }
+    .top .menu { display: none !important; }
     .shell { grid-template-columns: 1fr; }
     .side { position: fixed; z-index: 40; left: 0; top: 0; width: min(290px, 84vw); transform: translateX(-102%); transition: transform 0.22s var(--ease); }
     .drawer-open .side { transform: none; box-shadow: 30px 0 80px rgba(0, 0, 0, 0.6); }
@@ -591,6 +608,7 @@ import pricing from '../data/pricing.json';
   .empty { margin: 0; padding: 18px; text-align: center; color: var(--a-dim); background: var(--a-card-2); border-radius: 8px; }
   .alerts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--a-card); border: 1px solid var(--a-line); border-radius: 10px; padding: 12px 14px; }
   .want { color: #fcd34d; }
+  .hire { border-top: 1px solid var(--a-line); padding-top: 14px; } .tbl select { background: #0b1322; color: #fff; border: 1px solid rgba(226, 232, 240, 0.22); border-radius: 6px; padding: 7px 8px; font: 0.92rem var(--font-body); }
   .opts { display: grid; gap: 12px; } @media (min-width: 860px) { .opts { grid-template-columns: repeat(3, 1fr); } }
   .opt { display: grid; gap: 4px; align-content: start; background: var(--a-card); border: 2px solid var(--a-line); border-radius: 10px; padding: 16px; cursor: pointer; }
   .opt.on { border-color: var(--paver); } .opt input { position: absolute; opacity: 0; }
