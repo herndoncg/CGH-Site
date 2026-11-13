@@ -6,11 +6,12 @@
     - Navy       : the dark base. Steady, professional, and what CGH already looks like.
     - Deep blue  : links and small labels on light pages. Blue is the color most tied to competence and trust.
     - Teal       : the one action color (buttons, key highlights). It stands out on navy and on white.
-    - Cool white : page backgrounds.
+    - Soft slate grey : page backgrounds. Colton asked for grey instead of white because bright white
+                   was hard on the eyes. Cards sit one step lighter than the page; nothing is pure white.
 
   The variable NAMES are left over from the first design (asphalt, paver, clay, limestone) so the rest of
   the site did not have to be rewritten. Read them as: asphalt = navy, paver = teal, clay = deep blue,
-  limestone/chalk = cool whites.
+  limestone/chalk = soft slate greys.
 
   Pages are light by default. Add class="band" to a section to make it dark.
 */
@@ -19,10 +20,10 @@
   --asphalt-2: #121b2e;
   --asphalt-3: #1c2942;
   --aggregate: #5d6877;
-  --limestone: #eef3f8;
-  --limestone-2: #dbe4ee;
-  --chalk: #f8fafc;
-  --white: #ffffff;
+  --limestone: #d6dde6;
+  --limestone-2: #c3cdd9;
+  --chalk: #e4e8ee;
+  --white: #eff2f6;
   --paver: #0ea5a9;
   --paver-bright: #2cc4c8;
   --paver-deep: #005f86;

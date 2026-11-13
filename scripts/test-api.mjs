@@ -75,6 +75,21 @@ r = await call('GET', 'applicants', null, cal); ok('crew cannot read applicants'
 r = await call('POST', 'training', { lesson: 'paver-safety' }, cal); ok('crew can mark a lesson done', !!r.body.done['paver-safety'] && r.body.team === undefined);
 r = await call('GET', 'training', null, owner); ok('owner sees team training progress', r.body.team.some((t) => t.name === 'Cal Crew' && t.done['paver-safety']));
 
+// ----- home, announcements, equipment -----
+r = await call('GET', 'home', null, owner); ok('owner home shows what is waiting', r.status === 200 && r.body.waiting.applicants === 1 && r.body.waiting.lessons === 7 && r.body.dated.some((d) => d.kind === 'Paving day' && d.date === '2026-12-01'));
+r = await call('GET', 'home', null, cal); ok('crew home has no sales counts and only paving days', r.body.waiting.fresh === undefined && r.body.waiting.lessons === 6 && r.body.dated.every((d) => d.kind === 'Paving day'));
+r = await call('GET', 'home', null, pat); ok('customers cannot open the team home', r.status === 404);
+r = await call('POST', 'announcements', { title: 'Yard cleanup Friday', body: 'Be at the shop at 7.' }, sam); ok('only the owner can post announcements', r.status === 403);
+const before = pushed.length; r = await call('POST', 'announcements', { title: 'Yard cleanup Friday', body: 'Be at the shop at 7.' }, owner); ok('owner posts an announcement and the team is alerted', r.status === 200 && pushed.length === before + 1); const annId = r.body.announcement.id;
+r = await call('GET', 'announcements', null, cal); ok('crew can read announcements', r.body.announcements.length === 1);
+r = await call('DELETE', 'announcements/' + annId, null, cal); ok('crew cannot delete announcements', r.status === 403);
+r = await call('GET', 'equipment', null, cal); ok('the fleet list starts with the seven machines', r.body.equipment.length === 7); const paver = r.body.equipment.find((e) => e.name === 'Asphalt paver');
+r = await call('PATCH', 'equipment/' + paver.id, { status: 'Down', hours: '1204', note: 'Hydraulic leak at the screed.' }, cal); ok('crew can report a machine down with hours and a note', r.body.item.status === 'Down' && r.body.item.hours === 1204 && r.body.item.log[0].text.includes('Hydraulic') && pushed.at(-1).title.includes('Asphalt paver'));
+r = await call('POST', 'equipment', { name: 'Water truck', kind: 'Hauling' }, cal); ok('only the owner can add machines', r.status === 403);
+r = await call('POST', 'equipment', { name: 'Water truck', kind: 'Hauling' }, owner); r = await call('GET', 'equipment', null, owner); ok('owner can add a machine and the seven are not re-added', r.body.equipment.length === 8);
+r = await call('POST', 'leads', { name: 'Quick Quote', phone: '9035550122', sqft: '1200', est_low: '4050', est_high: '4700', base_work: 'Yes' }, sam); ok('a quick quote saves as a lead with its numbers', r.body.lead.est_low === 4050 && r.body.lead.owner);
+r = await call('GET', 'equipment', null, pat); ok('customers cannot see equipment', r.status === 404);
+
 // ----- resetting, changing, turning off -----
 const calId = (await store.get('emails/' + sha('cal@example.com'))).id;
 r = await call('PATCH', 'users/' + calId, { reset: true }, owner); ok('owner can reset a password to a new temporary one', r.status === 200 && TEMP.test(r.body.temp) && r.body.temp !== calTemp); const calTemp2 = r.body.temp;
@@ -96,7 +111,7 @@ r = await call('POST', 'login', { email: 'colton@example.com', password: 'recove
 r = await call('GET', 'leads', null, owner2); ok('recovery signs the old owner session out', r.status === 401);
 r = await call('POST', 'login', { email: 'owner@example.com', password: 'owners-second-password' }); ok('the old owner email no longer signs in', r.status === 401);
 r = await call('POST', 'login', { email: 'third@example.com', password: 'RECOVER-CODE-999' }); ok('the recovery code works once', r.status === 401);
-r = await call('POST', 'password', { next: 'recovered-password' }, rec); ok('recovered owner chooses a password and keeps their records', r.status === 200 && r.body.me.name === 'Colton'); r = await call('GET', 'leads', null, r.cookie); ok('recovered owner still sees the leads', r.status === 200 && r.body.leads.length === 1);
+r = await call('POST', 'password', { next: 'recovered-password' }, rec); ok('recovered owner chooses a password and keeps their records', r.status === 200 && r.body.me.name === 'Colton'); r = await call('GET', 'leads', null, r.cookie); ok('recovered owner still sees the leads', r.status === 200 && r.body.leads.length === 2);
 for (let i = 0; i < 5; i++) await call('POST', 'login', { email: 'sam@example.com', password: 'bad-bad-bad-bad' }); r = await call('POST', 'login', { email: 'sam@example.com', password: 'sams-long-password' }); ok('five bad passwords lock sign-in for a while', r.status === 429);
 ok('no password is stored in readable form', ![...mem.values()].some((v) => ['a-long-password', 'sams-long-password', 'owners-second-password', 'TEST-CODE-12345', 'RECOVER-CODE-999', 'recovered-password', samTemp, calTemp2, patTemp].some((p) => v.includes(p))));
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

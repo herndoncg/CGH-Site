@@ -249,11 +249,75 @@ export async function handle(req, store, push) {
   // alerts on this device (owner and sales)
   if (a === 'push-key' && m === 'GET') return json({ key: push ? await push.key() : null });
   if (a === 'push-subscribe' && m === 'POST') {
-    if (me.role === 'crew') return bad('Not allowed.', 403);
     const endpoint = clean(data.sub?.endpoint, 1000); if (!endpoint.startsWith('https://')) return bad('That device could not be registered.');
     const id = sha(endpoint);
     await store.setJSON('push/' + id, { id, uid: me.id, role: me.role, sub: data.sub, at: Date.now() });
     return json({ ok: true });
+  }
+
+  // the Home screen: what is waiting on this person, what is coming up, and the latest announcements
+  if (a === 'home' && m === 'GET') {
+    const leads = (await all(store, 'leads/')).map((l) => leadFor(l, me)).filter(Boolean);
+    const count = (fn) => leads.filter(fn).length;
+    const waiting = {};
+    if (me.role !== 'crew') Object.assign(waiting, { asked: count((l) => l.request && l.stage === 'New'), fresh: count((l) => !l.request && l.stage === 'New'), quoted: count((l) => l.stage === 'Quote sent'), unscheduled: count((l) => l.stage === 'Accepted' && !l.job_date) });
+    if (owner) {
+      waiting.applicants = (await all(store, 'applicants/')).filter((x) => x.status === 'New').length;
+      waiting.notSignedIn = (await all(store, 'users/')).filter((u) => STAFF.includes(u.role) && !u.disabled && u.must_change).length;
+    }
+    const done = (await store.get('training/' + me.id, { type: 'json' })) || {};
+    waiting.lessons = LESSONS.filter((l) => !done[l.id]).length;
+    const dated = [];
+    for (const l of leads) {
+      if (['Lost', 'Done'].includes(l.stage)) continue;
+      if (l.visit_date && me.role !== 'crew') dated.push({ date: l.visit_date, kind: 'Site visit', id: l.id, name: l.name, city: l.city, phone: l.phone });
+      if (l.job_date) dated.push({ date: l.job_date, kind: 'Paving day', id: l.id, name: l.name, city: l.city, phone: l.phone, job_type: l.job_type, sqft: l.sqft });
+    }
+    const announcements = (await all(store, 'ann/')).sort((x, y) => y.at - x.at).slice(0, 3);
+    return json({ waiting, dated: dated.sort((x, y) => x.date.localeCompare(y.date)), announcements });
+  }
+
+  // announcements: the owner posts, the whole team reads
+  if (a === 'announcements') {
+    if (m === 'GET') return json({ announcements: (await all(store, 'ann/')).sort((x, y) => y.at - x.at) });
+    if (!owner) return bad('Not allowed.', 403);
+    if (m === 'POST') {
+      const title = clean(data.title, 120), body = clean(data.body, 4000);
+      if (!title) return bad('Give the announcement a title.');
+      const ann = { id: newId(), at: Date.now(), by: me.name, title, body };
+      await store.setJSON('ann/' + ann.id, ann);
+      await alertTeam(store, push, STAFF, { title: 'CGH: ' + title, body: body.slice(0, 140), url: '/app/' });
+      return json({ announcement: ann });
+    }
+    if (m === 'DELETE' && b) { await store.delete('ann/' + b); return json({ ok: true }); }
+  }
+
+  // equipment: the fleet list, hours, status and a running log
+  if (a === 'equipment') {
+    if (!(await store.get('meta/equip', { type: 'json' }))) {
+      for (const [name, kind] of [['Asphalt paver', 'Paving'], ['Roller', 'Paving'], ['Dozer', 'Dirt work'], ['Backhoe', 'Dirt work'], ['Skid steer', 'Dirt work'], ['Dump truck 1', 'Hauling'], ['Dump truck 2', 'Hauling']]) { const id = newId(); await store.setJSON('equip/' + id, { id, name, kind, status: 'Ready', hours: 0, log: [], created: Date.now() }); }
+      await store.setJSON('meta/equip', { seeded: Date.now() });
+    }
+    if (m === 'GET') return json({ equipment: (await all(store, 'equip/')).sort((x, y) => x.kind.localeCompare(y.kind) || x.name.localeCompare(y.name)) });
+    if (m === 'POST' && !b) {
+      if (!owner) return bad('Not allowed.', 403);
+      const name = clean(data.name, 80); if (!name) return bad('Give the machine a name.');
+      const e = { id: newId(), name, kind: clean(data.kind, 40) || 'Other', status: 'Ready', hours: num(data.hours), log: [], created: Date.now() };
+      await store.setJSON('equip/' + e.id, e); return json({ item: e });
+    }
+    const e = b ? await store.get('equip/' + b, { type: 'json' }) : null; if (!e) return bad('Not found.', 404);
+    if (m === 'DELETE') { if (!owner) return bad('Not allowed.', 403); await store.delete('equip/' + b); return json({ ok: true }); }
+    if (m === 'PATCH') {
+      const was = e.status;
+      if (data.status !== undefined && ['Ready', 'Needs service', 'Down'].includes(data.status)) e.status = data.status;
+      if (data.hours !== undefined && String(data.hours).trim() !== '') e.hours = num(data.hours);
+      if (owner && data.name !== undefined && clean(data.name, 80)) e.name = clean(data.name, 80);
+      const note = clean(data.note, 1000);
+      if (note || e.status !== was) e.log = [{ at: Date.now(), by: me.name, text: [e.status !== was ? `Marked ${e.status}` : '', note].filter(Boolean).join('. ') }, ...(e.log || [])].slice(0, 40);
+      await store.setJSON('equip/' + e.id, e);
+      if (e.status !== was && e.status !== 'Ready') await alertTeam(store, push, ['owner'], { title: `${e.name}: ${e.status}`, body: [me.name, note].filter(Boolean).join(' · '), url: '/app/' });
+      return json({ item: e });
+    }
   }
 
   // leads
@@ -266,7 +330,7 @@ export async function handle(req, store, push) {
     if (m === 'POST') {
       if (me.role === 'crew') return bad('Not allowed.', 403);
       const name = clean(data.name, 120); if (!name) return bad('A name is required.');
-      const lead = { id: newId(), created: Date.now(), source: clean(data.source, 60) || 'manual', stage: 'New', owner: me.id, name, phone: clean(data.phone, 40), email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), notes: [] };
+      const lead = { id: newId(), created: Date.now(), source: clean(data.source, 60) || 'manual', stage: 'New', owner: me.id, name, phone: clean(data.phone, 40), email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
       if (clean(data.note, 1000)) lead.notes.push({ at: Date.now(), by: me.name, text: clean(data.note, 1000) });
       await store.setJSON('leads/' + lead.id, lead);
       return json({ lead });
