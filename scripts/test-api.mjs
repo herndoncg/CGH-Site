@@ -88,6 +88,15 @@ r = await call('POST', 'password', { current: 'a-long-password', next: 'owners-s
 r = await call('GET', 'leads', null, owner); ok('changing a password signs out other devices', r.status === 401);
 r = await call('GET', 'leads', null, owner2); ok('the device that changed it stays signed in', r.status === 200);
 r = await call('POST', 'logout', {}, sam); r = await call('GET', 'leads', null, sam); ok('signing out ends the session', r.status === 401);
+// ----- owner recovery -----
+process.env.CGH_RECOVERY_HASH = sha('RECOVER-CODE-999');
+r = await call('POST', 'login', { email: 'colton@example.com', password: 'RECOVER-CODE-000' }); ok('a wrong recovery code does nothing', r.status === 401);
+r = await call('POST', 'login', { email: 'sam@example.com', password: 'RECOVER-CODE-999' }); ok('the recovery code cannot take over someone else\'s email', r.status === 401);
+r = await call('POST', 'login', { email: 'colton@example.com', password: 'recover-code-999' }); ok('the recovery code moves the owner login to a new email', r.status === 200 && r.body.me.role === 'owner' && r.body.me.mustChange === true && r.body.me.email === 'colton@example.com'); const rec = r.cookie;
+r = await call('GET', 'leads', null, owner2); ok('recovery signs the old owner session out', r.status === 401);
+r = await call('POST', 'login', { email: 'owner@example.com', password: 'owners-second-password' }); ok('the old owner email no longer signs in', r.status === 401);
+r = await call('POST', 'login', { email: 'third@example.com', password: 'RECOVER-CODE-999' }); ok('the recovery code works once', r.status === 401);
+r = await call('POST', 'password', { next: 'recovered-password' }, rec); ok('recovered owner chooses a password and keeps their records', r.status === 200 && r.body.me.name === 'Colton'); r = await call('GET', 'leads', null, r.cookie); ok('recovered owner still sees the leads', r.status === 200 && r.body.leads.length === 1);
 for (let i = 0; i < 5; i++) await call('POST', 'login', { email: 'sam@example.com', password: 'bad-bad-bad-bad' }); r = await call('POST', 'login', { email: 'sam@example.com', password: 'sams-long-password' }); ok('five bad passwords lock sign-in for a while', r.status === 429);
-ok('no password is stored in readable form', ![...mem.values()].some((v) => ['a-long-password', 'sams-long-password', 'owners-second-password', 'TEST-CODE-12345', samTemp, calTemp2, patTemp].some((p) => v.includes(p))));
+ok('no password is stored in readable form', ![...mem.values()].some((v) => ['a-long-password', 'sams-long-password', 'owners-second-password', 'TEST-CODE-12345', 'RECOVER-CODE-999', 'recovered-password', samTemp, calTemp2, patTemp].some((p) => v.includes(p))));
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
