@@ -2,25 +2,32 @@
   "datePosted": "2026-11-12",
   "roles": [
     {
-      "slug": "paving-crew",
-      "title": "Paving Crew Laborer",
+      "slug": "paver-operator",
+      "title": "Paver Operator",
       "type": "Full-time",
-      "text": "Work behind the paver and on the ground: raking and luting hot mix, running a plate compactor, shoveling, setting up and cleaning up job sites. It is hot, physical work and it shows at the end of the day.",
-      "requirements": ["Shows up on time, every day", "Can work outdoors in East Texas heat", "Reliable ride to the yard in Longview", "No experience needed. We train."]
+      "text": "Run our asphalt paver on driveway, parking lot and private road jobs. You set the pace for the crew and the finish the customer sees.",
+      "requirements": ["Paver experience preferred. Tell us what you have run.", "Can hold a steady mat thickness and a straight edge", "Takes care of equipment like it is your own", "Shows up on time, every day"]
     },
     {
-      "slug": "equipment-operator",
-      "title": "Equipment Operator",
+      "slug": "laborer",
+      "title": "Laborer",
       "type": "Full-time",
-      "text": "Run our paver, roller, dozer, backhoe and skid steer on paving and dirt work jobs. You will cut grade, build base and help the crew put down a mat that drains right.",
-      "requirements": ["Experience on at least one: paver, roller, dozer, backhoe or skid steer", "Can read grade and work to a string line", "Takes care of equipment like it is your own"]
+      "text": "Work behind the paver and on the ground: raking and luting hot mix, running a plate compactor, shoveling, setting up and cleaning up job sites. It is hot, physical work and it shows at the end of the day.",
+      "requirements": ["Shows up on time, every day", "Can work outdoors in East Texas heat", "No experience needed. We train."]
     },
     {
       "slug": "dump-truck-driver",
       "title": "Dump Truck Driver",
       "type": "Full-time",
       "text": "Haul hot mix, base rock and fill to our jobs and help on the ground between loads.",
-      "requirements": ["Valid license for the truck you drive (CDL preferred)", "Clean driving record", "Comfortable backing into tight residential sites"]
+      "requirements": ["Valid license for the truck you drive", "Clean driving record", "Comfortable backing into tight residential sites"]
+    },
+    {
+      "slug": "sales",
+      "title": "Sales",
+      "type": "Full-time",
+      "text": "Talk with customers, go out to their home or business, measure the job, draw it up and mark it out on the ground. You are the first person from CGH they meet, and the one who makes sure the crew knows exactly what was promised.",
+      "requirements": ["Comfortable talking with customers face to face", "Basic math and geometry: figuring square feet from measurements and odd shapes", "Can sketch a job and mark it out on site", "Honest about what a job needs, even when it costs the sale"]
     }
   ]
 }
