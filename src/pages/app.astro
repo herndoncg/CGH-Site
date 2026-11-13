@@ -63,12 +63,13 @@ import { site } from '../data/site';
     if (sub) { S.pushOn = true; api('push-subscribe', 'POST', { sub: sub.toJSON() }).catch(() => {}); }
   }
 
-  const field = (label: string, name: string, type = 'text', extra = '') => `<div class="field"><label>${label}<input name="${name}" type="${type}" ${extra} /></label></div>`;
+  const field = (label: string, name: string, type = 'text', extra = '') => `<div class="field"><label>${label}<input name="${name}" type="${type}" ${type === 'password' ? 'data-pw autocapitalize="none" autocorrect="off" spellcheck="false"' : ''} ${extra} /></label></div>`;
+  const showPw = '<label class="showpw"><input type="checkbox" data-showpw /> Show what I am typing</label>';
   const authCard = (title: string, lede: string, body: string) => `<div class="auth"><h1>${title}</h1><p class="lede">${lede}</p>${S.msg ? `<p class="err" role="alert">${esc(S.msg)}</p>` : ''}${body}<p class="muted small">Trouble signing in? Call <a href="${PHONE_HREF}">${PHONE}</a>.</p></div>`;
 
   function renderAuth(mode: 'login' | 'first') {
-    if (mode === 'first') root.innerHTML = authCard('Choose your own password', 'You signed in with a temporary password. Pick your own to finish. Nobody at CGH can see it.', `<form data-form="firstpw" class="stack">${S.me.name ? '' : field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('New password (10 or more characters)', 'next', 'password', 'required minlength="10" autocomplete="new-password"')}<button class="btn btn--paver">Save and continue</button></form><button class="btn btn--line" data-act="logout">Sign out</button>`);
-    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}<button class="btn btn--paver">Sign in</button></form>`);
+    if (mode === 'first') root.innerHTML = authCard('Choose your own password', 'You signed in with a temporary password. Pick your own to finish. Nobody at CGH can see it.', `<form data-form="firstpw" class="stack">${S.me.name ? '' : field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('New password', 'next', 'password', 'required autocomplete="new-password"')}${showPw}<p class="rule">Make it at least 10 letters or numbers. It cannot be the temporary one.</p><button class="btn btn--paver">Save and continue</button></form><button class="btn btn--line" data-act="logout">Sign out</button>`);
+    else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}${showPw}<button class="btn btn--paver">Sign in</button></form>`);
   }
 
   // ---------- customer portal ----------
@@ -163,6 +164,8 @@ import { site } from '../data/site';
   }
   const run = async (fn: () => Promise<void>) => { S.msg = ''; S.ok = ''; try { await fn(); } catch (e: any) { S.msg = e.message; } await render(); };
 
+  // "Show what I am typing" on password boxes, so a long temporary password is easy to check.
+  root.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.matches?.('[data-showpw]')) t.closest('form')!.querySelectorAll<HTMLInputElement>('[data-pw]').forEach((i) => (i.type = t.checked ? 'text' : 'password')); });
   root.addEventListener('submit', (e) => {
     const f = (e.target as HTMLElement).closest('form[data-form]') as HTMLFormElement | null; if (!f) return;
     e.preventDefault();
@@ -242,6 +245,8 @@ import { site } from '../data/site';
   .appwrap textarea { min-height: 80px; }
   .linkbox { background: #e3f6f7; border: 1.5px solid var(--paver); border-radius: var(--radius); padding: 14px; margin-top: 12px; } .linkbox p { margin: 0 0 8px; font-size: 0.95rem; } .linkbox textarea { width: 100%; padding: 10px; font: 0.92rem/1.5 var(--font-body); border: 1px solid var(--border-strong); border-radius: 4px; background: #fff; } .linkbox .row { margin: 10px 0 0; }
   .acct { margin-top: 28px; border-style: solid; }
+  .showpw { display: flex; gap: 8px; align-items: center; font-size: 0.95rem; } .showpw input { width: 20px; height: 20px; }
+  .auth .rule { margin: 0; font-weight: 600; color: var(--clay); }
   .notes { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; } .notes li { background: var(--bg-2); padding: 10px 12px; border-radius: var(--radius); }
   .tbl { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; display: block; overflow-x: auto; } .tbl th, .tbl td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; } .tbl th { font-size: 0.82rem; color: var(--muted); }
   .btn.sm { min-height: 36px; padding: 0 12px; font-size: 0.88rem; }

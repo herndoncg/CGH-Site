@@ -14,6 +14,12 @@ import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypt
 // working the moment the owner account exists.
 export const SETUP_HASH = '877f19dc823c32a131f4ac88749165bed3fb5dee888de6a37ffcc902c5cc3a77';
 
+// A one-time owner recovery code, for when the owner is locked out or the account landed on the wrong
+// email. Signing in with any email plus this code moves the owner login to that email and forces a new
+// password. Only the fingerprint lives here, and each code works once.
+export const RECOVERY_HASH = '91d540e8eced52aed5ef046f94e82a2de69c918911c9046cffd9385a19ba6403';
+const recoveryHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_RECOVERY_HASH) || RECOVERY_HASH;
+
 // The fingerprint can also be supplied as a site setting (CGH_SETUP_HASH) instead of living in this file.
 const setupHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_SETUP_HASH) || SETUP_HASH;
 
@@ -168,6 +174,17 @@ export async function handle(req, store, push) {
     if (!u && /^\S+@\S+\.\S+$/.test(e) && sha(pw.trim().toUpperCase()) === setupHash() && !(await store.get('meta/owner', { type: 'json' }))) {
       u = { id: newId(), email: e, name: '', role: 'owner', pass: hashPw(pw.trim().toUpperCase()), must_change: true, created: Date.now() };
       await saveUser(store, u); await store.setJSON('meta/owner', { id: u.id });
+    }
+    // Owner recovery: the one-time recovery code moves the owner login to this email.
+    if (/^\S+@\S+\.\S+$/.test(e) && sha(pw.trim().toUpperCase()) === recoveryHash()) {
+      const meta = await store.get('meta/owner', { type: 'json' }), used = await store.get('meta/recovery', { type: 'json' });
+      const o = meta ? await store.get('users/' + meta.id, { type: 'json' }) : null;
+      if (o && !(used && used.hash === recoveryHash()) && (!u || u.id === o.id)) {
+        if (o.email !== e) await store.delete('emails/' + sha(o.email));
+        Object.assign(o, { email: e, pass: hashPw(pw.trim().toUpperCase()), must_change: true, disabled: false, sv: (o.sv || 0) + 1 }); delete o.temp_exp;
+        await saveUser(store, o); await store.setJSON('meta/recovery', { hash: recoveryHash(), at: Date.now() });
+        u = o;
+      }
     }
     if (!u || u.disabled || !matches(pw, u)) {
       const n = f.n + 1; await store.setJSON(key, { n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 });
