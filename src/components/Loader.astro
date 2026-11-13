@@ -1,105 +1,50 @@
 ---
-// The opening moment, seen from straight above: the letters CGH are built into a lawn
-// the way CGH builds a driveway.
-//   1. the letters are cut out of the grass, down to red dirt
-//   2. they are filled with crushed rock base
-//   3. they are paved over with fresh asphalt
-// The line across the bottom reads "From breaking ground to groundbreaking. CGH brings results."
-// Then the asphalt spreads over the whole screen and the homepage appears.
+// The opening moment: about three seconds of CGH's own LeeBoy paver laying hot mix, steam and all,
+// with the company line over it. Then it fades into the homepage.
 //
-// The ground is real: professional photo-scanned textures from Poly Haven (free CC0 license),
-// downloaded at build time by scripts/fetch-textures.mjs. The letter shapes and their depth
-// shading are in public/img/intro (made from the site's heading font).
-//
-// Runs about 6.5 seconds, once per visit. A tap, click, key press or scroll skips it.
-// It is CSS only, so it can never get stuck, and it is skipped for people with "reduce motion" on.
+// This is real footage (Colton's clip IMG_2818), cut two ways: wide for computers, tall for phones.
+// Plays once per visit. A tap, click, key press or scroll skips it. The fade-out is CSS only, so it
+// can never get stuck, and it is skipped for people who have "reduce motion" turned on.
 ---
 <div class="intro" data-intro>
-  <div class="intro__ground" aria-hidden="true"></div>
-  <div class="intro__letters" aria-hidden="true">
-    <div class="intro__mat intro__mat--dirt"><i class="intro__depth intro__depth--deep"></i></div>
-    <div class="intro__mat intro__mat--rock"><i class="intro__depth intro__depth--shallow"></i></div>
-    <div class="intro__mat intro__mat--asphalt"></div>
-    <i class="intro__rim"></i>
-  </div>
-  <div class="intro__light" aria-hidden="true"></div>
-  <div class="intro__flood" aria-hidden="true"></div>
+  <video class="intro__video" muted playsinline autoplay preload="auto" aria-hidden="true"></video>
+  <script is:inline>
+    (function () {
+      var v = document.currentScript.previousElementSibling;
+      var kind = matchMedia('(orientation: portrait)').matches ? 'tall' : 'wide';
+      v.poster = '/video/paver-intro-' + kind + '.webp';
+      v.src = '/video/paver-intro-' + kind + '.mp4';
+      var done = function () { document.documentElement.classList.add('paved'); };
+      ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(function (e) { addEventListener(e, done, { once: true, passive: true }); });
+    })();
+  </script>
+  <div class="intro__shade" aria-hidden="true"></div>
   <div class="intro__line" aria-hidden="true">
-    <p>From breaking ground to groundbreaking.</p>
+    <p>From breaking ground<br />to groundbreaking.</p>
     <p><b>CGH</b> brings results.</p>
   </div>
-  <button class="intro__skip" type="button" data-intro-skip>Skip</button>
+  <button class="intro__skip" type="button">Skip</button>
 </div>
-<script is:inline>
-  (function () {
-    var done = function () { document.documentElement.classList.add('paved'); };
-    ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(function (e) { addEventListener(e, done, { once: true, passive: true }); });
-  })();
-</script>
 
 <style>
   .intro {
-    --t-dirt: 0.5s; --t-rock: 2.1s; --t-asphalt: 3.7s; --wipe: 1.5s; --t-flood: 5.45s; --t-out: 6.05s;
-    --bar: clamp(64px, 11vh, 96px);
-    position: fixed; inset: 0; z-index: 500; overflow: hidden; background: #4f7436;
-    animation: intro-out 0.45s ease var(--t-out) forwards;
+    position: fixed; inset: 0; z-index: 500; overflow: hidden;
+    background: #1b1c1e url('/video/paver-intro-wide.webp') center / cover no-repeat;
+    animation: intro-out 0.55s ease 3.3s forwards;
   }
+  @media (orientation: portrait) { .intro { background-image: url('/video/paver-intro-tall.webp'); } }
   :global(html.paved) .intro { display: none; }
 
-  .intro__ground { position: absolute; inset: 0; background: #4f7436 url('/img/intro/grass.webp') center / 520px; }
+  .intro__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .intro__shade { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(15, 16, 18, 0.92) 0%, rgba(15, 16, 18, 0.55) 34%, rgba(15, 16, 18, 0.05) 62%); }
 
-  /* the box the letters live in; its shape matches the letter artwork exactly */
-  .intro__letters {
-    --mask: url('/img/intro/cgh-wide.svg'); --deep: url('/img/intro/cgh-wide-deep.svg'); --shallow: url('/img/intro/cgh-wide-shallow.svg'); --rim: url('/img/intro/cgh-wide-rim.svg');
-    --from: inset(0 100% 0 0);
-    position: absolute; left: 50%; top: calc((100% - var(--bar)) / 2); translate: -50% -50%;
-    aspect-ratio: 1939 / 804; width: min(86vw, calc((100vh - var(--bar)) * 1.9));
-  }
-  @media (orientation: portrait) {
-    .intro__letters {
-      --mask: url('/img/intro/cgh-tall.svg'); --deep: url('/img/intro/cgh-tall-deep.svg'); --shallow: url('/img/intro/cgh-tall-shallow.svg'); --rim: url('/img/intro/cgh-tall-rim.svg');
-      --from: inset(0 0 100% 0);
-      aspect-ratio: 669 / 2406; width: auto; height: min(calc(100vh - var(--bar) - 56px), 300vw);
-    }
-  }
+  .intro__line { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 var(--gutter) calc(clamp(36px, 8vh, 84px) + env(safe-area-inset-bottom)); max-width: var(--max); margin: 0 auto; color: #fff; font-family: var(--font-display); }
+  .intro__line p { margin: 0; font-weight: 900; letter-spacing: -0.03em; line-height: 0.98; font-size: clamp(2.5rem, 8vw, 6.4rem); opacity: 0; animation: intro-word 0.6s var(--ease) 0.3s forwards; }
+  .intro__line p + p { color: var(--paver); font-size: clamp(1.6rem, 4.4vw, 3.4rem); margin-top: 14px; animation-delay: 1.35s; }
 
-  .intro__mat {
-    position: absolute; inset: 0;
-    -webkit-mask: var(--mask) center / 100% 100% no-repeat; mask: var(--mask) center / 100% 100% no-repeat;
-    clip-path: var(--from);
-    animation: intro-wipe var(--wipe) cubic-bezier(0.45, 0, 0.3, 1) forwards;
-  }
-  .intro__mat--dirt { background: #8a4a2c url('/img/intro/dirt.webp') center / 420px; animation-delay: var(--t-dirt); }
-  .intro__mat--rock { background: #b9b6ad url('/img/intro/rock.webp') center / 380px; animation-delay: var(--t-rock); }
-  .intro__mat--asphalt { background: #1a1b1d url('/img/intro/asphalt.webp') center / 460px; animation-delay: var(--t-asphalt); }
+  .intro__skip { position: absolute; right: 14px; top: 14px; padding: 8px 14px; border: 0; border-radius: 999px; background: rgba(15, 16, 18, 0.6); color: #fff; font: 600 0.9rem var(--font-body); cursor: pointer; }
 
-  /* shading that makes the cut look dug out: deep over the dirt, shallower once the rock is in, gone when paved */
-  .intro__depth { position: absolute; inset: 0; background: center / 100% 100% no-repeat; }
-  .intro__depth--deep { background-image: var(--deep); }
-  .intro__depth--shallow { background-image: var(--shallow); }
-  .intro__rim { position: absolute; inset: 0; background: var(--rim) center / 100% 100% no-repeat; opacity: 0.5; clip-path: var(--from); animation: intro-wipe var(--wipe) cubic-bezier(0.45, 0, 0.3, 1) var(--t-dirt) forwards; }
-
-  /* daylight: a warm wash from the top left and a soft darkening toward the edges */
-  .intro__light { position: absolute; inset: 0; background: radial-gradient(120% 90% at 22% 12%, rgba(255, 236, 190, 0.2), transparent 55%), radial-gradient(130% 110% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.42)); }
-
-  .intro__flood { position: absolute; inset: 0; background: #1a1b1d url('/img/intro/asphalt.webp') center / 460px; opacity: 0; animation: intro-fade 0.55s ease var(--t-flood) forwards; }
-
-  .intro__line {
-    position: absolute; left: 0; right: 0; bottom: 0; min-height: var(--bar);
-    padding: 14px var(--gutter) calc(14px + env(safe-area-inset-bottom));
-    background: rgba(19, 20, 22, 0.95); color: #fff;
-    display: flex; flex-wrap: wrap; align-items: center; align-content: center; justify-content: center; gap: 0 14px; text-align: center;
-    font-family: var(--font-display); font-weight: 800; letter-spacing: -0.01em; font-size: clamp(1.15rem, 2.5vw, 1.9rem); line-height: 1.2;
-  }
-  .intro__line p { margin: 0; opacity: 0; animation: intro-word 0.6s var(--ease) 0.35s forwards; }
-  .intro__line p + p { color: var(--paver); animation-delay: 4.1s; }
-  .intro__line b { font-weight: 900; }
-
-  .intro__skip { position: absolute; right: 14px; top: 14px; padding: 8px 14px; border: 0; border-radius: 999px; background: rgba(19, 20, 22, 0.6); color: #fff; font: 600 0.9rem var(--font-body); cursor: pointer; }
-
-  @keyframes intro-wipe { to { clip-path: inset(0 0 0 0); } }
-  @keyframes intro-fade { to { opacity: 1; } }
-  @keyframes intro-word { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes intro-word { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   @keyframes intro-out { to { opacity: 0; visibility: hidden; } }
   @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
 </style>

@@ -17,34 +17,45 @@ const steps = [
 ];
 ---
 <Base loader title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and handles the dirt work under them. Based in Longview. Get a price range online in about a minute.">
-  <section class="hero band">
-    <video class="hero__video" autoplay muted loop playsinline preload="metadata" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
-      <source src="/video/roller-on-new-driveway.mp4" type="video/mp4" />
-    </video>
-    <div class="hero__shade"></div>
-    <div class="wrap hero__in">
-      <div class="hero__copy">
-        <h1>Asphalt paving and dirt work, done by one Longview crew.</h1>
-        <p class="lede">Driveways, parking lots and private roads across East Texas. We own the paver, the dozer and the dump trucks, so the people who shape your ground are the same people who pave it.</p>
-        <ul class="hero__facts">
-          <li>Paving East Texas since {site.foundedYear}</li>
-          <li>Homes, ranches, churches and businesses</li>
-          <li>Free site visit before any work starts</li>
-        </ul>
-      </div>
-      <form class="start" action="/quote" method="get">
-        <h2>See your price in about a minute</h2>
-        <p>Start with the size of the area you want paved.</p>
-        <div class="start__row">
-          <div class="field"><label for="st-len">Length (ft)</label><input id="st-len" name="length" inputmode="decimal" placeholder="100" /></div>
-          <span aria-hidden="true">×</span>
-          <div class="field"><label for="st-wid">Width (ft)</label><input id="st-wid" name="width" inputmode="decimal" placeholder="12" /></div>
+  <section class="drive" data-drive>
+    <div class="drive__pin hero band">
+      <video class="hero__video" data-drive-video autoplay muted loop playsinline preload="auto" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
+        <source src="/video/roller-scroll.mp4" type="video/mp4" />
+      </video>
+      <div class="hero__shade"></div>
+      <div class="wrap hero__in drive__beat drive__beat--1">
+        <div class="hero__copy">
+          <h1>Asphalt paving and dirt work, done by one Longview crew.</h1>
+          <p class="lede">Driveways, parking lots and private roads across East Texas. We own the paver, the dozer and the dump trucks, so the people who shape your ground are the same people who pave it.</p>
+          <ul class="hero__facts">
+            <li>Paving East Texas since {site.foundedYear}</li>
+            <li>Homes, ranches, churches and businesses</li>
+            <li>Free site visit before any work starts</li>
+          </ul>
         </div>
-        <button class="btn btn--paver" type="submit">Get my price range</button>
-        <p class="start__alt">Rather talk it through? <a href={site.phoneHref}>Call {site.phone}</a></p>
-      </form>
+        <form class="start" action="/quote" method="get">
+          <h2>See your price in about a minute</h2>
+          <p>Start with the size of the area you want paved.</p>
+          <div class="start__row">
+            <div class="field"><label for="st-len">Length (ft)</label><input id="st-len" name="length" inputmode="decimal" placeholder="100" /></div>
+            <span aria-hidden="true">×</span>
+            <div class="field"><label for="st-wid">Width (ft)</label><input id="st-wid" name="width" inputmode="decimal" placeholder="12" /></div>
+          </div>
+          <button class="btn btn--paver" type="submit">Get my price range</button>
+          <p class="start__alt">Rather talk it through? <a href={site.phoneHref}>Call {site.phone}</a></p>
+        </form>
+      </div>
+      <div class="wrap drive__beat drive__beat--2" aria-hidden="true">
+        <p class="drive__big">From breaking ground</p>
+      </div>
+      <div class="wrap drive__beat drive__beat--3">
+        <p class="drive__big">to groundbreaking.</p>
+        <p class="drive__big drive__big--y">CGH brings results.</p>
+        <a class="btn btn--paver" href="/quote">Get my price range</a>
+      </div>
+      <p class="drive__hint" aria-hidden="true">Scroll to drive the roller</p>
+      <div class="stripe"></div>
     </div>
-    <div class="stripe"></div>
   </section>
 
   <section class="section">
@@ -144,6 +155,40 @@ const steps = [
   <CtaBand />
 </Base>
 
+<script>
+  // Drive the roller: scrolling through the pinned hero scrubs the real roller video.
+  const root = document.querySelector<HTMLElement>('[data-drive]');
+  const video = root?.querySelector<HTMLVideoElement>('[data-drive-video]');
+  const ok = root && video && !matchMedia('(prefers-reduced-motion: reduce)').matches && !matchMedia('(max-height: 540px)').matches;
+  if (ok) {
+    document.documentElement.classList.add('drive-on');
+    video.removeAttribute('autoplay'); video.loop = false; video.pause();
+    let target = 0, cur = 0, raf = 0;
+    const tick = () => {
+      raf = 0;
+      cur += (target - cur) * 0.2;
+      if (Math.abs(target - cur) < 0.0008) cur = target;
+      if (video.duration) { const t = cur * (video.duration - 0.08); if (Math.abs(video.currentTime - t) > 0.02) video.currentTime = t; }
+      if (cur !== target) raf = requestAnimationFrame(tick);
+    };
+    const measure = () => {
+      const r = root.getBoundingClientRect();
+      const span = r.height - innerHeight;
+      const p = Math.min(1, Math.max(0, (68 - r.top) / span));
+      root.style.setProperty('--p', p.toFixed(4));
+      root.dataset.beat = p < 0.28 ? '1' : p < 0.68 ? '2' : '3';
+      target = p;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+    addEventListener('scroll', measure, { passive: true });
+    addEventListener('resize', measure);
+    video.addEventListener('loadedmetadata', measure);
+    // phones only let a video be scrubbed after it has been started once by a touch
+    addEventListener('touchstart', () => { video.play().then(() => video.pause()).catch(() => {}); }, { once: true, passive: true });
+    measure();
+  }
+</script>
+
 <style>
   .hero { position: relative; overflow: hidden; }
   .hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -155,7 +200,37 @@ const steps = [
   .hero__facts { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 8px; color: #e4e1d8; font-weight: 500; }
   .hero__facts li { padding-left: 22px; position: relative; }
   .hero__facts li::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 12px; height: 4px; background: var(--paver); }
-  .hero .stripe { position: relative; }
+  .hero .stripe { position: absolute; left: 0; right: 0; bottom: 0; }
+
+  /* "Drive the roller": the hero stays pinned while the visitor scrolls, and the scroll position
+     sets how far the real roller video has played. Turned on by the script at the bottom of this
+     file (class drive-on). Without it, this is a normal hero with the video looping. */
+  .drive { --p: 0; }
+  .drive__pin { display: grid; align-items: center; }
+  .drive__pin > .drive__beat { grid-area: 1 / 1; position: relative; }
+  .drive__beat--2, .drive__beat--3, .drive__hint { display: none; }
+  .drive__big { margin: 0; font-family: var(--font-display); font-weight: 900; letter-spacing: -0.03em; line-height: 0.98; font-size: clamp(2.6rem, 8.4vw, 7rem); color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55); max-width: 12ch; }
+  .drive__big--y { color: var(--paver); max-width: none; font-size: clamp(1.8rem, 5vw, 4rem); margin: 10px 0 26px; }
+
+  :global(html.drive-on) .drive { height: 320vh; }
+  :global(html.drive-on) .drive__pin { position: sticky; top: 68px; height: calc(100svh - 68px); }
+  :global(html.drive-on) .drive__beat--2, :global(html.drive-on) .drive__beat--3 { display: block; align-self: end; padding-bottom: clamp(56px, 10vh, 110px); pointer-events: none; }
+  :global(html.drive-on) .drive__beat--1 { opacity: clamp(0, calc((0.26 - var(--p)) * 9), 1); padding-top: 24px; padding-bottom: 24px; }
+  :global(html.drive-on) .drive__beat--2 { opacity: clamp(0, min(calc((var(--p) - 0.3) * 10), calc((0.66 - var(--p)) * 12)), 1); }
+  :global(html.drive-on) .drive__beat--3 { opacity: clamp(0, calc((var(--p) - 0.7) * 10), 1); }
+  :global(html.drive-on) .drive[data-beat='1'] .drive__beat--1, :global(html.drive-on) .drive[data-beat='3'] .drive__beat--3 { pointer-events: auto; }
+  :global(html.drive-on) .drive:not([data-beat='1']) .drive__beat--1 { pointer-events: none; }
+  :global(html.drive-on) .hero__shade { opacity: max(0.42, calc(1 - var(--p) * 2.4)); }
+  :global(html.drive-on) .drive__hint { display: block; position: absolute; left: 0; right: 0; bottom: 22px; margin: 0; text-align: center; font-weight: 600; font-size: 0.92rem; color: #fff; opacity: clamp(0, calc((0.12 - var(--p)) * 12), 0.9); }
+  :global(html.drive-on) .drive__hint::after { content: ''; display: block; width: 2px; height: 22px; margin: 8px auto 0; background: var(--paver); animation: drive-nudge 1.4s ease-in-out infinite; }
+  @keyframes drive-nudge { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(8px); opacity: 0.4; } }
+  @media (max-width: 979px) {
+    :global(html.drive-on) .hero__copy .lede, :global(html.drive-on) .hero__facts { display: none; }
+    :global(html.drive-on) .hero__in { gap: 20px; }
+    :global(html.drive-on) .hero h1 { font-size: clamp(2rem, 8.6vw, 2.6rem); margin-bottom: 0; }
+    :global(html.drive-on) .drive__pin { height: calc(100svh - 68px - 56px); }
+    :global(html.drive-on) .drive__hint { bottom: 14px; }
+  }
 
   .start { background: var(--chalk); color: var(--asphalt); border-radius: var(--radius-lg); padding: clamp(22px, 3vw, 32px); --text: var(--asphalt); --surface: #fff; --border-strong: rgba(27, 28, 30, 0.28); --muted: #5f6368; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
   .start h2 { font-size: 1.6rem; margin-bottom: 6px; }
