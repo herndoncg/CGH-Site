@@ -59,10 +59,11 @@ if (site.email) business.email = site.email;
     <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex" />}
     <meta name="theme-color" content="#0b1220" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/white-cgh-favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/white-cgh-favicon-16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    {/* The CGH badge (hexagon, cross on the mountain). Made by scripts/make-icons.mjs. The ?v=2 makes browsers drop the old "CGH" letters icon they had saved. */}
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/cgh-icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/cgh-icon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
