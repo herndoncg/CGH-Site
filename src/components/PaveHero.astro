@@ -206,10 +206,24 @@ import { site } from '../data/site';
     f.globalAlpha = 1;
   }
 
+  // Once the logo is on, the top draws itself up so the roller video underneath shows at the bottom
+  // of the screen. Skipped if the visitor has already scrolled, so nothing jumps under their thumb.
+  function tuck() {
+    if (root.classList.contains('is-tucked') || window.scrollY > 40) return;
+    const pad = matchMedia('(min-width: 760px)').matches ? 60 : 22;
+    const inner = root.querySelector<HTMLElement>('.pave__in')!;
+    const target = Math.ceil(inner.getBoundingClientRect().height) + pad * 2;
+    if (target > root.getBoundingClientRect().height - 24) return;
+    root.style.setProperty('--tucked', target + 'px');
+    root.style.setProperty('--tuck-pad', pad + 'px');
+    root.classList.add('is-tucked');
+  }
+
   function settle() {
     root.classList.remove('is-paving', 'is-painted');
     running = false;
     again.hidden = false;
+    tuck();
   }
 
   function pave() {
@@ -224,10 +238,10 @@ import { site } from '../data/site';
     fx.style.opacity = '1';
     document.documentElement.classList.remove('pave-pending');
 
-    const passes = Math.max(3, Math.min(5, Math.round(H / 190)));
+    const passes = 3;   // three wide sweeps cover the whole top
     const band = H / passes;
-    const passMs = W < 700 ? 520 : 700;
-    const start = performance.now() + 450;
+    const passMs = W < 700 ? 540 : 660;
+    const start = performance.now() + 350;
     let last = performance.now();
     let lastX: number | null = null, lastPass = -1;
 
@@ -270,13 +284,13 @@ import { site } from '../data/site';
         g.globalCompositeOperation = 'destination-out';
         g.fillRect(0, 0, W, H);
         root.classList.add('is-painted');
+        setTimeout(settle, 2300);
         requestAnimationFrame(step);
       } else if (steam.length) {
         requestAnimationFrame(step);
       } else {
         ground.style.opacity = '0';
         fx.style.opacity = '0';
-        setTimeout(settle, 1600);
       }
     };
     requestAnimationFrame(step);
@@ -287,11 +301,16 @@ import { site } from '../data/site';
     again.addEventListener('click', pave);
   } else {
     document.documentElement.classList.remove('pave-pending');
+    root.classList.add('is-still');
+    tuck();
   }
 </script>
 
 <style>
   .pave { position: relative; isolation: isolate; overflow: hidden; display: grid; align-items: center; min-height: clamp(540px, calc(100svh - 132px), 860px); padding: clamp(64px, 10vh, 120px) 0; background: #1b2231; color: #fff; }
+  .pave { transition: min-height 1s cubic-bezier(0.5, 0, 0.2, 1), padding 1s cubic-bezier(0.5, 0, 0.2, 1); }
+  .pave.is-tucked { min-height: var(--tucked); padding-top: var(--tuck-pad); padding-bottom: var(--tuck-pad); }
+  .pave.is-still { transition: none; }
   .pave__mat { position: absolute; inset: 0; z-index: -1; background:
       radial-gradient(120% 90% at 50% 45%, rgba(8, 12, 22, 0) 40%, rgba(8, 12, 22, 0.55) 100%),
       url('/img/hero/fresh-mat.webp') center / cover no-repeat; }
@@ -331,15 +350,17 @@ import { site } from '../data/site';
   /* While the mat is going down the logo is not there yet. Then it is painted on, left to right. */
   .is-paving .paint { clip-path: inset(0 100% 0 0); }
   .is-paving .pave__rest { opacity: 0; }
-  .is-paving.is-painted .paint { clip-path: inset(0 0 0 0); transition: clip-path 0.75s cubic-bezier(0.35, 0, 0.2, 1) 0.15s; }
-  .is-paving.is-painted .lockup__name { transition-delay: 0.6s; }
-  .is-paving.is-painted .lockup__motto { transition-delay: 1.15s; }
-  .is-paving.is-painted .pave__rest { opacity: 1; transition: opacity 0.6s ease 1.9s; }
+  .is-paving.is-painted .paint { clip-path: inset(0 0 0 0); transition: clip-path 0.7s cubic-bezier(0.35, 0, 0.2, 1) 0.1s; }
+  .is-paving.is-painted .lockup__name { transition-delay: 0.5s; }
+  .is-paving.is-painted .lockup__motto { transition-delay: 0.95s; }
+  .is-paving.is-painted .pave__rest { opacity: 1; transition: opacity 0.55s ease 1.6s; }
 
   /* Phones already have Call and Get my price fixed to the bottom of the screen, so the top keeps one button. */
   @media (max-width: 759px) {
     .pave { padding: 44px 0 56px; }
-    .pave__in { gap: 26px; }
+    .pave__in { gap: 22px; }
+    .lockup { gap: 18px; }
+    .lockup__badge { width: 42%; }
     .pave__rest { gap: 18px; }
     .pave__actions { width: min(100%, 340px); }
     .pave__actions .btn { flex: 1 1 100%; }
