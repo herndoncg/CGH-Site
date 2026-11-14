@@ -1,7 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import QuoteTool from '../components/QuoteTool.astro';
+import CtaBand from '../components/CtaBand.astro';
+import StatesMap from '../components/StatesMap.astro';
 import PaveHero from '../components/PaveHero.astro';
 import { site, reviews, workPhotos, beforeAfter } from '../data/site';
 import { services, groups } from '../data/services';
@@ -196,15 +197,13 @@ const steps = [
   )}
 
   <section class="section band area">
-    <div class="wrap split">
+    <div class="wrap split split--even">
       <div>
-        <h2>Based in Longview and Texarkana. Working across four states.</h2>
-        <p class="lede">We travel for the right job anywhere in Texas, Louisiana, Arkansas and Oklahoma. These are the towns we are in most.</p>
-        <div class="btn-row"><a class="btn btn--line" href="/service-areas">All service areas</a></div>
+        <h2>Texas, Arkansas, Oklahoma and Louisiana.</h2>
+        <p class="lede">Based in Longview and Texarkana, Texas. Started in Longview in {site.foundedYear}. We travel for the right job.</p>
+        <div class="btn-row"><a class="btn btn--line" href="/service-areas">See where we work</a></div>
       </div>
-      <ul class="towns">
-        {areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}</a></li>)}
-      </ul>
+      <StatesMap tone="dark" />
     </div>
   </section>
 
@@ -232,16 +231,7 @@ const steps = [
     </div>
   </section>
 
-  <section class="section section--stone" id="quote">
-    <div class="wrap narrow">
-      <div class="head">
-        <h2>Get your price range</h2>
-        <p class="lede">Three quick steps. No waiting on a callback to find out if it fits your budget.</p>
-      </div>
-      <QuoteTool />
-      <p class="muted quote__alt">Rather talk it through? Call <a class="textlink" href={site.phoneHref}>{site.phone}</a>, {site.hours}.</p>
-    </div>
-  </section>
+  <CtaBand />
 </Base>
 
 <script>
@@ -346,6 +336,14 @@ const steps = [
   .who img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius-lg); background: var(--limestone-2); margin-bottom: 14px; }
   .who h3 { font-size: 1.4rem; margin: 0 0 4px; }
   .who p { margin: 0; color: var(--text-2); }
+  /* Phones: a small photo beside the words, so three kinds of customer fit on one screen. */
+  @media (max-width: 799px) {
+    .who { gap: 16px; }
+    .who article { display: grid; grid-template-columns: 112px 1fr; column-gap: 16px; align-content: center; }
+    .who img { grid-row: 1 / span 2; aspect-ratio: 1; margin: 0; }
+    .who h3 { align-self: end; font-size: 1.25rem; }
+    .who p { align-self: start; }
+  }
   .clients { margin-top: clamp(32px, 5vw, 56px); padding-top: clamp(24px, 3vw, 36px); border-top: 2px solid var(--border-strong); }
   .clients h3 { font-family: var(--font-body); font-weight: 600; font-size: 1rem; letter-spacing: 0; color: var(--muted); margin: 0 0 14px; }
   .clients ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
@@ -372,7 +370,8 @@ const steps = [
   .reviews figcaption span { display: block; color: var(--muted); font-size: 0.92rem; }
 
   .area .lede { color: var(--text-2); }
-  .area h2 { max-width: 18ch; }
+  .area h2 { max-width: 14ch; }
+  .area .split { align-items: center; }
   .quote__alt { margin-top: 22px; }
   .verse { border-left: 4px solid var(--paver); padding-left: 18px; font-size: 1.1rem; max-width: 46ch; margin: 28px 0; }
   .verse span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 4px; }

@@ -1,0 +1,45 @@
+---
+// The four states we work in, drawn from US Census outlines, with our two bases marked.
+// tone="light" sits on the grey page, tone="dark" sits on a navy band.
+import map from '../data/states-map.json';
+interface Props { tone?: 'light' | 'dark' }
+const { tone = 'light' } = Astro.props;
+const [lx, ly] = map.pins.longview;
+const [tx, ty] = map.pins.texarkana;
+// Where each state's name sits. Nudged off the plain centre so names clear the pins and the panhandles.
+const label: Record<string, [number, number]> = { Texas: [372, 486], Oklahoma: [556, 192], Arkansas: [781, 212], Louisiana: [798, 434] };
+---
+<figure class={`smap smap--${tone}`}>
+  <svg viewBox={`0 0 ${map.w} ${map.h}`} role="img" aria-label="Map of Texas, Arkansas, Oklahoma and Louisiana. Our two bases are marked: Longview, Texas, where we started, and Texarkana, Texas.">
+    {map.states.map((s) => <path class={`smap__state smap__state--${s.name.toLowerCase()}`} d={s.d} />)}
+    {map.states.map((s) => <text class={`smap__name smap__name--${s.name.toLowerCase()}`} x={label[s.name][0]} y={label[s.name][1]} text-anchor="middle">{s.name}</text>)}
+    <g class="smap__pin smap__pin--home">
+      <circle class="smap__pulse" cx={lx} cy={ly} r="22" />
+      <circle class="smap__ring" cx={lx} cy={ly} r="22" />
+      <circle class="smap__dot" cx={lx} cy={ly} r="11" />
+      <text x={lx - 34} y={ly + 13} text-anchor="end">Longview</text>
+    </g>
+    <g class="smap__pin">
+      <circle class="smap__dot" cx={tx} cy={ty} r="11" />
+      <text x={tx - 24} y={ty + 4} text-anchor="end">Texarkana</text>
+    </g>
+  </svg>
+</figure>
+
+<style>
+  .smap { margin: 0; --land: #0b1220; --land-home: #00384d; --edge: var(--chalk); --ink: #fff; }
+  .smap--dark { --land: #24334e; --land-home: #005f86; --edge: #0b1220; }
+  .smap svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .smap__state { fill: var(--land); stroke: var(--edge); stroke-width: 4; stroke-linejoin: round; }
+  .smap__state--texas { fill: var(--land-home); }
+  .smap__name { fill: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 34px; letter-spacing: -0.01em; opacity: 0.92; }
+  .smap__name--oklahoma { font-size: 40px; }
+  .smap__name--louisiana { font-size: 30px; }
+  .smap__name--texas { font-size: 64px; }
+  .smap__pin text { fill: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 36px; paint-order: stroke; stroke: var(--land-home); stroke-width: 8px; stroke-linejoin: round; }
+  .smap__dot { fill: #fff; }
+  .smap__ring { fill: none; stroke: #fff; stroke-width: 4; }
+  .smap__pulse { fill: none; stroke: #fff; stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: smap-pulse 2.6s ease-out infinite; }
+  @keyframes smap-pulse { from { transform: scale(1); opacity: 0.8; } to { transform: scale(2.6); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .smap__pulse { animation: none; opacity: 0; } }
+</style>
