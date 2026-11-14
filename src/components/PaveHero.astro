@@ -1,0 +1,344 @@
+---
+// The top of the homepage. It opens as bare East Texas dirt, a mat of fresh asphalt is laid across
+// it lane by lane, and the company name is painted on the new surface like a road marking.
+// The asphalt is a real photo of a CGH driveway. No equipment is drawn.
+import '@fontsource/barlow-condensed/700.css';
+import '@fontsource/barlow-condensed/800.css';
+import { site } from '../data/site';
+---
+<script is:inline>
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.documentElement.classList.add('pave-pending');
+    setTimeout(function () { document.documentElement.classList.remove('pave-pending'); }, 3500);
+  }
+</script>
+<section class="pave" data-pave>
+  <div class="pave__mat" aria-hidden="true"></div>
+
+  <div class="wrap pave__in">
+    <div class="lockup">
+      <p class="lockup__name paint"><span class="lockup__cgh">CGH</span> <span class="lockup__ops">Operations <small>LLC</small></span></p>
+      <p class="lockup__motto paint"><span>For a better future</span></p>
+    </div>
+    <div class="pave__rest">
+      <h1>Asphalt paving and dirt work, done by one crew.</h1>
+      <div class="pave__actions">
+        <a href="/quote" class="btn btn--paver">Get my price range</a>
+        <a href={site.phoneHref} class="btn pave__call">Call {site.phone}</a>
+      </div>
+      <button class="pave__again" type="button" data-again hidden>Pave it again</button>
+    </div>
+  </div>
+
+  <canvas class="pave__ground" aria-hidden="true" data-ground></canvas>
+  <canvas class="pave__fx" aria-hidden="true" data-fx></canvas>
+</section>
+
+<script>
+  type Puff = { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number };
+
+  const root = document.querySelector<HTMLElement>('[data-pave]')!;
+  const ground = root.querySelector<HTMLCanvasElement>('[data-ground]')!;
+  const fx = root.querySelector<HTMLCanvasElement>('[data-fx]')!;
+  const again = root.querySelector<HTMLButtonElement>('[data-again]')!;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches || (navigator as any).connection?.saveData;
+
+  let W = 0, H = 0, dpr = 1, running = false;
+  const g = ground.getContext('2d')!;
+  const f = fx.getContext('2d')!;
+  const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
+  function size() {
+    const r = root.getBoundingClientRect();
+    W = r.width; H = r.height;
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    for (const c of [ground, fx]) {
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+    }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    f.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // A small tile of grit, stamped over the whole surface so the dirt reads as soil and not as paint.
+  function gritTile() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 220;
+    const x = c.getContext('2d')!;
+    const d = x.createImageData(220, 220);
+    for (let i = 0; i < d.data.length; i += 4) {
+      const v = Math.random() > 0.5 ? 255 : 0;
+      d.data[i] = d.data[i + 1] = d.data[i + 2] = v;
+      d.data[i + 3] = Math.random() * 46;
+    }
+    x.putImageData(d, 0, 0);
+    return c;
+  }
+
+  // One layer of soft mottling: random greys on a coarse grid, stretched smooth over the surface.
+  function mottle(cell: number, alpha: number) {
+    const cw = Math.ceil(W / cell) + 2, ch = Math.ceil(H / cell) + 2;
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const x = c.getContext('2d')!;
+    const d = x.createImageData(cw, ch);
+    for (let i = 0; i < d.data.length; i += 4) {
+      d.data[i] = d.data[i + 1] = d.data[i + 2] = Math.random() * 255;
+      d.data[i + 3] = 255;
+    }
+    x.putImageData(d, 0, 0);
+    g.globalAlpha = alpha;
+    g.globalCompositeOperation = 'overlay';
+    g.drawImage(c, -cell * Math.random(), -cell * Math.random(), cw * cell, ch * cell);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  // Graded East Texas dirt: sandy red clay in uneven patches, damp and dry spots, loose rock on top.
+  function paintGround() {
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgb(186, 124, 78)';
+    g.fillRect(0, 0, W, H);
+    const tones = ['214,156,104', '158,98,60', '200,138,88', '146,88,54', '222,170,116', '172,108,66'];
+    const blobs = Math.round((W * H) / 9000);
+    for (let i = 0; i < blobs; i++) {
+      const x = rand(0, W), y = rand(0, H), r = rand(40, 260);
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      const t = tones[(Math.random() * tones.length) | 0];
+      grd.addColorStop(0, `rgba(${t},${rand(0.14, 0.4).toFixed(2)})`);
+      grd.addColorStop(1, `rgba(${t},0)`);
+      g.fillStyle = grd;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    mottle(170, 0.22);
+    mottle(52, 0.2);
+    mottle(15, 0.22);
+    mottle(4, 0.26);
+    // a few faint blade marks left by the grader
+    for (let i = 0; i < H / 14; i++) {
+      const y = rand(0, H), x = rand(-200, W), len = rand(120, 620);
+      g.fillStyle = Math.random() > 0.5 ? `rgba(84,46,24,${rand(0.05, 0.13).toFixed(2)})` : `rgba(244,204,156,${rand(0.04, 0.11).toFixed(2)})`;
+      g.fillRect(x, y, len, rand(0.8, 2.4));
+    }
+    g.fillStyle = g.createPattern(gritTile(), 'repeat')!;
+    g.fillRect(0, 0, W, H);
+    // loose rock and clods: each one a round stone with a shadow under it and light on top
+    const rocks = Math.round((W * H) / 520);
+    for (let i = 0; i < rocks; i++) {
+      const big = Math.random() > 0.9;
+      const x = rand(0, W), y = rand(0, H), s = big ? rand(2.6, 6.5) : rand(0.8, 2.4);
+      g.fillStyle = `rgba(58,30,14,${rand(0.3, 0.6).toFixed(2)})`;
+      g.beginPath(); g.ellipse(x + s * 0.35, y + s * 0.45, s, s * 0.8, 0, 0, 7); g.fill();
+      const pale = Math.random() > 0.55;
+      g.fillStyle = pale ? `rgba(226,198,166,${rand(0.55, 0.95).toFixed(2)})` : `rgba(140,92,62,${rand(0.6, 0.95).toFixed(2)})`;
+      g.beginPath(); g.ellipse(x, y, s, s * rand(0.65, 0.9), rand(0, 3), 0, 7); g.fill();
+      if (big) {
+        g.fillStyle = 'rgba(255,240,220,0.35)';
+        g.beginPath(); g.ellipse(x - s * 0.25, y - s * 0.25, s * 0.45, s * 0.3, 0, 0, 7); g.fill();
+      }
+    }
+    const shade = g.createLinearGradient(0, 0, 0, H);
+    shade.addColorStop(0, 'rgba(50,24,10,0.25)');
+    shade.addColorStop(0.35, 'rgba(50,24,10,0)');
+    shade.addColorStop(1, 'rgba(50,24,10,0.22)');
+    g.fillStyle = shade;
+    g.fillRect(0, 0, W, H);
+  }
+
+  // One soft white puff, drawn once and reused for every wisp of steam.
+  const puff = document.createElement('canvas');
+  puff.width = puff.height = 64;
+  {
+    const p = puff.getContext('2d')!;
+    const grd = p.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grd.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    p.fillStyle = grd;
+    p.fillRect(0, 0, 64, 64);
+  }
+  const steam: Puff[] = [];
+
+  type Edge = { x: number; y0: number; y1: number; dir: number; last: boolean };
+
+  function drawFx(dt: number, e: Edge | null) {
+    f.clearRect(0, 0, W, H);
+    if (e) {
+      const band = e.y1 - e.y0;
+      // fresh mix is darker and wetter right behind the leading edge, then settles
+      const back = f.createLinearGradient(e.x, 0, e.x - e.dir * 170, 0);
+      back.addColorStop(0, 'rgba(0,0,0,0.5)');
+      back.addColorStop(1, 'rgba(0,0,0,0)');
+      f.fillStyle = back;
+      f.fillRect(Math.min(e.x, e.x - e.dir * 170), e.y0, 170, band);
+      // the mat has thickness: it throws a short shadow onto the dirt ahead of it and beside it
+      const ahead = f.createLinearGradient(e.x, 0, e.x + e.dir * 14, 0);
+      ahead.addColorStop(0, 'rgba(20,10,4,0.55)');
+      ahead.addColorStop(1, 'rgba(20,10,4,0)');
+      f.fillStyle = ahead;
+      f.fillRect(Math.min(e.x, e.x + e.dir * 14), e.y0, 14, band);
+      const side = (y: number, x0: number, x1: number) => {
+        if (x1 <= x0) return;
+        const s = f.createLinearGradient(0, y, 0, y + 10);
+        s.addColorStop(0, 'rgba(20,10,4,0.5)');
+        s.addColorStop(1, 'rgba(20,10,4,0)');
+        f.fillStyle = s;
+        f.fillRect(x0, y, x1 - x0, 10);
+      };
+      // under the lane being laid, and under the finished lane above the part not laid yet
+      if (!e.last) side(e.y1, e.dir === 1 ? 0 : e.x, e.dir === 1 ? e.x : W);
+      if (e.y0 > 0) side(e.y0, e.dir === 1 ? e.x : 0, e.dir === 1 ? W : e.x);
+      // a thin bright line of heat on the edge itself
+      f.fillStyle = 'rgba(255,255,255,0.16)';
+      f.fillRect(e.x - 1, e.y0, 2, band);
+    }
+    for (let i = steam.length - 1; i >= 0; i--) {
+      const p = steam[i];
+      p.life += dt;
+      if (p.life >= p.max) { steam.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const k = p.life / p.max;
+      const r = p.r * (0.6 + k * 1.9);
+      f.globalAlpha = 0.2 * (1 - k) * Math.min(1, k * 6);
+      f.drawImage(puff, p.x - r, p.y - r, r * 2, r * 2);
+    }
+    f.globalAlpha = 1;
+  }
+
+  function settle() {
+    root.classList.remove('is-paving', 'is-painted');
+    running = false;
+    again.hidden = false;
+  }
+
+  function pave() {
+    if (running) return;
+    running = true;
+    again.hidden = true;
+    root.classList.remove('is-painted');
+    root.classList.add('is-paving');
+    size();
+    paintGround();
+    ground.style.opacity = '1';
+    fx.style.opacity = '1';
+    document.documentElement.classList.remove('pave-pending');
+
+    const passes = Math.max(3, Math.min(5, Math.round(H / 190)));
+    const band = H / passes;
+    const passMs = W < 700 ? 520 : 700;
+    const start = performance.now() + 450;
+    let last = performance.now();
+    let lastX: number | null = null, lastPass = -1;
+
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const t = now - start;
+      let edge: Edge | null = null;
+      if (t >= 0 && t < passes * passMs) {
+        const pass = Math.min(passes - 1, Math.floor(t / passMs));
+        const k = Math.min(1, (t - pass * passMs) / passMs);
+        const dir = pass % 2 === 0 ? 1 : -1;
+        const x = dir === 1 ? k * (W + 24) - 12 : W + 12 - k * (W + 24);
+        const y0 = band * pass, y1 = pass === passes - 1 ? H : band * (pass + 1);
+        if (pass !== lastPass) {
+          // finish whatever was left of the lane before
+          if (lastPass >= 0) { g.globalCompositeOperation = 'destination-out'; g.fillRect(0, band * lastPass, W, band + 0.5); }
+          lastX = null; lastPass = pass;
+        }
+        const from = lastX ?? (dir === 1 ? -12 : W + 12);
+        g.globalCompositeOperation = 'destination-out';
+        g.fillStyle = '#000';
+        // laid in short slices so the edge of the mat is rough, the way raked hot mix is
+        for (let y = y0; y < y1; y += 5) {
+          const reach = x + dir * rand(-3, 3);
+          g.fillRect(Math.min(from - dir * 4, reach), y, Math.abs(reach - from) + 4, Math.min(5, y1 - y) + 0.5);
+        }
+        lastX = x;
+        edge = { x, y0, y1, dir, last: pass === passes - 1 };
+        if (x > -10 && x < W + 10) {
+          for (let i = 0; i < 3; i++) {
+            steam.push({ x: x - dir * rand(0, 60), y: rand(y0, y1), vx: -dir * rand(10, 50), vy: rand(-70, -24), life: 0, max: rand(0.7, 1.5), r: rand(16, 38) });
+          }
+        }
+      }
+      drawFx(dt, edge);
+      if (t < passes * passMs) {
+        requestAnimationFrame(step);
+      } else if (!root.classList.contains('is-painted')) {
+        g.globalCompositeOperation = 'destination-out';
+        g.fillRect(0, 0, W, H);
+        root.classList.add('is-painted');
+        requestAnimationFrame(step);
+      } else if (steam.length) {
+        requestAnimationFrame(step);
+      } else {
+        ground.style.opacity = '0';
+        fx.style.opacity = '0';
+        setTimeout(settle, 1500);
+      }
+    };
+    requestAnimationFrame(step);
+  }
+
+  if (!still) {
+    pave();
+    again.addEventListener('click', pave);
+  } else {
+    document.documentElement.classList.remove('pave-pending');
+  }
+</script>
+
+<style>
+  .pave { position: relative; isolation: isolate; overflow: hidden; display: grid; align-items: center; min-height: clamp(540px, calc(100svh - 132px), 860px); padding: clamp(56px, 9vh, 110px) 0; background: #1b2231; color: #fff; }
+  .pave__mat { position: absolute; inset: 0; z-index: -1; background:
+      radial-gradient(120% 90% at 50% 45%, rgba(8, 12, 22, 0) 40%, rgba(8, 12, 22, 0.55) 100%),
+      url('/img/hero/fresh-mat.webp') center / cover no-repeat; }
+
+  .pave__in { position: relative; display: grid; justify-items: center; text-align: center; gap: clamp(28px, 5vh, 52px); }
+  :global(.pave-pending) .pave__in { visibility: hidden; }
+
+  /* The name and motto, set like a pavement marking: traffic white, condensed, a little worn. */
+  .lockup { --paint: #eff1ee; container-type: inline-size; display: grid; justify-items: center; gap: clamp(12px, 2.2vh, 22px); width: 100%; color: var(--paint); font-family: 'Barlow Condensed', 'Arial Narrow', var(--font-display); }
+  .paint { margin: 0; -webkit-mask: url('/img/hero/paint-mask.png') 0 0 / 320px 320px; mask: url('/img/hero/paint-mask.png') 0 0 / 320px 320px; }
+  /* Phones: CGH fills the width with OPERATIONS LLC under it, like a legend painted on a road. */
+  .lockup__name { display: grid; justify-items: center; font-weight: 800; text-transform: uppercase; line-height: 0.84; letter-spacing: 0.005em; white-space: nowrap; }
+  .lockup__cgh { font-size: 44vw; font-size: 56cqw; }
+  .lockup__ops { font-size: 15vw; font-size: 18.6cqw; margin-top: 0.06em; }
+  .lockup__name small { font-size: 0.42em; font-weight: 700; letter-spacing: 0.04em; }
+  .lockup__motto { display: flex; align-items: center; gap: 0.6em; width: 100%; font-weight: 700; line-height: 1; white-space: nowrap; font-size: 8.4vw; font-size: 10.2cqw; -webkit-mask-image: url('/img/hero/paint-mask-light.png'); mask-image: url('/img/hero/paint-mask-light.png'); }
+  .lockup__motto::before, .lockup__motto::after { content: ''; flex: 1; height: 0.13em; background: currentColor; }
+  /* Wider screens: the name on one line, as it is in the logo. */
+  @media (min-width: 700px) {
+    .lockup__name { display: block; line-height: 0.86; font-size: min(12.4vw, 160px); font-size: min(14cqw, 172px); }
+    .lockup__cgh, .lockup__ops { font-size: inherit; margin: 0; }
+    .lockup__name small { font-size: 0.3em; margin-left: -0.4em; }
+    .lockup__motto { width: min(100%, 13.4em); font-size: min(5.6vw, 64px); font-size: min(6cqw, 66px); }
+  }
+
+  .pave__rest { display: grid; justify-items: center; gap: 24px; }
+  .pave h1 { margin: 0; max-width: 26ch; font-size: clamp(1.25rem, 2.4vw, 1.7rem); font-weight: 700; letter-spacing: 0; line-height: 1.3; color: #e4e9f1; }
+  .pave__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .pave__call { border-color: rgba(255, 255, 255, 0.5); color: #fff; background: rgba(8, 12, 22, 0.35); }
+  .pave__call:hover { border-color: #fff; }
+  .pave__again { background: none; border: 0; padding: 6px 10px; color: #c3ccd9; font: 600 0.92rem var(--font-body); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+  .pave__again:hover { color: #fff; }
+  .pave__again[hidden] { display: block; visibility: hidden; }
+
+  .pave__ground, .pave__fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; }
+  .pave__ground { z-index: 2; }
+  .pave__fx { z-index: 3; transition: opacity 0.6s ease; }
+  :global(.pave-pending) .pave__ground { opacity: 1; background: rgb(178, 122, 78); }
+
+  /* While the mat is going down the name is not there yet. Then it is painted on, left to right. */
+  .is-paving .paint { clip-path: inset(-0.2em 100% -0.2em 0); }
+  .is-paving .pave__rest { opacity: 0; }
+  .is-paving.is-painted .paint { clip-path: inset(-0.2em 0 -0.2em 0); transition: clip-path 0.8s cubic-bezier(0.35, 0, 0.2, 1) 0.15s; }
+  .is-paving.is-painted .lockup__motto { transition-delay: 0.7s; }
+  .is-paving.is-painted .pave__rest { opacity: 1; transition: opacity 0.6s ease 1.5s; }
+
+  @media (max-width: 560px) {
+    .pave__actions { width: 100%; }
+    .pave__actions .btn { flex: 1 1 100%; }
+  }
+</style>

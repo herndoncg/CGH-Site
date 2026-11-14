@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import QuoteTool from '../components/QuoteTool.astro';
+import PaveHero from '../components/PaveHero.astro';
 import { site, reviews, workPhotos, beforeAfter } from '../data/site';
 import { services, groups } from '../data/services';
 import { areas } from '../data/areas';
@@ -37,6 +38,8 @@ const steps = [
 ];
 ---
 <Base title="Asphalt Paving & Dirt Work in Longview, TX | CGH Operations" description="CGH Operations paves driveways, parking lots and private roads across East Texas and the Ark-La-Tex, and handles the dirt work under them. Based in Longview and Texarkana. Get a price range online in about a minute." schema={[faqSchema]}>
+  <PaveHero />
+
   <section class="hero band">
     <div class="hero__media">
       <video class="hero__video" autoplay muted loop playsinline preload="metadata" poster="/video/roller-on-new-driveway.webp" aria-hidden="true">
@@ -46,8 +49,7 @@ const steps = [
     </div>
     <div class="wrap hero__in">
       <div class="hero__copy">
-        <p class="hero__tag">From breaking ground to groundbreaking. CGH brings results.</p>
-        <h1>Asphalt paving and dirt work, done by one crew.</h1>
+        <h2>From breaking ground to groundbreaking. CGH brings results.</h2>
         <p class="lede">Driveways, parking lots and private roads across Texas, Louisiana, Arkansas and Oklahoma. We own the paver, the dozer and the dump trucks, so the people who shape your ground are the same people who pave it.</p>
       </div>
       <form class="start" action="/quote" method="get">
@@ -262,7 +264,7 @@ const steps = [
     .hero__in { grid-template-columns: 1.25fr 0.75fr; gap: 64px; padding-top: clamp(64px, 8vw, 110px); padding-bottom: clamp(64px, 8vw, 110px); }
   }
   .hero__tag { font-family: var(--font-display); font-weight: 700; color: #f1f5f9; font-size: clamp(0.98rem, 1.4vw, 1.12rem); line-height: 1.35; margin: 0 0 18px; padding-left: 14px; border-left: 3px solid var(--paver); max-width: 30ch; }
-  .hero h1 { max-width: 15ch; }
+  .hero h2 { max-width: 17ch; font-size: clamp(2.1rem, 4.6vw, 3.6rem); }
   .hero .lede { color: #dbe3ee; }
 
   .start { background: var(--chalk); color: var(--asphalt); border-radius: var(--radius-lg); padding: clamp(22px, 3vw, 32px); --text: var(--asphalt); --surface: #d6d8dc; --border-strong: rgba(11, 18, 32, 0.28); --muted: #323f52; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
