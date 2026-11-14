@@ -2,6 +2,12 @@
 import Base from '../../layouts/Base.astro';
 import CtaBand from '../../components/CtaBand.astro';
 import { services, groups } from '../../data/services';
+// One real job photo for each kind of work.
+const photo: Record<string, { src: string; alt: string }> = {
+  Asphalt: { src: '/img/work/new-asphalt-driveway-to-garage.webp', alt: 'New asphalt driveway running up to a garage' },
+  Upkeep: { src: '/img/work/parking-lot-patch-after.webp', alt: 'Parking lot section patched with new asphalt' },
+  'Dirt work': { src: '/img/work/dump-truck-and-roller.webp', alt: 'CGH dump truck and roller on a job site' },
+};
 ---
 <Base title="Asphalt & Dirt Work Services in East Texas" description="Asphalt driveways, parking lots, private roads, overlays, repairs, sealcoating, crack filling, striping, road base, grading and dirt work from CGH Operations in Longview, TX.">
   <section class="band pagehead" style="--pagehead-photo:url('/img/work/new-asphalt-driveway-to-garage.webp')">
@@ -15,7 +21,10 @@ import { services, groups } from '../../data/services';
     <div class="wrap">
       {groups.map((g) => (
         <div class="grp">
-          <h2>{g}</h2>
+          <div class="grp__head">
+            <h2>{g}</h2>
+            {photo[g] && <img src={photo[g].src} alt={photo[g].alt} loading="lazy" decoding="async" width="800" height="600" />}
+          </div>
           <ul>
             {services.filter((s) => s.group === g).map((s) => (
               <li><a href={`/services/${s.slug}`}><h3>{s.name}</h3><p>{s.line}</p>{s.instantQuote && <span>Instant price online</span>}</a></li>
@@ -30,7 +39,9 @@ import { services, groups } from '../../data/services';
 <style>
   .grp { display: grid; gap: 12px 48px; padding: 34px 0; border-top: 3px solid var(--asphalt); }
   @media (min-width: 900px) { .grp { grid-template-columns: 240px 1fr; } }
-  .grp h2 { font-size: 1.7rem; margin: 0; }
+  .grp h2 { font-size: 1.7rem; margin: 0 0 12px; }
+  .grp__head img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-lg); background: var(--limestone-2); }
+  @media (min-width: 900px) { .grp__head img { aspect-ratio: 4 / 3; } }
   .grp ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0 40px; }
   @media (min-width: 700px) { .grp ul { grid-template-columns: 1fr 1fr; } }
   .grp a { display: block; padding: 18px 0; border-bottom: 1px solid var(--border-strong); text-decoration: none; height: 100%; }

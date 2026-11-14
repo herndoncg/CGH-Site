@@ -15,16 +15,23 @@ const year = new Date().getFullYear();
       <p class="ftr__verse">"{site.verse.text}"<br /><span class="muted">{site.verse.ref}</span></p>
     </div>
     <nav aria-label="Services">
-      <h2>Services</h2>
-      <ul>{services.map((s) => <li><a href={`/services/${s.slug}`}>{s.name}</a></li>)}</ul>
+      <details class="ftr__fold" open>
+        <summary><h2>Services</h2></summary>
+        <ul>{services.map((s) => <li><a href={`/services/${s.slug}`}>{s.name}</a></li>)}</ul>
+      </details>
     </nav>
     <nav aria-label="Service areas">
-      <h2>Service areas</h2>
-      <ul>{areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}, TX</a></li>)}</ul>
+      <details class="ftr__fold" open>
+        <summary><h2>Service areas</h2></summary>
+        <ul>
+          <li><a href="/service-areas">Texas, Arkansas, Oklahoma, Louisiana</a></li>
+          {areas.map((a) => <li><a href={`/service-areas/${a.slug}`}>{a.city}, TX</a></li>)}
+        </ul>
+      </details>
     </nav>
     <nav aria-label="Company">
       <h2>Company</h2>
-      <ul>
+      <ul class="ftr__two">
         <li><a href="/quote">Get a price range</a></li>
         <li><a href="/about">About us</a></li>
         <li><a href="/careers">Careers</a></li>
@@ -40,6 +47,10 @@ const year = new Date().getFullYear();
     <p>© {year} {site.legalName}. {site.motto}</p>
   </div>
 </footer>
+<script is:inline>
+  // Phones: the two long link lists start folded so the bottom of every page is short. Tap to open.
+  if (window.matchMedia('(max-width: 719px)').matches) document.querySelectorAll('.ftr__fold').forEach(function (d) { d.open = false; });
+</script>
 
 <style>
   .ftr { margin-top: 0; }
@@ -56,6 +67,20 @@ const year = new Date().getFullYear();
   .ftr ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
   .ftr li a, .ftr__about a { color: var(--text-2); text-decoration: none; font-size: 0.98rem; }
   .ftr li a:hover, .ftr__about a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+  .ftr__fold summary { list-style: none; cursor: default; }
+  .ftr__fold summary::-webkit-details-marker { display: none; }
+  .ftr__fold summary h2 { display: inline; }
+  @media (max-width: 719px) {
+    .ftr__grid { gap: 0; padding-bottom: 24px; }
+    .ftr__grid > div { margin-bottom: 26px; }
+    .ftr__fold summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 16px 0; border-top: 1px solid var(--border); }
+    .ftr__fold summary h2 { margin: 0; }
+    .ftr__fold summary::after { content: '+'; font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; color: #fff; line-height: 1; }
+    .ftr__fold[open] summary::after { content: '\2212'; }
+    .ftr__fold ul { padding-bottom: 18px; }
+    .ftr__grid > nav:last-child { border-top: 1px solid var(--border); padding-top: 20px; }
+    .ftr__two { grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+  }
   .ftr__base { border-top: 1px solid var(--border); padding-top: 20px; padding-bottom: 28px; font-size: 0.88rem; color: var(--muted); }
   .ftr__base p { margin: 0; }
 </style>
