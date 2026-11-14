@@ -36,7 +36,7 @@ const year = new Date().getFullYear();
         <li><a href="/about">About us</a></li>
         <li><a href="/careers">Careers</a></li>
         <li><a href="/blog">Blog</a></li>
-        <li><a href="/app">Customer and team sign in</a></li>
+        <li><a href="/app">Sign in</a></li>
         <li><a href="/privacy">Privacy</a></li>
       </ul>
       <h2 class="ftr__sister">Oilfield work</h2>
@@ -82,5 +82,7 @@ const year = new Date().getFullYear();
     .ftr__two { grid-template-columns: 1fr 1fr; gap: 12px 20px; }
   }
   .ftr__base { border-top: 1px solid var(--border); padding-top: 20px; padding-bottom: 28px; font-size: 0.88rem; color: var(--muted); }
+  /* room for the fixed bottom bar on phones lives inside the navy footer, so nothing light shows behind the bar */
+  @media (max-width: 860px) { .ftr__base { padding-bottom: calc(28px + 56px + env(safe-area-inset-bottom)); } }
   .ftr__base p { margin: 0; }
 </style>

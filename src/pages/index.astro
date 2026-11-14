@@ -32,7 +32,7 @@ const who = [
   { title: 'Churches and businesses', line: 'Parking lots, patches, striping and upkeep.', photo: '/img/work/shop-driveway-with-roller.webp', alt: 'Roller finishing an asphalt drive at a shop' },
 ];
 const steps = [
-  { name: 'Get your price range', text: 'Enter the size of the job and what shape the ground is in. You see a price range in about a minute.' },
+  { name: 'Get your price range', text: 'Enter the size of the job and what shape the ground is in. You see a price range in about a minute, without giving a name or phone number.' },
   { name: 'We come look at it', text: 'A free site visit confirms the number. We check drainage, soft spots and access, and tell you what the job really needs.' },
   { name: 'We prep and pave', text: 'We fix the base, lay hot mix with our own paver and roll it tight. Most driveways take a day or two.' },
   { name: 'You drive on it', text: 'We clean up and tell you exactly when it is ready for traffic.' },
@@ -55,7 +55,7 @@ const steps = [
       </div>
       <form class="start" action="/quote" method="get">
         <h2>See your price in about a minute</h2>
-        <p>Start with the size of the area you want paved.</p>
+        <p>Start with the size of the area. No name or phone needed to see it.</p>
         <div class="start__row">
           <div class="field"><label for="st-len">Length (ft)</label><input id="st-len" name="length" inputmode="decimal" placeholder="100" /></div>
           <span aria-hidden="true">×</span>
@@ -255,12 +255,15 @@ const steps = [
   .hero__media { position: relative; aspect-ratio: 16 / 11; background: #0b1220 url('/video/roller-on-new-driveway.webp') center / cover no-repeat; }
   .hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .hero__video.is-off { display: none; }
-  .hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 18, 32, 0) 55%, #0b1220 100%); }
-  .hero__in { position: relative; display: grid; gap: 32px; padding-top: 8px; padding-bottom: 48px; align-items: center; }
+  /* The shade runs 2px past the bottom of the video and ends in a solid navy strip. Phones show the site at 90%,
+     so edges land between screen pixels; without the overlap a hairline of video showed under the fade. */
+  .hero__shade { position: absolute; inset: 0 0 -2px 0; background: linear-gradient(180deg, rgba(11, 18, 32, 0) 55%, #0b1220 calc(100% - 4px), #0b1220 100%); }
+  .hero { margin-top: -1px; }
+  .hero__in { position: relative; display: grid; gap: 32px; padding-top: 8px; padding-bottom: 48px; align-items: center; background: #0b1220; margin-top: -1px; }
   @media (min-width: 980px) {
     .hero__media { position: absolute; inset: 0; aspect-ratio: auto; }
-    .hero__shade { background: linear-gradient(90deg, #0b1220 0%, #0b1220 34%, rgba(11, 18, 32, 0.9) 52%, rgba(11, 18, 32, 0.5) 78%, rgba(11, 18, 32, 0.35) 100%); }
-    .hero__in { grid-template-columns: 1.25fr 0.75fr; gap: 64px; padding-top: clamp(64px, 8vw, 110px); padding-bottom: clamp(64px, 8vw, 110px); }
+    .hero__shade { inset: 0; background: linear-gradient(90deg, #0b1220 0%, #0b1220 34%, rgba(11, 18, 32, 0.9) 52%, rgba(11, 18, 32, 0.5) 78%, rgba(11, 18, 32, 0.35) 100%); }
+    .hero__in { background: none; margin-top: 0; grid-template-columns: 1.25fr 0.75fr; gap: 64px; padding-top: clamp(64px, 8vw, 110px); padding-bottom: clamp(64px, 8vw, 110px); }
   }
   .hero__tag { font-family: var(--font-display); font-weight: 700; color: #f1f5f9; font-size: clamp(0.98rem, 1.4vw, 1.12rem); line-height: 1.35; margin: 0 0 18px; padding-left: 14px; border-left: 3px solid var(--paver); max-width: 30ch; }
   .hero h2 { max-width: 17ch; font-size: clamp(2.1rem, 4.6vw, 3.6rem); }
@@ -386,4 +389,29 @@ const steps = [
   .post h3 { margin: 6px 0 8px; font-size: 1.35rem; }
   .post p { color: var(--text-2); margin: 0; }
   .post:hover h3 { text-decoration: underline; text-decoration-color: var(--paver); text-decoration-thickness: 4px; text-underline-offset: 5px; }
+
+  /* ---------- phones: things sit side by side or swipe sideways instead of one long column ---------- */
+  @media (max-width: 759px) {
+    /* service cards: short photo, and the links two across */
+    .scards { gap: 16px; }
+    .scard img { aspect-ratio: 16 / 7; }
+    .scard__body { padding: 16px 16px 14px; }
+    .scard h3 { font-size: 1.3rem; }
+    .scard p { margin-bottom: 10px; font-size: 0.97rem; }
+    .scard ul { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .scard li a { height: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: 0.93rem; line-height: 1.2; gap: 6px; }
+    /* before-and-afters: swipe sideways, with the next one peeking in */
+    .pairs { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; margin-left: calc(var(--gutter) * -1); margin-right: calc(var(--gutter) * -1); padding: 0 var(--gutter) 6px; scroll-padding-left: var(--gutter); }
+    .pairs::-webkit-scrollbar { display: none; }
+    .pairs figure { flex: 0 0 84%; scroll-snap-align: start; }
+    .clients ul { gap: 8px 20px; }
+    /* how a job goes: two by two */
+    .steps { grid-template-columns: 1fr 1fr; gap: 20px 16px; }
+    .steps li { padding-top: 12px; }
+    .steps li::before { width: 32px; height: 32px; margin-bottom: 8px; }
+    .steps h3 { font-size: 1.08rem; } .steps p { font-size: 0.93rem; line-height: 1.45; }
+    .know__photo img { aspect-ratio: 4 / 3; }
+    .know__list { gap: 14px; margin: 20px 0 22px; }
+    .posts { gap: 18px; }
+  }
 </style>

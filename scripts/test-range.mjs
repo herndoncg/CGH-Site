@@ -10,6 +10,11 @@ for (let sqft = 900; sqft <= 60000; sqft += 25) for (const baseWork of ['No', 'Y
     widest = Math.max(widest, hi - lo); if (String(o.high).length > String(Math.round(o.total)).length) crossTen++;
   }
 }
+// the same rule for seal coat prices, from tiny jobs (the $350 minimum) to 60,000 sq ft
+for (let sqft = 100; sqft <= 60000; sqft += 25) for (const o of publicQuote({ service: 'seal', sqft }).options) {
+  checked++; const unit = 10 ** Math.floor(Math.log10(o.total)), lo = Math.floor(o.low / unit), hi = Math.floor(o.high / unit);
+  if (hi - lo > 1 || o.low > o.total || o.high < o.total || o.low < PRICES.sealOnlyMinimum) { broken++; if (examples.length < 5) examples.push(`seal ${sqft} sq ft ${o.name}: real ${o.total}, shown ${o.low} to ${o.high}`); }
+}
 console.log(`${checked.toLocaleString()} prices checked, ${broken} break the rule. Range is ${PRICES.rangeLowPct}% under to ${PRICES.rangeHighPct}% over.`);
 console.log(`Most the low and high ever differ in their leading figure: ${widest}. Prices whose high end rolls over into the next digit count (like 9,6xx showing up to 10,xxx): ${crossTen}.`);
 if (examples.length) console.log(examples.join('\n'));

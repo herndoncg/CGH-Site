@@ -51,6 +51,37 @@ r = await call('POST', 'lead', { name: 'Deep Detail', phone: '9035550188', sqft:
 for (const k of [...mem.keys()]) if (k.startsWith('leads/') && JSON.parse(mem.get(k)).name === 'Deep Detail') { ok('the detailed answers land on the lead as a note', JSON.parse(mem.get(k)).notes[0].text.includes('Narrow gate')); mem.delete(k); }
 r = await call('GET', 'pricing'); ok('website prices are not readable without signing in', r.status === 401);
 
+// ----- the price without a name or phone (Nov 14, 2026) -----
+{ const leadsNow = () => [...mem.keys()].filter((k) => k.startsWith('leads/')).length, alertsNow = pushed.length, leadsBefore = leadsNow();
+  r = await call('POST', 'quote', { job_type: 'Driveway', sqft: '2500', base_work: 'No', fill_pct: '0', est_low: '1' });
+  ok('anyone can see the price with no name or phone', r.status === 200 && r.body.quote.options.map((o) => `${o.name} ${o.low}-${o.high}`).join(', ') === 'Economy 8000-9200, Premium 9000-10200, Elite 10350-11950');
+  ok('looking at a price saves no lead and alerts nobody', leadsNow() === leadsBefore && pushed.length === alertsNow && !r.body.ref);
+  ok('the price answer carries no rates, totals or line prices', !JSON.stringify(r.body).match(/rate|total|3\.35|0\.35|1500|600/));
+  ok('each choice says how long it lasts and how it works', r.body.quote.options.every((o) => o.lasts && o.how));
+  r = await call('POST', 'quote', { sqft: '20' }); ok('a price needs a real size', r.status === 400);
+  r = await call('POST', 'quote', { sqft: '2500', 'bot-field': 'x' }); ok('spam bots get no price', r.status === 200 && !r.body.quote);
+  // seal coat on asphalt that is already there
+  r = await call('POST', 'quote', { service: 'seal', sqft: '2500', condition: 'Some cracks', striping: 'Yes' });
+  ok('a seal coat shows four choices from the sheet at $0.75, $0.90 and $1.10 a square foot', r.body.quote.options.map((o) => `${o.name} ${o.low}-${o.high}`).join(', ') === 'Standard 1800-2050, Standard, rich black 1800-2050, Premium 2150-2500, Heavy duty 2600-3050');
+  ok('cracks and stripes are flagged as priced on the visit', r.body.quote.flags.length === 2 && r.body.quote.options.every((o) => o.lasts && o.how));
+  ok('the seal coat answer carries no per-foot prices', !JSON.stringify(r.body).match(/rate|total|0\.75|0\.9\b|1\.1\b/));
+  r = await call('POST', 'quote', { service: 'seal', sqft: '300' }); ok('a small seal coat job never shows under $350', r.body.quote.options.every((o) => o.low === 350 && o.high === 400));
+  // sending it in: one step, one lead, one alert
+  r = await call('POST', 'lead', { service: 'seal', name: 'Sue Sealer', phone: '903-555-0144', job_type: 'Parking lot', sqft: '2500', condition: 'Some cracks', want: 'call', when: 'Morning', option: 'Premium', note: 'Back lot only' });
+  const sue = [...mem.entries()].filter(([k]) => k.startsWith('leads/')).map(([, v]) => JSON.parse(v)).find((l) => l.name === 'Sue Sealer');
+  ok('sending the quote in makes one lead with the request on it', r.status === 200 && sue && sue.job_type === 'Seal coat · Parking lot' && sue.est_low === 1800 && sue.options.length === 4 && sue.request.want === 'call' && sue.request.option === 'Premium' && sue.notes.some((n) => n.text.includes('Some cracks')));
+  ok('and one alert that says what they want', pushed.length === alertsNow + 1 && pushed.at(-1).title === 'Sue Sealer wants a call' && pushed.at(-1).body.includes('903-555-0144') && pushed.at(-1).body.includes('Leaning Premium'));
+  for (const k of [...mem.keys()]) if (k.startsWith('leads/') && JSON.parse(mem.get(k)).name === 'Sue Sealer') mem.delete(k);
+  // the hourly limit on prices, and that it does not block someone from sending theirs in
+  const ipHdr = { 'x-nf-client-connection-ip': '203.0.113.44' }; let last;
+  for (let i = 0; i < 10; i++) last = await call('POST', 'quote', { sqft: String(1000 + i * 100) }, null, ipHdr); ok('one address can price ten different jobs in an hour', last.status === 200);
+  last = await call('POST', 'quote', { sqft: '1000' }, null, ipHdr); ok('asking again about the same job does not count against the limit', last.status === 200);
+  last = await call('POST', 'quote', { sqft: '5555' }, null, ipHdr); ok('an eleventh different job is told to call', last.status === 429 && !last.body.quote);
+  last = await call('POST', 'lead', { name: 'Late Decider', phone: '9035550155', sqft: '1500' }, null, ipHdr); ok('someone who priced a lot of sizes can still send theirs in', last.status === 200 && !!last.body.ref);
+  for (const k of [...mem.keys()]) if (k.startsWith('leads/') && JSON.parse(mem.get(k)).name === 'Late Decider') mem.delete(k);
+  r = await call('GET', 'home', null, owner); ok('the owner sees how many prices the website showed this week', r.body.stats.priced >= 13);
+}
+
 // ----- team logins with temporary passwords -----
 r = await call('POST', 'users', { name: 'Sam Sales', email: 'sam@example.com', role: 'sales' }, owner); ok('owner adds a sales login and gets a temporary password', r.status === 200 && TEMP.test(r.body.temp) && r.body.user.mustChange === true); const samTemp = r.body.temp;
 r = await call('POST', 'users', { name: 'Cal Crew', email: 'cal@example.com', role: 'crew' }, owner); const calTemp = r.body.temp;
