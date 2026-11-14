@@ -10,6 +10,8 @@
 // Changing or resetting a password signs that person out everywhere else.
 import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { PRICES, EST_DEFAULTS, publicQuote } from './quote.mjs';
+import { cleanMap, describeMap } from './geo.mjs';
+import { geocode } from './geocode.mjs';
 
 // The owner's first temporary password (the setup code). Only its fingerprint lives here, and it stops
 // working the moment the owner account exists.
@@ -24,6 +26,9 @@ const recoveryHash = () => (typeof process !== 'undefined' && process.env && pro
 // The fingerprint can also be supplied as a site setting (CGH_SETUP_HASH) instead of living in this file.
 const setupHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_SETUP_HASH) || SETUP_HASH;
 
+// Steps the website counts so the owner can see where visitors stop. Counts only: no names, no cookies.
+export const EVENTS = ['visit', 'quote_start', 'quote_ground', 'quote_priced', 'quote_request', 'map_open', 'map_used', 'call_tap'];
+const centralDay = (t = Date.now()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date(t)); // 2026-11-14
 export const STAGES = ['New', 'Contacted', 'Site visit set', 'Quote sent', 'Accepted', 'Scheduled', 'Done', 'Lost'];
 // Roles, from most access to least:
 //   owner   - everything, and the only one who can make or change managers
@@ -131,14 +136,16 @@ function leadFor(lead, user) {
   if (user.role === 'sales') return !lead.owner || lead.owner === user.id ? lead : null;
   if (user.role === 'crew') {
     if (!['Scheduled', 'Done'].includes(lead.stage)) return null;
-    const { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created } = lead;
-    return { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created, notes: [], checklist: lead.checklist, joblog: lead.joblog };
+    const { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created, map } = lead;
+    // (the map drawing shows the crew where to pave; it carries no prices)
+    return { id, name, phone, city, job_type, sqft, base_work, fill_pct, loads, stage, job_date, created, map, notes: [], checklist: lead.checklist, joblog: lead.joblog };
   }
   return null;
 }
 const clientView = (l) => ({ job_type: l.job_type, sqft: l.sqft, city: l.city, est_low: l.est_low, est_high: l.est_high, firm_price: l.firm_price, stage: l.stage, visit_date: l.visit_date, job_date: l.job_date, status_note: l.status_note, accepted_at: l.accepted_at });
 
-export async function handle(req, store, push) {
+// `net` is how the server reaches other websites (only used for the map's address search). Tests pass a stand-in.
+export async function handle(req, store, push, net = globalThis.fetch) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/?/, '').replace(/\/$/, '');
   const [a, b, c] = path.split('/');
@@ -149,6 +156,19 @@ export async function handle(req, store, push) {
   const data = m === 'GET' ? {} : await readBody(req);
 
   // ---------- open to the public website ----------
+  // The website's step counter: "someone opened the quote", "someone saw a price". One number per step per day.
+  if (path === 'track' && m === 'POST') {
+    const e = clean(data.e, 20);
+    if (EVENTS.includes(e) && !(await tooMany(store, req, 'trk', 150))) { const k = 'stats/' + centralDay(); const d = (await store.get(k, { type: 'json' })) || {}; d[e] = (d[e] || 0) + 1; await store.setJSON(k, d); }
+    return json({ ok: true });
+  }
+  // The map's address search. Anyone using the quote map can call it; one address gets 40 searches an hour.
+  if (path === 'geocode' && m === 'GET') {
+    const q = clean(url.searchParams.get('q'), 160);
+    if (q.length < 3) return json({ results: [] });
+    if (await tooMany(store, req, 'georate', 40)) return bad('That is a lot of searches. Slide the map to your place instead, or try again later.', 429);
+    return json({ results: await geocode(q, net) });
+  }
   // The price, with no name or phone asked for. Colton (Nov 14, 2026): asking for contact details before
   // showing a price turns people away, so anyone can see the range and decide for themselves whether to send it in.
   // The price is worked out here, on the server, from the job details. Numbers sent by the browser are ignored.
@@ -177,7 +197,10 @@ export async function handle(req, store, push) {
     const more = (seal ? [['Asphalt condition', input.condition], ['Striping', data.striping === 'Yes' ? 'wants re-striping' : ''], ['When', data.timeline]]
       : advanced ? [['Existing surface', data.existing], ['Rock', data.rock_depth ? data.rock_depth + ' in' : ''], ['Areas', data.areas], ['Access', data.access], ['When', data.timeline], ['Striping', data.striping === 'Yes' ? 'wants striping' : '']] : [])
       .filter(([, v]) => clean(v, 300)).map(([k, v]) => `${k}: ${clean(v, 300)}`);
-    if (more.length) lead.notes.push({ at: Date.now(), by: seal ? 'Customer (seal coat quote)' : 'Customer (detailed quote)', text: more.join('. ') });
+    // What the customer drew on the satellite map, if they used it. Checked and measured again here before it is kept.
+    const map = cleanMap(data.map);
+    if (map) { lead.map = map; const words = describeMap(map); more.push(words[0].toUpperCase() + words.slice(1)); }
+    if (more.length) lead.notes.push({ at: Date.now(), by: seal ? 'Customer (seal coat quote)' : advanced ? 'Customer (detailed quote)' : 'Customer (website)', text: more.join('. ') });
     // They can say what they want next in the same step: a free site visit or a phone call.
     const asked = data.want === 'call' || data.want === 'visit';
     const want = data.want === 'call' ? 'call' : 'visit', when = clean(data.when, 40), note = clean(data.note, 500);
@@ -193,8 +216,8 @@ export async function handle(req, store, push) {
     await store.setJSON('refs/' + sha(ref), { id: lead.id });
     const job = [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : ''];
     await alertTeam(store, push, ['owner', 'manager', 'sales'], asked
-      ? { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, ...job, option ? 'Leaning ' + option : '', when ? 'Best time: ' + when : '', lead.city, note].filter(Boolean).join(' · '), url: '/app/' }
-      : { title: 'New quote: ' + lead.name, body: [...job, lead.city].filter(Boolean).join(' · '), url: '/app/' });
+      ? { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, ...job, option ? 'Leaning ' + option : '', when ? 'Best time: ' + when : '', lead.city, map ? 'drew it on the map' : '', note].filter(Boolean).join(' · '), url: '/app/' }
+      : { title: 'New quote: ' + lead.name, body: [...job, lead.city, map ? 'drew it on the map' : ''].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true, ref, quote: publicView(qt) });
   }
   // the customer taps "book my site visit" or "call me" right after seeing their price
@@ -406,6 +429,14 @@ export async function handle(req, store, push) {
   // The website's prices, for the app's Quick quote. Signed-in owner, managers and sales only.
   if (a === 'pricing' && m === 'GET') return me.role === 'crew' ? bad('Not found.', 404) : json({ prices: PRICES });
 
+  // Website numbers for the owner and managers: how many visitors reached each step, over 7 and 30 days.
+  if (a === 'stats' && m === 'GET') {
+    if (!owner) return bad('Not found.', 404);
+    const { blobs } = await store.list({ prefix: 'stats/' }); const keys = blobs.map((x) => x.key).sort();
+    const sum = async (days) => { const from = 'stats/' + centralDay(Date.now() - (days - 1) * 864e5), t = {}; for (const k of keys.filter((x) => x >= from)) { const d = (await store.get(k, { type: 'json' })) || {}; for (const e of EVENTS) t[e] = (t[e] || 0) + (d[e] || 0); } return t; };
+    return json({ since: keys[0] ? keys[0].slice(6) : null, d7: await sum(7), d30: await sum(30) });
+  }
+
   // Numbers for the estimate tools. Customer prices: owner and sales. What CGH pays its contractor and
   // suppliers: the owner only. These live in private storage, never in the code.
   if (a === 'estimate-settings') {
@@ -435,6 +466,7 @@ export async function handle(req, store, push) {
       const name = clean(data.name, 120); if (!name) return bad('A name is required.');
       const lead = { id: newId(), created: Date.now(), source: clean(data.source, 60) || 'manual', stage: 'New', owner: me.id, name, phone: clean(data.phone, 40), email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: num(data.sqft), base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: num(data.loads), est_low: num(data.est_low), est_high: num(data.est_high), est_total: num(data.est_total), notes: [] };
       if (num(data.firm_price)) lead.firm_price = num(data.firm_price);
+      const drawn = cleanMap(data.map); if (drawn) lead.map = { ...drawn, by: me.name };
       if (clean(data.note, 1000)) lead.notes.push({ at: Date.now(), by: me.name, text: clean(data.note, 1000) });
       await store.setJSON('leads/' + lead.id, lead);
       return json({ lead });
@@ -472,6 +504,17 @@ export async function handle(req, store, push) {
       if (data.status_note !== undefined) lead.status_note = clean(data.status_note, 1000);
       if (data.firm_price !== undefined) lead.firm_price = num(data.firm_price);
       if (data.owner !== undefined && owner) lead.owner = clean(data.owner, 40) || undefined;
+      // Saving, changing or clearing the map drawing on a lead.
+      if (data.map !== undefined) {
+        const drawn = cleanMap(data.map);
+        if (drawn) { lead.map = { ...drawn, by: me.name }; lead.notes.push({ at: Date.now(), by: me.name, text: `Saved a map drawing: ${describeMap(drawn)}.` }); }
+        else if (lead.map) { delete lead.map; lead.notes.push({ at: Date.now(), by: me.name, text: 'Cleared the map drawing.' }); }
+      }
+      // "Use the drawing's size": the job's square feet become what the map measured. The price range is left alone.
+      if (data.use_map_size && lead.map?.sqft >= 1 && lead.sqft !== lead.map.sqft) {
+        lead.notes.push({ at: Date.now(), by: me.name, text: `Job size changed from ${Number(lead.sqft || 0).toLocaleString('en-US')} to ${lead.map.sqft.toLocaleString('en-US')} sq ft, from the map drawing. The price range was not changed.` });
+        lead.sqft = lead.map.sqft;
+      }
       if (clean(data.note, 2000)) lead.notes.push({ at: Date.now(), by: me.name, text: clean(data.note, 2000) });
       await store.setJSON('leads/' + lead.id, lead);
       return json({ lead });

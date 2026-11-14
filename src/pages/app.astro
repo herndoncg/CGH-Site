@@ -49,6 +49,7 @@ import { site } from '../data/site';
     pipeline: 'M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z', customers: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-4 4-6 8-6s8 2 8 6', quote: 'M12 3v18M16 7c0-2-2-3-4-3s-4 1-4 3 2 3 4 3 4 1 4 3-2 3-4 3-4-1-4-3', estimate: 'M4 6h16M4 12h16M4 18h16M8 4v4M14 10v4M10 16v4', guide: 'M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4', matcost: 'M4 20V10l8-6 8 6v10zM9 20v-6h6v6',
     announcements: 'M4 10v4h3l6 4V6L7 10zM16 9a4 4 0 0 1 0 6', training: 'M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-7v14h7z', team: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', hiring: 'M5 12l4 4L19 7',
     equipment: 'M2 7h11v9H2zM13 10h5l3 3v3h-8zM6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', calc: 'M5 3h14v18H5zM8 7h8M8 12h2M12 12h2M8 16h2M12 16h2', account: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3',
+    measure: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
     bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4', phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
   };
   const icon = (k: string) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`;
@@ -59,11 +60,11 @@ import { site } from '../data/site';
     ['Today', [['home', 'Home', ALL], ['schedule', 'Schedule', ALL], ['jobs', 'Jobs', ALL]]],
     ['Sales', [['pipeline', 'Pipeline', SELL], ['customers', 'Customers', SELL], ['quote', 'Quick quote', SELL], ['estimate', 'Three-option estimate', SELL]]],
     ['Team', [['announcements', 'Announcements', ALL], ['training', 'Training', ALL], ['guide', 'Field guide', ALL], ['team', 'Team', BOSS], ['hiring', 'Hiring', BOSS]]],
-    ['Shop', [['equipment', 'Equipment', ALL], ['calc', 'Yardage and loads', ALL], ['matcost', 'Materials cost', BOSS]]],
+    ['Shop', [['equipment', 'Equipment', ALL], ['measure', 'Measure on a map', ALL], ['calc', 'Yardage and loads', ALL], ['matcost', 'Materials cost', BOSS]]],
     ['You', [['account', 'My account', ALL]]],
   ];
   const PHOTO: Record<string, string> = {
-    home: 'paving-crew-with-leeboy-paver', schedule: 'roller-compacting-new-driveway', jobs: 'leeboy-paver-laying-hot-mix', pipeline: 'new-asphalt-driveway-to-garage', customers: 'lake-house-asphalt-driveway', quote: 'curved-asphalt-driveway-east-texas',
+    measure: 'ranch-entrance-asphalt-drive', home: 'paving-crew-with-leeboy-paver', schedule: 'roller-compacting-new-driveway', jobs: 'leeboy-paver-laying-hot-mix', pipeline: 'new-asphalt-driveway-to-garage', customers: 'lake-house-asphalt-driveway', quote: 'curved-asphalt-driveway-east-texas',
     announcements: 'crew-raking-asphalt', training: 'compacting-asphalt-patch', team: 'paving-crew-with-leeboy-paver', hiring: 'crew-raking-asphalt', equipment: 'dump-truck-and-roller', calc: 'base-repair-cut-out', estimate: 'asphalt-garage-pad', guide: 'asphalt-drive-through-pines', matcost: 'leeboy-paver-laying-hot-mix', account: 'circle-drive-at-sunset', auth: 'circle-drive-at-sunset', client: 'long-curved-asphalt-drive',
   };
   // King James Version (public domain).
@@ -80,6 +81,7 @@ import { site } from '../data/site';
     hiring: ['Two are better than one; because they have a good reward for their labour.', 'Ecclesiastes 4:9'],
     equipment: ['Except the LORD build the house, they labour in vain that build it.', 'Psalm 127:1'],
     calc: ['Every valley shall be exalted, and every mountain and hill shall be made low: and the crooked shall be made straight, and the rough places plain.', 'Isaiah 40:4'],
+    measure: ['Thou shalt have a perfect and just weight, a perfect and just measure shalt thou have.', 'Deuteronomy 25:15'],
     estimate: ['A false balance is abomination to the LORD: but a just weight is his delight.', 'Proverbs 11:1'],
     matcost: ['For which of you, intending to build a tower, sitteth not down first, and counteth the cost, whether he have sufficient to finish it?', 'Luke 14:28'],
     guide: ['Wisdom is the principal thing; therefore get wisdom: and with all thy getting get understanding.', 'Proverbs 4:7'],
@@ -164,6 +166,23 @@ import { site } from '../data/site';
     root.innerHTML = `<div class="solo">${top}<main class="page"><div class="stack">${head}${notes()}${body}<details class="card fold" ${S.acct ? 'open' : ''}><summary>Change my password</summary>${passwordForm()}</details>${verseFoot('client')}</div></main></div>`;
   }
 
+  // ---------- map drawings ----------
+  // "2 areas and 1 traced drive, 1,850 sq ft"
+  const mapWords = (m: any) => { if (!m?.shapes?.length) return ''; const a = m.shapes.filter((x: any) => x.kind !== 'line').length, d = m.shapes.length - a; return `${[a ? plural(a, 'area', 'areas') : '', d ? plural(d, 'traced drive', 'traced drives') : ''].filter(Boolean).join(' and ')}, ${Number(m.sqft || 0).toLocaleString('en-US')} sq ft`; };
+  // The satellite map is only downloaded the first time someone opens it.
+  const openMap = async (o: any) => (await import('../lib/mapdraw')).openMapDraw({ staff: true, ...o });
+  // On a lead or job: what was drawn, a button to open it, and (when the drawing and the job size disagree) a button to take the drawing's size.
+  const mapRow = (l: any) => {
+    const crew = S.me.role === 'crew', m = l.map;
+    if (!m && crew) return '';
+    const differs = m && !crew && m.sqft >= 1 && Math.abs(m.sqft - (l.sqft || 0)) > 2;
+    return `<div class="maprow">${m ? `<p class="small"><b>On the map:</b> ${esc(mapWords(m))}${m.address ? ` · ${esc(m.address)}` : ''}${m.by ? ` · measured by ${esc(m.by)}` : ' · drawn by the customer'}</p>` : ''}
+      <div class="row"><button type="button" class="btn btn--line sm" data-act="map" data-id="${l.id}">${icon('measure')} ${m ? (crew ? 'See it on the map' : 'Open the job map') : 'Draw this job on the map'}</button>
+      ${differs ? `<button type="button" class="btn btn--line sm" data-act="mapsize" data-id="${l.id}">Use ${Number(m.sqft).toLocaleString('en-US')} sq ft as the job size</button>` : ''}
+      ${m && m.shapes?.[0]?.pts?.[0] ? `<a class="btn btn--line sm" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${Number(m.shapes[0].pts[0][0])},${Number(m.shapes[0].pts[0][1])}">Directions</a>` : ''}</div>
+      ${differs ? `<p class="muted small">The drawing is ${Number(m.sqft).toLocaleString('en-US')} sq ft. The job is on file at ${Number(l.sqft || 0).toLocaleString('en-US')} sq ft.</p>` : ''}</div>`;
+  };
+
   // ---------- leads (used by Pipeline and Jobs) ----------
   const hit = (l: any) => !S.q || [l.name, l.city, l.phone, l.email, l.job_type].join(' ').toLowerCase().includes(S.q.toLowerCase());
   const stagePill = (s: string) => `<span class="stage s-${s.replace(/\W/g, '')}">${esc(s)}</span>`;
@@ -177,6 +196,7 @@ import { site } from '../data/site';
         <p class="contact">${l.phone ? `<a class="btn btn--paver" href="tel:${esc(l.phone)}">Call ${esc(l.phone)}</a><a class="btn btn--line" href="sms:${esc(l.phone)}">Text</a>` : ''}${l.email ? `<a class="btn btn--line" href="mailto:${esc(l.email)}">Email</a>` : ''}</p>
         <p class="muted small">${l.base_work ? `Needs grading: ${esc(l.base_work)}. ` : ''}${l.fill_pct ? `Rock on about ${l.fill_pct}% (${l.loads} load${l.loads === 1 ? '' : 's'}). ` : ''}${l.job_date ? `Paving day: ${esc(longDay(l.job_date))}. ` : ''}${l.source ? `Source: ${esc(l.source)}.` : ''}</p>
         ${l.options ? `<p class="small">${l.options.map((o: any) => `<b>${esc(o.name)}</b> ${money(o.low)} to ${money(o.high)}`).join(' · ')}${l.request?.option ? ` · <strong class="want">Leaning ${esc(l.request.option)}</strong>` : ''}</p>` : ''}
+        ${mapRow(l)}
         ${l.sqft ? `<p class="muted small">Materials at 2 inches thick: about ${tons(l.sqft)} tons of hot mix${l.loads ? `, plus ${plural(l.loads, 'load', 'loads')} of rock` : ''}.</p>` : ''}
         ${['Accepted', 'Scheduled', 'Done'].includes(l.stage) && d.checks ? `<div><p class="eyebrow">Job-day checklist</p><div class="checks">${d.checks.map((c: string) => `<button type="button" class="chk ${l.checklist?.[c] ? 'on' : ''}" data-act="check" data-id="${l.id}" data-item="${esc(c)}" data-done="${l.checklist?.[c] ? '' : '1'}" ${l.checklist?.[c] ? `title="${esc(l.checklist[c].by)}, ${day(l.checklist[c].at)}"` : ''}>${l.checklist?.[c] ? '✓ ' : ''}${esc(c)}</button>`).join('')}</div></div>
         <form data-form="joblog" data-id="${l.id}" class="joblog"><input name="text" placeholder="Add a job note: what was done, what came up" required aria-label="Job note" /><button class="btn btn--line sm">Add note</button></form>
@@ -216,6 +236,14 @@ import { site } from '../data/site';
       if (w.lessons) rows.push(['calm', `${plural(w.lessons, 'training lesson', 'training lessons')} left for you`, 'training']);
       const total = rows.length;
       const coming = d.dated.filter((x: any) => x.date >= today()).slice(0, 6);
+      // Owner and managers: how far website visitors get through the quote, so it is plain where they stop.
+      const web = BOSS.includes(role) ? await api('stats').catch(() => null) : null;
+      const funnel = () => {
+        const steps: [string, string][] = [['visit', 'Visited the website'], ['quote_start', 'Started a quote'], ['quote_ground', 'Got to the second step'], ['quote_priced', 'Saw a price'], ['quote_request', 'Sent it in (a lead)']];
+        const pct = (n: number, of: number) => (of ? ` <span class="muted small">${Math.round((n / of) * 100)}%</span>` : '');
+        const row = (label: string, a: number, a0: number, b: number, b0: number) => `<tr><th scope="row">${label}</th><td>${a.toLocaleString('en-US')}${pct(a, a0)}</td><td>${b.toLocaleString('en-US')}${pct(b, b0)}</td></tr>`;
+        return `<table class="lines web"><thead><tr><th></th><th>7 days</th><th>30 days</th></tr></thead><tbody>${steps.map(([k, label], i) => row(label, web.d7[k] || 0, i ? web.d7.visit || 0 : 0, web.d30[k] || 0, i ? web.d30.visit || 0 : 0)).join('')}${row('Opened the map', web.d7.map_open || 0, 0, web.d30.map_open || 0, 0)}${row('Used the map for their size', web.d7.map_used || 0, 0, web.d30.map_used || 0, 0)}${row('Tapped the phone number', web.d7.call_tap || 0, 0, web.d30.call_tap || 0, 0)}</tbody></table><p class="muted small">${web.since ? `Counting since ${esc(shortDay(web.since))}.` : 'Counting starts with the next visitor.'} Each person is counted once per step per visit. Percentages are out of everyone who visited. No names are attached.</p>`;
+      };
       const next = role === 'crew' ? coming[0] : null;
       return {
         eyebrow: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
@@ -227,6 +255,7 @@ import { site } from '../data/site';
           ${next ? card('Your next job', `<div class="nextjob"><p class="eyebrow">${esc(longDay(next.date))}</p><p class="big">${esc(next.name)}</p><p class="muted">${esc([next.job_type, next.sqft ? Number(next.sqft).toLocaleString('en-US') + ' sq ft' : '', next.city].filter(Boolean).join(' · '))}</p>${next.phone ? `<a class="btn btn--paver" href="tel:${esc(next.phone)}">${icon('phone')} Call the customer</a>` : ''}</div>`, '<button class="link" data-go="jobs">All jobs →</button>') : ''}
           ${card(`Waiting on you ${total ? `<span class="pill">${total}</span>` : ''}`, total ? `<ul class="rows">${rows.map(([tone, text, go]) => `<li><button class="rowbtn t-${tone}" data-go="${go}"><span>${esc(text)}</span><i>›</i></button></li>`).join('')}</ul>` : '<p class="empty">Nothing is waiting on you right now.</p>')}
           ${card(`${icon('announcements')} Announcements`, d.announcements.length ? `<ul class="rows">${d.announcements.map((a: any) => `<li><details class="ann"><summary><b>${esc(a.title)}</b><span class="muted small">${day(a.at)} · ${esc(a.by)}</span></summary><p>${esc(a.body)}</p></details></li>`).join('')}</ul>` : `<p class="empty">No announcements yet.${role === 'owner' ? ' Post one from Announcements and the whole team sees it here.' : ''}</p>`, '<button class="link" data-go="announcements">All →</button>')}
+          ${web ? card('Where website visitors stop', funnel()) : ''}
           ${card('Coming up', coming.length ? `<ul class="rows">${coming.map((x: any) => `<li class="when"><span class="when__d">${esc(longDay(x.date))}</span><span class="tag ${x.kind === 'Paving day' ? 'tag--pave' : ''}">${x.kind}</span><b>${esc(x.name)}</b><span class="muted">${esc(x.city || '')}</span></li>`).join('')}</ul>` : '<p class="empty">Nothing on the calendar yet. Site visits and paving days show here once a lead has a date.</p>', '<button class="link" data-go="schedule">Schedule →</button>')}`,
       };
     },
@@ -334,6 +363,17 @@ import { site } from '../data/site';
           ${sec('Road base and rock', B.length, B.map((x: any) => `<details class="lead"><summary><span class="stage">Base</span><b>${esc(x.name)}</b><span class="muted">Compacts ${esc(x.compaction)} · cars ${esc(x.cars)} in</span><span class="amt"></span><span></span></summary><div class="lead__body"><table class="lines guide"><tbody>${row('Compaction', x.compaction)}${row('Cars and light trucks, inches', x.cars)}${row('Light commercial and vans, inches', x.light)}${row('Heavy trucks and RVs, inches', x.heavy)}${row('Semis and industrial, inches', x.semi)}${row('As the driving surface (no asphalt on top)', x.direct)}${row('Good', x.pros)}${row('Watch for', x.cons)}${row('When to use it', x.when)}${row('How long it lasts in East Texas', x.life)}${row('In the field', x.field)}</tbody></table></div></details>`).join(''))}
           ${sec('Primers, tack coats and seal coats', L.length, L.map((x: any) => `<details class="lead"><summary><span class="stage ${x.applied === 'Hot' ? 's-warn' : 's-Accepted'}">${esc(x.applied)}</span><b>${esc(x.product)}</b><span class="muted">${esc(x.kind)} · ${esc(x.rate)} gal per sq yd · sets in ${esc(x.set)}</span><span class="amt"></span><span></span></summary><div class="lead__body"><table class="lines guide"><tbody>${row('Full name', x.full)}${row('What it is', x.kind)}${row('Gallons per square yard', x.rate)}${row('Typical cost per gallon', x.cost)}${row('Typical wastage', x.waste)}${row('Product temperature', x.productTemp)}${row('Outside temperature', x.outside)}${row('How it goes down', x.method)}${row('Set time', x.set)}${row('Reapply', x.reapply)}${row('Coverage', x.coverage)}${row('Cure', x.cure)}${row('Used for', x.use)}${row('Warnings', x.warn)}${row('Ease / effectiveness / crew-friendly (out of 5)', `${x.ease} / ${x.effect} / ${x.friendly}`)}</tbody></table></div></details>`).join(''))}
           ${A.length + B.length + L.length ? '' : '<p class="empty">Nothing in the guide matches that. Try a shorter word.</p>'}` };
+    },
+    async measure() {
+      const m = S.measure, sell = SELL.includes(S.me.role);
+      const depth = S.measureDepth || 4, sq = m?.sqft || 0;
+      const rock = sq ? yardage({ sqft: sq, depth, compactionPct: 0, yardsPerLoad: 10 }) : null;
+      const rows = (m?.shapes || []).map((x: any, i: number) => `<tr><th scope="row">${x.kind === 'line' ? 'Drive' : 'Area'} ${i + 1}</th><td>${x.kind === 'line' ? `${Number(x.ft).toLocaleString('en-US')} ft long${x.width_ft ? ` × ${Number(x.width_ft)} ft` : ''}` : `${Number(x.ft).toLocaleString('en-US')} ft around`}</td><td>${x.sqft ? `${Number(x.sqft).toLocaleString('en-US')} sq ft` : ''}</td></tr>`).join('');
+      return { eyebrow: 'Shop', title: 'Measure on a map', sub: 'Find the place on the satellite map, tap the corners, and get square feet, tons and loads.',
+        body: `${card('The map', `<p class="muted">Type the address, then tap a dot on each corner of the area. For a long drive, tap along the middle and pick the width. Drag any dot to fix it.</p><div class="row"><button class="btn btn--paver" data-act="measure">${icon('measure')} ${m ? 'Change the drawing' : 'Open the map'}</button>${m ? '<button class="btn btn--line" data-act="measureclear">Clear it</button>' : ''}</div>`)}
+          ${m ? `<div class="cols">${card('What you drew', `<p class="price">${sq.toLocaleString('en-US')} sq ft</p><p class="muted">${dec(sq / 9, 1)} square yards${m.address ? ` · ${esc(m.address)}` : ''}</p><table class="lines"><tbody>${rows}</tbody></table>`)}
+            ${card('Materials for that', sq ? `<table class="lines"><tbody><tr><th scope="row">Hot mix at 2 inches</th><td>${tons(sq, 2)} tons</td></tr><tr><th scope="row">Hot mix at 3 inches</th><td>${tons(sq, 3)} tons</td></tr><tr><th scope="row">Rock at ${depth} inches</th><td>${dec(rock!.yards, 1)} cubic yards, ${plural(rock!.loads, 'load', 'loads')}</td></tr></tbody></table><div class="chips">${[2, 4, 6, 8].map((d) => `<button data-act="measuredepth" data-id="${d}" class="${d === depth ? 'on' : ''}">Rock ${d} in</button>`).join('')}</div><p class="muted small">Loads figured at 10 yards a truck, before compaction. Yardage and loads has the full calculator.</p>` : '<p class="muted">A distance only. Give the drive a width to get square feet.</p>')}</div>
+            ${sell && sq ? `<details class="card fold" ${S.adding ? 'open' : ''}><summary>Save this as a new lead</summary><form data-form="measurelead" class="grid2">${field('Customer name', 'name', 'text', 'required')}${field('Phone', 'phone', 'tel')}${field('Town or address', 'city', 'text', `value="${esc(m.address || '')}"`)}${field('Job (driveway, lot, road…)', 'job_type')}<div class="full"><button class="btn btn--paver">Save lead with this drawing</button></div></form></details>` : ''}` : ''}` };
     },
     async calc() {
       const n = (label: string, name: string, val: unknown = '') => field(label, name, 'text', `inputmode="decimal" value="${val}"`);
@@ -473,6 +513,7 @@ import { site } from '../data/site';
       else if (kind === 'hire') { S.open = id; const r = await api('users', 'POST', { name: f.dataset.name, email: data.email, role: data.role, phone: f.dataset.phone }); S.welcome = { for: 'hire-' + id, name: r.user.name, email: r.user.email, phone: f.dataset.phone, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; await api('applicants/' + id, 'PATCH', { status: 'Hired' }).catch(() => {}); }
       else if (kind === 'newuser') { const r = await api('users', 'POST', data); S.welcome = { for: 'team', name: r.user.name, email: r.user.email, phone: r.user.phone, text: welcomeText('team', r.user.name, r.user.email, r.temp) }; }
       else if (kind === 'announce') { await api('announcements', 'POST', data); S.ok = 'Posted to the team.'; }
+      else if (kind === 'measurelead') { const m = S.measure; if (!m) throw new Error('Draw the job on the map first.'); const r = await api('leads', 'POST', { ...data, sqft: m.sqft, map: m, source: 'measured on map', note: `Measured on the map: ${mapWords(m)}.` }); S.measure = null; go('pipeline:open:' + r.lead.id); S.ok = `Saved ${data.name} as a lead.`; }
       else if (kind === 'joblog') { S.open = id; await api(`leads/${id}/log`, 'POST', data); }
       else if (kind === 'equip') { S.open = id; await api('equipment/' + id, 'PATCH', data); S.ok = 'Saved.'; }
       else if (kind === 'newequip') await api('equipment', 'POST', data);
@@ -491,6 +532,17 @@ import { site } from '../data/site';
       else if (act === 'accept') await api('my-job/accept', 'POST', {});
       else if (act === 'client') { S.open = id; const r = await api(`leads/${id}/invite`, 'POST', {}); const l = (S.data?.leads || []).find((x: any) => x.id === id); S.welcome = { for: id, name: r.name, email: r.email, phone: l?.phone, text: welcomeText('client', r.name, r.email, r.temp) }; }
       else if (act === 'lesson') await api('training', 'POST', { lesson: id });
+      else if (act === 'measure') { const r = await openMap({ title: 'Measure a job', doneLabel: 'Done measuring', map: S.measure }); if (r) S.measure = r.shapes.length ? r : null; }
+      else if (act === 'measureclear') S.measure = null;
+      else if (act === 'measuredepth') S.measureDepth = Number(id);
+      else if (act === 'map') {
+        // Open a lead's drawing. Sales and managers can change and save it; crew can only look.
+        S.open = id; const l = (S.data?.leads || []).find((x: any) => x.id === id); if (!l) return;
+        const crew = S.me.role === 'crew';
+        const r = await openMap({ title: l.name, doneLabel: crew ? 'Close' : 'Save drawing', allowEmpty: true, map: l.map, address: l.map?.address || l.city });
+        if (r && !crew) { await api('leads/' + id, 'PATCH', { map: r }); S.ok = r.shapes.length ? 'Drawing saved on this job.' : 'Drawing cleared.'; }
+      }
+      else if (act === 'mapsize') { S.open = id; await api('leads/' + id, 'PATCH', { use_map_size: true }); S.ok = 'Job size updated from the drawing.'; }
       else if (act === 'estsave') { const e = estMath() || { p: null as any, c: null as any }; const f = new FormData(root.querySelector<HTMLFormElement>('form[data-form="estimate"]')!); const g = (k: string) => String(f.get(k) ?? ''); await api('estimate-settings', 'POST', { prices: { hotmix_sqyd: g('hotmix_sqyd'), seal_sqft: g('seal_sqft'), hotoil_sqft: g('hotoil_sqft'), tax_pct: g('tax_pct'), deposit_pct: g('deposit_pct') }, contractor: { hotmix_sqyd: g('c_hotmix_sqyd'), seal_sqft: g('c_seal_sqft'), hotoil_sqft: g('c_hotoil_sqft') } }); S.ok = 'Saved. These are your defaults now.'; S.keep = true; }
       else if (act === 'matsave') { await api('estimate-settings', 'POST', { materials: matMath() }); S.ok = 'Saved your prices.'; S.keep = true; }
       else if (act === 'check') { S.open = id; await api(`leads/${id}/check`, 'POST', { item: t.dataset.item, done: !!t.dataset.done }); }
@@ -629,6 +681,8 @@ import { site } from '../data/site';
   .cols { display: grid; gap: 14px; align-items: start; } @media (min-width: 860px) { .cols { grid-template-columns: 1.15fr 1fr; } }
   .grid2 { display: grid; gap: 12px; } @media (min-width: 640px) { .grid2 { grid-template-columns: 1fr 1fr; } .grid2 .full { grid-column: 1 / -1; } }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .maprow { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--a-line); border-radius: 8px; } .maprow p { margin: 0; } .maprow .btn svg, .card .btn svg { vertical-align: -3px; margin-right: 4px; }
+  .lines.web thead th { text-align: right; font-size: 0.8rem; color: #9aa6b6; } .lines.web td { white-space: nowrap; }
   .chips button { border: 1px solid var(--a-line); background: var(--a-card); color: #c3cedb; border-radius: 999px; padding: 7px 14px; font: 600 0.9rem var(--font-body); cursor: pointer; }
   .chips button.on { background: var(--paver); border-color: var(--paver); color: #06222a; } .chips span { opacity: 0.7; margin-left: 4px; }
 

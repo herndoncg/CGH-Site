@@ -8,7 +8,9 @@ import { site } from '../data/site';
 ---
 <form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-phone={site.phone} data-endpoint={site.formEndpoint} novalidate>
   <input type="hidden" name="form-name" value="quote" />
-  {['option', 'loads', 'est_low', 'est_high', 'all_ranges', 'details', 'areas', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  {['option', 'loads', 'est_low', 'est_high', 'all_ranges', 'details', 'areas', 'drawn', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  {/* The customer's map drawing (dots and size). It goes to the app with the lead, never to Netlify Forms. */}
+  <input type="hidden" name="map" data-map-field />
   <div class="hp" aria-hidden="true"><label>Leave blank<input type="text" name="bot-field" tabindex="-1" autocomplete="off" /></label></div>
   <ol class="qt__steps" aria-hidden="true">
     <li class="is-on">The job</li><li data-step-label="2">The ground</li><li>Your price</li>
@@ -35,12 +37,18 @@ import { site } from '../data/site';
       <span class="qt__or">or</span>
       <div class="field"><label for="qt-sqft">Total square feet</label><input id="qt-sqft" name="sqft" inputmode="numeric" placeholder="1,200" /></div>
     </div>
-    <p class="qt__hint">No tape measure? Pace it off. One long step is about 3 feet. A close guess is fine.</p>
+    <p class="qt__hint">No tape measure? Pace it off. One long step is about 3 feet. A close guess is fine. <button type="button" class="qt__link" data-map>Or draw it on a satellite map.</button></p>
+    <p class="qt__drawn" data-map-out aria-live="polite" hidden></p>
     <div class="qt__detail" data-pave>
       <label class="qt__check"><input type="checkbox" name="mode" value="advanced" /><span>Add more detail: extra areas, rock depth, access, timing</span></label>
     </div>
     <div data-adv hidden>
-      <p class="qt__q">More than one area? Add them here and we total it.</p>
+      <div class="qt__map">
+        <p class="qt__q">Odd shape, or several areas? Draw it on a satellite map.</p>
+        <p class="qt__hint">Find your place, tap the corners, and it measures the area for you.</p>
+        <button type="button" class="btn btn--paver" data-map>Draw it on the map</button>
+      </div>
+      <p class="qt__q">Or add more areas here and we total it.</p>
       <div class="qt__size qt__size--two">
         <div class="field"><label for="qt-l2">Second area, length (feet)</label><input id="qt-l2" name="l2" inputmode="decimal" /></div>
         <span class="qt__x" aria-hidden="true">×</span>
@@ -152,6 +160,10 @@ import { site } from '../data/site';
     : p < 100 ? `About ${p}%. Most of it.`
     : 'All of it.';
 
+  // Counts each step once per visit (no names, no cookies), so the owner can see in the app where people stop.
+  const counted = new Set<string>();
+  const track = (e: string) => { if (counted.has(e)) return; counted.add(e); try { navigator.sendBeacon('/api/track', new Blob([JSON.stringify({ e })], { type: 'application/json' })); } catch {} };
+
   document.querySelectorAll<HTMLFormElement>('[data-quote-tool]').forEach((form) => {
     const panels = [...form.querySelectorAll<HTMLElement>('.qt__panel')];
     const steps = [...form.querySelectorAll<HTMLElement>('.qt__steps li')];
@@ -162,6 +174,7 @@ import { site } from '../data/site';
 
     const show = (n: number) => {
       panels.forEach((p) => p.classList.toggle('is-on', p.dataset.step === String(n)));
+      if (n === 2) track('quote_ground');
       steps.forEach((s, i) => { s.classList.toggle('is-on', i + 1 === n); s.classList.toggle('is-done', i + 1 < n); });
       const panel = panels[n - 1];
       (n < 3 ? (panel.querySelector('input:not([type=radio]):not([type=checkbox]):not([tabindex="-1"])') as HTMLElement | null) ?? panel : panel).focus({ preventScroll: true });
@@ -203,7 +216,7 @@ import { site } from '../data/site';
     else if (q.get('sqft')) el('sqft').value = q.get('sqft')!;
 
     // Keeps what was typed if the page is refreshed or the phone switches apps (this tab only, never sent anywhere).
-    const KEEP = ['service', 'mode', 'job_type', 'length_ft', 'width_ft', 'sqft', 'l2', 'w2', 'l3', 'w3', 'existing', 'base_work', 'fill_pct', 'rock_depth', 'timeline', 'access', 'striping', 'condition', 'seal_striping', 'name', 'phone', 'email', 'city'];
+    const KEEP = ['service', 'mode', 'job_type', 'length_ft', 'width_ft', 'sqft', 'l2', 'w2', 'l3', 'w3', 'map', 'existing', 'base_work', 'fill_pct', 'rock_depth', 'timeline', 'access', 'striping', 'condition', 'seal_striping', 'name', 'phone', 'email', 'city'];
     const remember = () => { try { const d = new FormData(form); sessionStorage.setItem('cgh-quote', JSON.stringify(Object.fromEntries(KEEP.map((k) => [k, d.get(k)])))); } catch {} };
     try {
       const saved = JSON.parse(sessionStorage.getItem('cgh-quote') || 'null');
@@ -211,7 +224,37 @@ import { site } from '../data/site';
       fillLabel.textContent = fillWords(Number(fill.value));
     } catch {}
     if (q.get('service') === 'seal') (form.elements.namedItem('service') as RadioNodeList).value = 'seal';
-    form.addEventListener('input', () => { remember(); sync(); }); form.addEventListener('change', () => { remember(); sync(); }); sync();
+    // "Draw it on the map": opens the satellite map, and the size it measures drops into the square feet box.
+    // The map code is only downloaded when someone presses the button, so the page itself stays light.
+    const mapField = form.querySelector<HTMLInputElement>('[data-map-field]')!, mapOut = form.querySelector<HTMLElement>('[data-map-out]')!;
+    const drawing = () => { try { const m = JSON.parse(mapField.value || 'null'); return m && Array.isArray(m.shapes) && m.shapes.length ? m : null; } catch { return null; } };
+    const showDrawing = () => {
+      const m = drawing(); mapOut.hidden = !m; mapOut.replaceChildren();
+      if (!m) return;
+      const n = m.shapes.length, typed = Math.round(sqft());
+      // If they typed a different size after drawing, say which one is being priced.
+      mapOut.append(typed && Math.abs(typed - m.sqft) > 2 ? `Your map drawing measured about ${Math.round(m.sqft).toLocaleString('en-US')} sq ft. We will price the ${typed.toLocaleString('en-US')} sq ft you typed. ` : `Drawn on the map: about ${Math.round(m.sqft).toLocaleString('en-US')} sq ft${n > 1 ? ` in ${n} pieces` : ''}. `);
+      const again = document.createElement('button'); again.type = 'button'; again.className = 'qt__link'; again.setAttribute('data-map', ''); again.textContent = 'Change the drawing'; mapOut.append(again);
+    };
+    form.addEventListener('click', async (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-map]'); if (!b) return;
+      e.preventDefault(); const label = b.textContent; b.disabled = true; b.textContent = 'Opening the map…';
+      try {
+        track('map_open');
+        const { openMapDraw } = await import('../lib/mapdraw');
+        b.disabled = false; b.textContent = label;
+        const res = await openMapDraw({ title: seal() ? 'Draw the asphalt you want sealed' : 'Draw the area you want paved', doneLabel: 'Use this size', map: drawing(), address: el('city').value });
+        if (res && res.sqft >= 1) {
+          track('map_used'); mapField.value = JSON.stringify(res);
+          el('sqft').value = Math.round(res.sqft).toLocaleString('en-US');
+          for (const n of ['length_ft', 'width_ft', 'l2', 'w2', 'l3', 'w3']) el(n).value = '';
+          if (res.address && !el('city').value.trim()) el('city').value = res.address;
+          err(1, ''); showDrawing(); remember(); sync();
+        }
+      } catch { b.disabled = false; b.textContent = label; err(1, 'The map did not open. Type the size in the boxes instead.'); }
+    });
+    showDrawing();
+    form.addEventListener('input', () => { track('quote_start'); remember(); sync(); showDrawing(); }); form.addEventListener('change', () => { remember(); sync(); }); sync();
     // Phone numbers tidy themselves as they are typed: (903) 555-0100
     el('phone').addEventListener('input', () => { const d = el('phone').value.replace(/\D/g, '').replace(/^1(?=\d{10})/, '').slice(0, 10); el('phone').value = d.length > 6 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d.length > 3 ? `(${d.slice(0, 3)}) ${d.slice(3)}` : d; });
     form.querySelector('[data-print]')!.addEventListener('click', () => window.print());
@@ -266,7 +309,7 @@ import { site } from '../data/site';
         out('sent').textContent = res.status === 429 ? `Call ${form.dataset.phone} and we will price it with you.` : `Call ${form.dataset.phone} and we will price it with you, or try again in a minute.`;
         return;
       }
-      shown = qt;
+      shown = qt; track('quote_priced');
       out('head').textContent = qt.service === 'seal' ? `Seal coat choices for your ${qt.sqft.toLocaleString('en-US')} sq ft` : `Three ways to do your ${qt.sqft.toLocaleString('en-US')} sq ft`;
       out('tap').hidden = false;
       // Each choice is a row that drops open: name, price and how long it lasts up top; how it works underneath.
@@ -296,9 +339,13 @@ import { site } from '../data/site';
       btn.disabled = true; btn.textContent = 'Sending…'; err(3, '');
       const want = d.get('want') === 'call' ? 'call' : 'visit', option = String(d.get('option') || '');
       const payload: Record<string, string> = { ...job(), name, phone, email: String(d.get('email') || ''), city: String(d.get('city') || ''), want, when: String(d.get('when')), note: String(d.get('want_note') || ''), option };
+      // The map drawing rides along with the lead (to the app only), plus one plain line about it for the email copy.
+      const m = drawing(), dots = m ? JSON.stringify(m) : '';
+      if (m) payload.drawn = `About ${Math.round(m.sqft).toLocaleString('en-US')} sq ft drawn on the map${m.address ? ' at ' + m.address : ''}`;
       try {
-        const r = await fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+        const r = await fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(dots ? { ...payload, map: dots } : payload) });
         if (!r.ok) throw new Error(String(r.status));
+        track('quote_request');
         form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
         out('requested').textContent = want === 'call' ? `Got it, ${name.split(' ')[0]}. We will call you at ${phone}.` : `Got it, ${name.split(' ')[0]}. We will call ${phone} to set up your free site visit.`;
         try { sessionStorage.removeItem('cgh-quote'); } catch {}
@@ -337,6 +384,11 @@ import { site } from '../data/site';
     .qt__size > .field:last-child { grid-column: auto; }
   }
   .qt__hint { color: var(--muted); font-size: 0.93rem; margin: 12px 0 0; }
+  .qt :global(.qt__link) { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
+  .qt__map { background: var(--bg-2); border-radius: var(--radius-lg); padding: 16px 18px 18px; }
+  .qt__map .qt__q { margin-top: 0; } .qt__map .qt__hint { margin: 0 0 14px; }
+  .qt__drawn { margin: 14px 0 0; padding: 12px 14px; border-left: 5px solid var(--paver); background: var(--bg-2); border-radius: var(--radius); font-weight: 600; }
+  .qt__drawn[hidden] { display: none; }
   .qt__err { color: var(--danger); font-weight: 600; margin: 12px 0 0; min-height: 1px; }
   .qt__err:empty { display: none; }
   .qt__range { width: 100%; accent-color: var(--asphalt); height: 34px; }

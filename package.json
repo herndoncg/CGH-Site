@@ -13,6 +13,7 @@
     "@fontsource-variable/overpass": "^5.2.0",
     "@netlify/blobs": "^8.1.0",
     "astro": "^7.3.8",
+    "leaflet": "^1.9.4",
     "sharp": "^0.35.5",
     "web-push": "^3.6.7"
   }
