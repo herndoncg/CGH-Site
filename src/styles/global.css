@@ -89,6 +89,8 @@ ul, ol { margin: 0 0 1.1em; padding-left: 1.2em; }
 .field input, .field select, .field textarea {
   width: 100%; min-height: 50px; padding: 12px 14px;
   font: inherit; color: var(--text);
+  /* 18px keeps iPhones from zooming in when a field is tapped, now that phones show the site at 90% */
+  font-size: max(1em, 18px);
   background: var(--surface); border: 1.5px solid var(--border-strong); border-radius: var(--radius);
 }
 .field textarea { min-height: 120px; resize: vertical; }
