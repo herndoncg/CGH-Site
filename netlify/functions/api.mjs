@@ -31,7 +31,7 @@ function pusher(store) {
 export default async (req) => {
   try {
     const store = getStore({ name: 'cgh-app', consistency: 'strong' });
-    return await handle(req, store, pusher(store));
+    return await handle(req, store, pusher(store), fetch);
   } catch (err) {
     console.error(err);
     return new Response(JSON.stringify({ error: 'Something went wrong on our end. Try again.' }), { status: 500, headers: { 'content-type': 'application/json' } });

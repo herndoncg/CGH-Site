@@ -103,6 +103,16 @@ if (site.email) business.email = site.email;
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape') menu.open = false; });
           })();
         </script>
+        {/* Counts a visit (once per browser tab) and taps on the phone number. Counts only: no names, no cookies. The owner sees the totals in the app. */}
+        <script is:inline>
+          (function () {
+            if (/bot|crawl|spider|lighthouse|headless/i.test(navigator.userAgent)) return;
+            var send = function (e) { try { navigator.sendBeacon('/api/track', new Blob([JSON.stringify({ e: e })], { type: 'application/json' })); } catch (x) {} };
+            try { if (!sessionStorage.getItem('cgh-v')) { sessionStorage.setItem('cgh-v', '1'); send('visit'); } } catch (x) {}
+            var called = false;
+            document.addEventListener('click', function (ev) { var a = ev.target && ev.target.closest && ev.target.closest('a[href^="tel:"]'); if (a && !called) { called = true; send('call_tap'); } });
+          })();
+        </script>
       </Fragment>
     )}
 
