@@ -1,7 +1,11 @@
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* Anything marked hidden stays hidden, even when a class like .btn sets its own display. */
+[hidden] { display: none !important; }
+/* Navy behind everything, so pulling the page past its top or bottom on a phone never shows a light strip
+   above the header or under the footer and call bar. The page's own grey is on <body>. */
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; background: #0b1220; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
@@ -13,6 +17,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
 img, svg { max-width: 100%; display: block; }
@@ -121,7 +126,7 @@ ul, ol { margin: 0 0 1.1em; padding-left: 1.2em; }
 
 /* Printing a quote: just the price, no menus or buttons. */
 @media print {
-  .hdr, .ftr, .callbar, .qt__steps, .qt__next, .btn-row, .pagehead, video, .faq, .strata, .skip { display: none !important; }
+  .hdr, .ftr, .callbar, .qt__steps, .qt__next, .qt__tap, .qt__choose, .btn-row, .pagehead, video, .faq, .strata, .skip { display: none !important; }
   body, .section, .section--stone, .qt { background: #fff !important; color: #000 !important; box-shadow: none !important; }
   main > section:not(:has(.qt)) { display: none !important; }
 }

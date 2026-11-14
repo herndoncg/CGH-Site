@@ -1,23 +1,25 @@
 ---
-// The instant quote: three short steps, then a price range.
-// Job details -> ground conditions -> contact info -> range shown and lead sent.
+// The instant quote: the job, a few details, then the price. Nobody has to give a name or phone to see it.
+// Job details -> ground or asphalt condition -> price shown. After that, sending it in is the customer's choice.
+// (Colton, Nov 14, 2026: asking for contact details before the price turns people away. Show the price first.)
 // The price is worked out on the server (netlify/functions/lib/quote.mjs). No prices or formulas are in this page.
-// Two ways through: Simple (size and ground) and Detailed (more areas, rock depth, what is there now, access, timing).
+// Two services: new asphalt paving (Simple or Detailed) and a seal coat on asphalt that is already there.
 import { site } from '../data/site';
 ---
 <form class="qt" name="quote" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-quote-tool data-phone={site.phone} data-endpoint={site.formEndpoint} novalidate>
   <input type="hidden" name="form-name" value="quote" />
-  {['loads', 'est_low', 'est_high', 'premium_range', 'elite_range', 'details', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  {['option', 'loads', 'est_low', 'est_high', 'all_ranges', 'details', 'areas', 'page', 'source', 'submitted_at'].map((n) => <input type="hidden" name={n} />)}
+  <div class="hp" aria-hidden="true"><label>Leave blank<input type="text" name="bot-field" tabindex="-1" autocomplete="off" /></label></div>
   <ol class="qt__steps" aria-hidden="true">
-    <li class="is-on">The job</li><li>The ground</li><li>Your info</li><li>Your price</li>
+    <li class="is-on">The job</li><li data-step-label="2">The ground</li><li>Your price</li>
   </ol>
 
   <fieldset class="qt__panel is-on" data-step="1">
-    <div class="qt__mode" role="radiogroup" aria-label="How much detail">
-      <label><input type="radio" name="mode" value="simple" checked /><span><b>Simple</b> Size and ground. About a minute.</span></label>
-      <label><input type="radio" name="mode" value="advanced" /><span><b>Detailed</b> More areas, rock depth, access, timing.</span></label>
+    <legend>What do you need?</legend>
+    <div class="qt__mode" role="radiogroup" aria-label="Service">
+      <label><input type="radio" name="service" value="pave" checked /><span><b>New asphalt</b> Driveways, lots and private roads.</span></label>
+      <label><input type="radio" name="service" value="seal" /><span><b>Seal coat</b> Protect asphalt you already have.</span></label>
     </div>
-    <legend>What are we paving?</legend>
     <div class="chips" role="radiogroup" aria-label="Type of job">
       <label><input type="radio" name="job_type" value="Driveway" checked /><span>Driveway</span></label>
       <label><input type="radio" name="job_type" value="Parking lot" /><span>Parking lot</span></label>
@@ -34,14 +36,17 @@ import { site } from '../data/site';
       <div class="field"><label for="qt-sqft">Total square feet</label><input id="qt-sqft" name="sqft" inputmode="numeric" placeholder="1,200" /></div>
     </div>
     <p class="qt__hint">No tape measure? Pace it off. One long step is about 3 feet. A close guess is fine.</p>
+    <div class="qt__detail" data-pave>
+      <label class="qt__check"><input type="checkbox" name="mode" value="advanced" /><span>Add more detail: extra areas, rock depth, access, timing</span></label>
+    </div>
     <div data-adv hidden>
       <p class="qt__q">More than one area? Add them here and we total it.</p>
-      <div class="qt__size">
+      <div class="qt__size qt__size--two">
         <div class="field"><label for="qt-l2">Second area, length (feet)</label><input id="qt-l2" name="l2" inputmode="decimal" /></div>
         <span class="qt__x" aria-hidden="true">×</span>
         <div class="field"><label for="qt-w2">Width (feet)</label><input id="qt-w2" name="w2" inputmode="decimal" /></div>
       </div>
-      <div class="qt__size">
+      <div class="qt__size qt__size--two">
         <div class="field"><label for="qt-l3">Third area, length (feet)</label><input id="qt-l3" name="l3" inputmode="decimal" /></div>
         <span class="qt__x" aria-hidden="true">×</span>
         <div class="field"><label for="qt-w3">Width (feet)</label><input id="qt-w3" name="w3" inputmode="decimal" /></div>
@@ -50,79 +55,89 @@ import { site } from '../data/site';
       <div class="field"><label for="qt-existing">What is there now?</label><select id="qt-existing" name="existing"><option>Dirt or grass</option><option>Gravel or rock</option><option>Old asphalt</option><option>Concrete</option></select></div>
     </div>
     <p class="qt__err" data-err="1" role="alert"></p>
-    <div class="qt__nav"><span></span><button type="button" class="btn btn--paver" data-next>Next: the ground</button></div>
+    <div class="qt__nav"><p class="qt__promise">No name or phone needed to see your price.</p><button type="button" class="btn btn--paver" data-next>Next</button></div>
   </fieldset>
 
   <fieldset class="qt__panel" data-step="2">
-    <legend>What shape is the ground in?</legend>
-    <p class="qt__q">Any washouts, ruts or low spots that need grading before we pave?</p>
-    <div class="chips" role="radiogroup" aria-label="Needs grading">
-      <label><input type="radio" name="base_work" value="No" checked /><span>No, it is in decent shape</span></label>
-      <label><input type="radio" name="base_work" value="Yes" /><span>Yes, it needs work</span></label>
-      <label><input type="radio" name="base_work" value="Not sure" /><span>Not sure</span></label>
-    </div>
+    <div data-pave>
+      <p class="qt__lead">What shape is the ground in?</p>
+      <p class="qt__q">Any washouts, ruts or low spots that need grading before we pave?</p>
+      <div class="chips" role="radiogroup" aria-label="Needs grading">
+        <label><input type="radio" name="base_work" value="No" checked /><span>No, it is in decent shape</span></label>
+        <label><input type="radio" name="base_work" value="Yes" /><span>Yes, it needs work</span></label>
+        <label><input type="radio" name="base_work" value="Not sure" /><span>Not sure</span></label>
+      </div>
 
-    <p class="qt__q"><label for="qt-fill">About how much of the area needs rock brought in?</label></p>
-    <input id="qt-fill" class="qt__range" type="range" name="fill_pct" min="0" max="100" step="5" value="0" />
-    <p class="qt__fill" data-fill-label aria-live="polite">None. The ground is already solid.</p>
-    <p class="qt__hint">Think soft spots, thin gravel or bare dirt. If you are not sure, leave it at none and we will check on the site visit.</p>
-    <div data-adv hidden>
-      <div class="form-grid">
-        <div class="field"><label for="qt-rock">How much rock, and what will drive on it?</label><select id="qt-rock" name="rock_depth"><option value="2">A top-up, about 2 inches</option><option value="4">New base for cars, about 4 inches</option><option value="6">New base for delivery trucks, about 6 inches</option><option value="8">New base for heavy trucks and RVs, about 8 inches</option></select></div>
-        <div class="field"><label for="qt-time">When do you want it done?</label><select id="qt-time" name="timeline"><option>As soon as you can</option><option>This month</option><option>In the next few months</option><option>Just pricing it for now</option></select></div>
-        <div class="field"><label for="qt-access">Anything tight for trucks? (gates, low limbs, septic lines)</label><input id="qt-access" name="access" /></div>
-        <div class="field"><label for="qt-stripe">Need parking stripes?</label><select id="qt-stripe" name="striping"><option>No</option><option>Yes</option></select></div>
+      <p class="qt__q"><label for="qt-fill">About how much of the area needs rock brought in?</label></p>
+      <input id="qt-fill" class="qt__range" type="range" name="fill_pct" min="0" max="100" step="5" value="0" />
+      <p class="qt__fill" data-fill-label aria-live="polite">None. The ground is already solid.</p>
+      <p class="qt__hint">Think soft spots, thin gravel or bare dirt. If you are not sure, leave it at none and we will check on the site visit.</p>
+      <div data-adv hidden>
+        <div class="form-grid">
+          <div class="field"><label for="qt-rock">How much rock, and what will drive on it?</label><select id="qt-rock" name="rock_depth"><option value="2">A top-up, about 2 inches</option><option value="4">New base for cars, about 4 inches</option><option value="6">New base for delivery trucks, about 6 inches</option><option value="8">New base for heavy trucks and RVs, about 8 inches</option></select></div>
+          <div class="field"><label for="qt-time">When do you want it done?</label><select id="qt-time" name="timeline"><option>As soon as you can</option><option>This month</option><option>In the next few months</option><option>Just pricing it for now</option></select></div>
+          <div class="field"><label for="qt-access">Anything tight for trucks? (gates, low limbs, septic lines)</label><input id="qt-access" name="access" /></div>
+          <div class="field"><label for="qt-stripe">Need parking stripes?</label><select id="qt-stripe" name="striping"><option>No</option><option>Yes</option></select></div>
+        </div>
       </div>
     </div>
-    <div class="qt__nav"><button type="button" class="btn btn--line" data-back>Back</button><button type="button" class="btn btn--paver" data-next>Next: your info</button></div>
-  </fieldset>
-
-  <fieldset class="qt__panel" data-step="3">
-    <legend>Where should we send your price?</legend>
-    <div class="hp" aria-hidden="true"><label>Leave blank<input type="text" name="bot-field" tabindex="-1" autocomplete="off" /></label></div>
-    <div class="form-grid">
-      <div class="field"><label for="qt-name">Name</label><input id="qt-name" name="name" autocomplete="name" required /></div>
-      <div class="field"><label for="qt-phone">Phone</label><input id="qt-phone" name="phone" type="tel" autocomplete="tel" required /></div>
-      <div class="field"><label for="qt-email">Email (optional)</label><input id="qt-email" name="email" type="email" autocomplete="email" /></div>
-      <div class="field"><label for="qt-city">Job address or town</label><input id="qt-city" name="city" autocomplete="street-address" placeholder="Longview, TX" /></div>
+    <div data-seal hidden>
+      <p class="qt__lead">What shape is the asphalt in?</p>
+      <p class="qt__q">A seal coat protects sound asphalt. It does not fix cracks or holes, so tell us what you see.</p>
+      <div class="chips" role="radiogroup" aria-label="Asphalt condition">
+        <label><input type="radio" name="condition" value="Good shape" checked /><span>Good shape, just faded</span></label>
+        <label><input type="radio" name="condition" value="Some cracks" /><span>Some cracks</span></label>
+        <label><input type="radio" name="condition" value="Potholes or broken spots" /><span>Potholes or broken spots</span></label>
+      </div>
+      <p class="qt__q">Are there parking stripes that will need repainting?</p>
+      <div class="chips" role="radiogroup" aria-label="Stripes to repaint">
+        <label><input type="radio" name="seal_striping" value="No" checked /><span>No</span></label>
+        <label><input type="radio" name="seal_striping" value="Yes" /><span>Yes</span></label>
+      </div>
+      <p class="qt__hint">New asphalt should cure before its first seal coat. If yours was just paved, tell us when and we will time it right.</p>
     </div>
-    <p class="qt__err" data-err="3" role="alert"></p>
-    <div class="qt__nav"><button type="button" class="btn btn--line" data-back>Back</button><button type="submit" class="btn btn--paver">Show my price range</button></div>
-    <p class="legal">By continuing, you agree CGH Operations may call, text or email you about this request. See our <a href="/privacy">privacy policy</a>.</p>
+    <p class="qt__err" data-err="2" role="alert"></p>
+    <div class="qt__nav"><button type="button" class="btn btn--line" data-back>Back</button><button type="submit" class="btn btn--paver">Show my price</button></div>
+    <p class="qt__promise qt__promise--right">Still no name or phone needed.</p>
   </fieldset>
 
-  <div class="qt__panel qt__result" data-step="4" tabindex="-1">
+  <div class="qt__panel qt__result" data-step="3" tabindex="-1">
     <p class="qt__label" data-out="head">Working out your price…</p>
+    <p class="qt__tap" data-out="tap" hidden>Tap a choice to see how it works.</p>
     <div class="qt__opts" data-out="opts"></div>
     <ul class="qt__inc" data-out="inc"></ul>
     <p class="qt__note">These are ballparks from what you entered, before taxes or permits. We confirm the final price with a free site visit before any work starts.</p>
     <p class="qt__sent" data-out="sent"></p>
-    <div class="qt__next" data-next-step>
-      <p class="qt__nexthead">What would you like to do next?</p>
+    <div class="qt__next" data-next-step hidden>
+      <p class="qt__nexthead">Like the number? Send it to us.</p>
+      <p class="qt__nextsub">Nothing has been sent to CGH yet. Leave a name and number only if you want us to follow up. No pressure, and we do not sell or share it.</p>
+      <div class="form-grid">
+        <div class="field"><label for="qt-name">Name</label><input id="qt-name" name="name" autocomplete="name" /></div>
+        <div class="field"><label for="qt-phone">Phone</label><input id="qt-phone" name="phone" type="tel" autocomplete="tel" /></div>
+        <div class="field"><label for="qt-email">Email (optional)</label><input id="qt-email" name="email" type="email" autocomplete="email" /></div>
+        <div class="field"><label for="qt-city">Job address or town</label><input id="qt-city" name="city" autocomplete="street-address" placeholder="Longview, TX" /></div>
+      </div>
       <div class="chips" role="radiogroup" aria-label="Next step">
         <label><input type="radio" name="want" value="visit" checked /><span>Book my free site visit</span></label>
         <label><input type="radio" name="want" value="call" /><span>Call me about it</span></label>
       </div>
       <div class="form-grid">
-        <div class="field"><label for="qt-lean">Which one are you leaning toward?</label><select id="qt-lean" name="lean"><option>Not sure yet</option><option>Economy</option><option>Premium</option><option>Elite</option></select></div>
         <div class="field"><label for="qt-when">Best time to reach you</label><select id="qt-when" name="when"><option>Any time</option><option>Morning</option><option>Afternoon</option><option>Evening</option></select></div>
         <div class="field"><label for="qt-note">Anything we should know? (optional)</label><input id="qt-note" name="want_note" /></div>
       </div>
       <button type="button" class="btn btn--paver" data-request>Send my request</button>
-      <p class="qt__err" data-err="4" role="alert"></p>
+      <p class="qt__err" data-err="3" role="alert"></p>
+      <p class="legal">By sending, you agree CGH Operations may call, text or email you about this request. See our <a href="/privacy">privacy policy</a>.</p>
     </div>
     <p class="qt__done" data-out="requested" role="status"></p>
     <div class="btn-row">
-      <a class="btn btn--line" href={site.phoneHref}>Or call {site.phone} now</a>
-      <a class="btn btn--line" data-mailquote href="#" hidden>Email me this quote</a>
+      <a class="btn btn--line" href={site.phoneHref}>Call {site.phone}</a>
+      <a class="btn btn--line" data-textquote href="#" hidden>Text this to myself</a>
+      <a class="btn btn--line" data-mailquote href="#" hidden>Email this to myself</a>
       <button type="button" class="btn btn--line" data-print>Print or save</button>
       <button type="button" class="btn btn--line" data-restart>Change my numbers</button>
     </div>
   </div>
-</form>
-{/* A second copy of the "book a visit / call me" request goes through Netlify Forms, so it also lands in the same inbox as the quote. */}
-<form name="quote-request" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
-  {['bot-field', 'name', 'phone', 'wants', 'best_time', 'note', 'price_range', 'job'].map((n) => <input name={n} />)}
 </form>
 
 <script>
@@ -141,23 +156,33 @@ import { site } from '../data/site';
     const panels = [...form.querySelectorAll<HTMLElement>('.qt__panel')];
     const steps = [...form.querySelectorAll<HTMLElement>('.qt__steps li')];
     const el = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+    const pick = (n: string) => (form.elements.namedItem(n) as RadioNodeList).value;
     const err = (n: number, msg: string) => { const e = form.querySelector<HTMLElement>(`[data-err="${n}"]`); if (e) e.textContent = msg; };
+    const out = (k: string) => form.querySelector<HTMLElement>(`[data-out="${k}"]`)!;
 
     const show = (n: number) => {
       panels.forEach((p) => p.classList.toggle('is-on', p.dataset.step === String(n)));
       steps.forEach((s, i) => { s.classList.toggle('is-on', i + 1 === n); s.classList.toggle('is-done', i + 1 < n); });
       const panel = panels[n - 1];
-      (panel.querySelector('input:not([type=radio]):not([tabindex="-1"])') as HTMLElement | null ?? panel).focus({ preventScroll: true });
+      (n < 3 ? (panel.querySelector('input:not([type=radio]):not([type=checkbox]):not([tabindex="-1"])') as HTMLElement | null) ?? panel : panel).focus({ preventScroll: true });
       const top = form.getBoundingClientRect().top;
       if (top < 0) window.scrollBy({ top: top - 90, behavior: 'smooth' });
     };
 
-    const advanced = () => (form.elements.namedItem('mode') as RadioNodeList).value === 'advanced';
-    const syncMode = () => { form.querySelectorAll<HTMLElement>('[data-adv]').forEach((e) => (e.hidden = !advanced())); const t = form.querySelector<HTMLElement>('[data-total]')!; t.textContent = advanced() && sqft() ? `Total: ${Math.round(sqft()).toLocaleString('en-US')} sq ft` : ''; };
+    const seal = () => pick('service') === 'seal';
+    const advanced = () => !seal() && el('mode').checked;
     const sqft = () => {
       const direct = num(el('sqft').value);
       const first = direct > 0 ? direct : num(el('length_ft').value) * num(el('width_ft').value);
       return advanced() ? first + num(el('l2').value) * num(el('w2').value) + num(el('l3').value) * num(el('w3').value) : first;
+    };
+    // Shows the questions that fit the service picked (new asphalt or seal coat) and the amount of detail wanted.
+    const sync = () => {
+      form.querySelectorAll<HTMLElement>('[data-pave]').forEach((e) => (e.hidden = seal()));
+      form.querySelectorAll<HTMLElement>('[data-seal]').forEach((e) => (e.hidden = !seal()));
+      form.querySelectorAll<HTMLElement>('[data-adv]').forEach((e) => (e.hidden = !advanced()));
+      form.querySelector<HTMLElement>('[data-step-label="2"]')!.textContent = seal() ? 'The asphalt' : 'The ground';
+      form.querySelector<HTMLElement>('[data-total]')!.textContent = advanced() && sqft() ? `Total: ${Math.round(sqft()).toLocaleString('en-US')} sq ft` : '';
     };
 
     // Typing length and width fills the square feet box; typing square feet clears the other two.
@@ -170,7 +195,7 @@ import { site } from '../data/site';
     const fill = el('fill_pct'), fillLabel = form.querySelector<HTMLElement>('[data-fill-label]')!;
     fill.addEventListener('input', () => { fillLabel.textContent = fillWords(Number(fill.value)); });
 
-    // Arriving from the homepage with ?sqft=1200 (or length & width) prefilled.
+    // Arriving from the homepage with ?sqft=1200 (or length & width) prefilled, or from a seal coat page with ?service=seal.
     const q = new URLSearchParams(location.search);
     if (q.get('length')) el('length_ft').value = q.get('length')!;
     if (q.get('width')) el('width_ft').value = q.get('width')!;
@@ -178,110 +203,123 @@ import { site } from '../data/site';
     else if (q.get('sqft')) el('sqft').value = q.get('sqft')!;
 
     // Keeps what was typed if the page is refreshed or the phone switches apps (this tab only, never sent anywhere).
-    const KEEP = ['mode', 'job_type', 'length_ft', 'width_ft', 'sqft', 'l2', 'w2', 'l3', 'w3', 'existing', 'base_work', 'fill_pct', 'rock_depth', 'timeline', 'access', 'striping', 'name', 'phone', 'email', 'city'];
+    const KEEP = ['service', 'mode', 'job_type', 'length_ft', 'width_ft', 'sqft', 'l2', 'w2', 'l3', 'w3', 'existing', 'base_work', 'fill_pct', 'rock_depth', 'timeline', 'access', 'striping', 'condition', 'seal_striping', 'name', 'phone', 'email', 'city'];
     const remember = () => { try { const d = new FormData(form); sessionStorage.setItem('cgh-quote', JSON.stringify(Object.fromEntries(KEEP.map((k) => [k, d.get(k)])))); } catch {} };
     try {
       const saved = JSON.parse(sessionStorage.getItem('cgh-quote') || 'null');
-      if (saved && !q.get('length') && !q.get('sqft')) for (const k of KEEP) { const v = saved[k]; if (v == null || v === '') continue; const node = form.elements.namedItem(k); if (node instanceof RadioNodeList) node.value = String(v); else if (node) (node as HTMLInputElement).value = String(v); }
+      if (saved && !q.get('length') && !q.get('sqft') && !q.get('service')) for (const k of KEEP) { const v = saved[k]; if (v == null || v === '') continue; const node = form.elements.namedItem(k); if (node instanceof RadioNodeList) node.value = String(v); else if (node instanceof HTMLInputElement && node.type === 'checkbox') node.checked = true; else if (node) (node as HTMLInputElement).value = String(v); }
       fillLabel.textContent = fillWords(Number(fill.value));
     } catch {}
-    form.addEventListener('input', () => { remember(); syncMode(); }); form.addEventListener('change', () => { remember(); syncMode(); }); syncMode();
+    if (q.get('service') === 'seal') (form.elements.namedItem('service') as RadioNodeList).value = 'seal';
+    form.addEventListener('input', () => { remember(); sync(); }); form.addEventListener('change', () => { remember(); sync(); }); sync();
     // Phone numbers tidy themselves as they are typed: (903) 555-0100
     el('phone').addEventListener('input', () => { const d = el('phone').value.replace(/\D/g, '').replace(/^1(?=\d{10})/, '').slice(0, 10); el('phone').value = d.length > 6 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d.length > 3 ? `(${d.slice(0, 3)}) ${d.slice(3)}` : d; });
     form.querySelector('[data-print]')!.addEventListener('click', () => window.print());
     // Where this visitor came from, so the team can see what is bringing in work.
     const cameFrom = () => { const u = new URLSearchParams(location.search).get('utm_source'); if (u) return u.slice(0, 40); try { const h = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; return h && h !== location.hostname ? h : 'came straight to the site'; } catch { return ''; } };
 
+    const sizeOk = () => { if (sqft() < 50) { err(1, 'Enter a length and width, or the total square feet, so we can price it.'); return false; } err(1, ''); return true; };
     form.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest('button');
       if (!t) return;
       const current = Number(panels.find((p) => p.classList.contains('is-on'))!.dataset.step);
-      if (t.hasAttribute('data-next')) {
-        if (current === 1) {
-          const a = sqft();
-          if (a < 50) return err(1, 'Enter a length and width, or the total square feet, so we can price it.');
-          err(1, '');
-        }
-        show(current + 1);
-      } else if (t.hasAttribute('data-back')) show(current - 1);
+      if (t.hasAttribute('data-next')) { if (current === 1 && !sizeOk()) return; show(current + 1); }
+      else if (t.hasAttribute('data-back')) show(current - 1);
       else if (t.hasAttribute('data-restart')) show(1);
+      else if (t.hasAttribute('data-choose')) choose(t.dataset.choose || '');
     });
 
-    // After the price: "book my site visit" or "call me". Goes straight to the CGH team as an alert.
-    let leadSent: Promise<{ ref?: string }> = Promise.resolve({});
-    form.querySelector('[data-request]')!.addEventListener('click', async (e) => {
-      const btn = e.currentTarget as HTMLButtonElement; const d = new FormData(form);
-      btn.disabled = true; btn.textContent = 'Sending…'; err(4, '');
-      try {
-        const { ref } = await leadSent; if (!ref) throw new Error('no ref');
-        const r = await fetch('/api/lead-request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ref, want: d.get('want'), when: d.get('when'), note: d.get('want_note'), option: d.get('lean') }) });
-        if (!r.ok) throw new Error(String(r.status));
-        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ 'form-name': 'quote-request', name: String(d.get('name')), phone: String(d.get('phone')), wants: d.get('want') === 'call' ? 'A phone call' : 'A free site visit', best_time: String(d.get('when')), note: String(d.get('want_note') || ''), price_range: [...form.querySelectorAll('.qt__opt')].map((o) => `${o.querySelector('.qt__optname')!.textContent} ${o.querySelector('.qt__price')!.textContent}`).join('; ') + (d.get('lean') && d.get('lean') !== 'Not sure yet' ? `. Leaning ${d.get('lean')}` : ''), job: `${d.get('job_type')}, ${sqft().toLocaleString('en-US')} sq ft` }).toString() }).catch(() => {});
-        form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
-        form.querySelector<HTMLElement>('[data-out="requested"]')!.textContent = d.get('want') === 'call' ? `Got it. We will call you at ${d.get('phone')}.` : `Got it. We will call ${d.get('phone')} to set up your free site visit.`;
-      } catch { err(4, 'That did not send. Please call us and mention your price range.'); }
-      btn.disabled = false; btn.textContent = 'Send my request';
-    });
+    // The job as the server needs it. No prices are sent, and no contact details either.
+    const job = () => {
+      const d = new FormData(form);
+      const p: Record<string, string> = { service: seal() ? 'seal' : 'pave', job_type: String(d.get('job_type')), length_ft: String(d.get('length_ft') || ''), width_ft: String(d.get('width_ft') || ''), sqft: String(Math.round(sqft())), mode: advanced() ? 'advanced' : 'simple', page: location.pathname, source: cameFrom() };
+      if (seal()) Object.assign(p, { condition: String(d.get('condition')), striping: String(d.get('seal_striping')) });
+      else Object.assign(p, { base_work: String(d.get('base_work')), fill_pct: String(d.get('fill_pct')) });
+      if (advanced()) Object.assign(p, { rock_depth: String(d.get('rock_depth')), existing: String(d.get('existing')), access: String(d.get('access') || ''), timeline: String(d.get('timeline')), striping: String(d.get('striping')), areas: [[d.get('length_ft'), d.get('width_ft')], [d.get('l2'), d.get('w2')], [d.get('l3'), d.get('w3')]].filter(([a, b]) => num(a) * num(b) > 0).map(([a, b]) => `${a} x ${b}`).join(', ') });
+      return p;
+    };
 
+    // Picking one of the choices: it is marked, and it rides along if they send the quote in.
+    let shown: any = null;
+    const choose = (name: string) => {
+      el('option').value = name;
+      form.querySelectorAll<HTMLElement>('.qt__opt').forEach((o) => { const on = o.dataset.name === name; o.classList.toggle('is-picked', on); const b = o.querySelector<HTMLElement>('[data-choose]'); if (b) b.textContent = on ? 'Picked' : 'I want this one'; });
+    };
+    const node = (tag: string, cls: string, text = '') => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
+    const summaryText = () => `CGH Operations price ${shown.options.length > 1 ? 'ranges' : 'range'} for ${shown.service === 'seal' ? 'a seal coat on' : 'paving'} about ${shown.sqft.toLocaleString('en-US')} sq ft:\n\n${shown.options.map((o: any) => `${o.name}: ${money(o.low)} to ${money(o.high)}. ${o.lasts}.`).join('\n')}\n\nThese are ballparks before a free site visit. Call ${form.dataset.phone || ''} with questions.\n${location.origin}/quote`;
+
+    // Step 3: the price. This asks the server for the ranges and shows them. Nothing about the visitor is sent.
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = new FormData(form);
-      if (data.get('bot-field')) return; // spam bot
-      const name = String(data.get('name') || '').trim();
-      const phone = String(data.get('phone') || '').replace(/\D/g, '');
-      if (!name || phone.length < 10) return err(3, 'Add your name and a 10-digit phone number so we can follow up on your price.');
-      err(3, '');
+      if (new FormData(form).get('bot-field')) return; // spam bot
+      if (!sizeOk()) return show(1);
+      shown = null; el('option').value = '';
+      out('head').textContent = 'Working out your price…'; out('opts').replaceChildren(); out('inc').replaceChildren(); out('sent').textContent = ''; out('requested').textContent = ''; out('tap').hidden = true;
+      const next = form.querySelector<HTMLElement>('[data-next-step]')!; next.hidden = true;
+      const mail = form.querySelector<HTMLAnchorElement>('[data-mailquote]')!, text = form.querySelector<HTMLAnchorElement>('[data-textquote]')!; mail.hidden = true; text.hidden = true;
+      show(3);
 
-      const out = (k: string) => form.querySelector<HTMLElement>(`[data-out="${k}"]`)!;
-      const payload: Record<string, string> = {
-        'form-name': 'quote', name, phone: String(data.get('phone')), email: String(data.get('email') || ''), city: String(data.get('city') || ''),
-        job_type: String(data.get('job_type')), length_ft: String(data.get('length_ft') || ''), width_ft: String(data.get('width_ft') || ''), sqft: String(Math.round(sqft())), base_work: String(data.get('base_work')), fill_pct: String(data.get('fill_pct')),
-        mode: advanced() ? 'advanced' : 'simple', page: location.pathname, source: cameFrom(), submitted_at: new Date().toISOString(),
-      };
-      if (advanced()) Object.assign(payload, { rock_depth: String(data.get('rock_depth')), existing: String(data.get('existing')), access: String(data.get('access') || ''), timeline: String(data.get('timeline')), striping: String(data.get('striping')), areas: [[data.get('length_ft'), data.get('width_ft')], [data.get('l2'), data.get('w2')], [data.get('l3'), data.get('w3')]].filter(([a, b]) => num(a) * num(b) > 0).map(([a, b]) => `${a} x ${b}`).join(', ') });
-      out('head').textContent = 'Working out your price…'; out('opts').replaceChildren(); out('inc').replaceChildren(); out('sent').textContent = ''; out('requested').textContent = '';
-      form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
-      const mail = form.querySelector<HTMLAnchorElement>('[data-mailquote]')!; mail.hidden = true;
-      show(4);
-
-      // The server prices it and saves the lead in one step. Nothing about the pricing is in this page.
-      leadSent = fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then(async (r) => ({ ...(await r.json().catch(() => ({}))), status: r.status })).catch(() => ({}));
-      const res: any = await leadSent; const q = res.quote;
-      if (!q) {
-        out('head').textContent = res.status === 429 ? 'That is a lot of quotes in one hour.' : 'We could not work out the price just now.';
+      const res: any = await fetch('/api/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(job()) }).then(async (r) => ({ ...(await r.json().catch(() => ({}))), status: r.status })).catch(() => ({}));
+      const qt = res.quote;
+      if (!qt) {
+        out('head').textContent = res.status === 429 ? 'That is a lot of prices in one hour.' : 'We could not work out the price just now.';
         out('sent').textContent = res.status === 429 ? `Call ${form.dataset.phone} and we will price it with you.` : `Call ${form.dataset.phone} and we will price it with you, or try again in a minute.`;
-      } else {
-        out('head').textContent = `Three ways to do your ${q.sqft.toLocaleString('en-US')} sq ft`;
-        out('opts').replaceChildren(...q.options.map((o: any) => { const d = document.createElement('div'); d.className = 'qt__opt'; const add = (tag: string, cls: string, text: string) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; d.append(e); }; add('p', 'qt__optname', o.name); add('p', 'qt__price', `${money(o.low)} to ${money(o.high)}`); add('p', 'qt__optwhat', o.what + '.'); add('p', 'qt__optlasts', o.lasts + '.'); return d; }));
-        out('inc').replaceChildren(...[...q.includes.map((t: string) => 'Included: ' + t), ...q.flags].map((t: string) => { const li = document.createElement('li'); li.textContent = t; return li; }));
-        form.querySelector<HTMLElement>('[data-next-step]')!.hidden = false;
-        const mine = String(data.get('email') || '').trim(); mail.hidden = !mine;
-        if (mine) mail.href = `mailto:${mine.replace(/[?&\s]/g, '')}?subject=${encodeURIComponent('My CGH Operations price range')}&body=${encodeURIComponent(`CGH Operations price ranges for about ${q.sqft.toLocaleString('en-US')} sq ft:\n\n${q.options.map((o: any) => `${o.name}: ${money(o.low)} to ${money(o.high)}. ${o.what}.`).join('\n')}\n\nThese are ballparks before a free site visit. Call ${form.dataset.phone || ''} with questions.\n${location.origin}/quote`)}`;
-        Object.assign(payload, { loads: String(q.loads), est_low: String(q.options[0].low), est_high: String(q.options[0].high), premium_range: `${money(q.options[1].low)} to ${money(q.options[1].high)}`, elite_range: `${money(q.options[2].low)} to ${money(q.options[2].high)}`, details: [...q.includes, ...q.flags].join(' | ') });
-        try { sessionStorage.removeItem('cgh-quote'); } catch {}
+        return;
       }
-      // A copy also goes through Netlify Forms, so it reaches the same inbox even if the app is down.
-      const endpoint = form.dataset.endpoint; if (!endpoint) return;
+      shown = qt;
+      out('head').textContent = qt.service === 'seal' ? `Seal coat choices for your ${qt.sqft.toLocaleString('en-US')} sq ft` : `Three ways to do your ${qt.sqft.toLocaleString('en-US')} sq ft`;
+      out('tap').hidden = false;
+      // Each choice is a row that drops open: name, price and how long it lasts up top; how it works underneath.
+      out('opts').replaceChildren(...qt.options.map((o: any) => {
+        const d = document.createElement('details'); d.className = 'qt__opt'; d.dataset.name = o.name;
+        const s = document.createElement('summary');
+        const left = node('span', 'qt__optleft'); left.append(node('span', 'qt__optname', o.name), node('span', 'qt__optlasts', o.lasts));
+        s.append(left, node('span', 'qt__price', `${money(o.low)} to ${money(o.high)}`));
+        const body = node('div', 'qt__optbody'); body.append(node('p', 'qt__optwhat', o.what + '.'));
+        if (o.how) { body.append(node('p', 'qt__opthowhead', 'How it works'), node('p', 'qt__opthow', o.how)); }
+        const b = node('button', 'btn btn--line qt__choose', 'I want this one') as HTMLButtonElement; b.type = 'button'; b.dataset.choose = o.name; body.append(b);
+        d.append(s, body); return d;
+      }));
+      out('inc').replaceChildren(...[...qt.includes.map((t: string) => 'Included: ' + t), ...qt.flags].map((t: string) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+      next.hidden = false;
+      mail.hidden = false; mail.href = `mailto:?subject=${encodeURIComponent('My CGH Operations price range')}&body=${encodeURIComponent(summaryText())}`;
+      // phones and tablets only
+      if (navigator.maxTouchPoints > 0 || 'ontouchstart' in window || matchMedia('(pointer: coarse)').matches) { text.hidden = false; text.href = `sms:?&body=${encodeURIComponent(summaryText())}`; }
+    });
+
+    // Only when they choose to: name and phone go to the CGH team with the quote, as one lead and one alert.
+    form.querySelector('[data-request]')!.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement; const d = new FormData(form);
+      const name = String(d.get('name') || '').trim(), phone = String(d.get('phone') || '');
+      if (!name || phone.replace(/\D/g, '').length < 10) return err(3, 'Add your name and a 10-digit phone number so we can reach you.');
+      if (!shown) return err(3, 'Get your price first, then send it in.');
+      btn.disabled = true; btn.textContent = 'Sending…'; err(3, '');
+      const want = d.get('want') === 'call' ? 'call' : 'visit', option = String(d.get('option') || '');
+      const payload: Record<string, string> = { ...job(), name, phone, email: String(d.get('email') || ''), city: String(d.get('city') || ''), want, when: String(d.get('when')), note: String(d.get('want_note') || ''), option };
       try {
-        const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(payload).toString() });
+        const r = await fetch('/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error(String(r.status));
-        if (q) out('sent').textContent = `Thanks, ${name.split(' ')[0]}. Your price ranges are saved with our team.`;
-        else out('sent').textContent += ' We have your details and will call you.';
-      } catch { if (q) out('sent').textContent = ''; }
+        form.querySelector<HTMLElement>('[data-next-step]')!.hidden = true;
+        out('requested').textContent = want === 'call' ? `Got it, ${name.split(' ')[0]}. We will call you at ${phone}.` : `Got it, ${name.split(' ')[0]}. We will call ${phone} to set up your free site visit.`;
+        try { sessionStorage.removeItem('cgh-quote'); } catch {}
+        // A copy also goes through Netlify Forms, so it reaches the same inbox even if the app is down.
+        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ 'form-name': 'quote', ...payload, want: want === 'call' ? 'A phone call' : 'A free site visit', want_note: payload.note, loads: String(shown.loads || 0), est_low: String(shown.options[0].low), est_high: String(shown.options[0].high), all_ranges: shown.options.map((o: any) => `${o.name} ${money(o.low)} to ${money(o.high)}`).join('; '), details: [...shown.includes, ...shown.flags].join(' | '), submitted_at: new Date().toISOString() }).toString() }).catch(() => {});
+      } catch { err(3, 'That did not send. Please call us and mention your price range.'); }
+      btn.disabled = false; btn.textContent = 'Send my request';
     });
   });
 </script>
 
 <style>
   .qt { background: var(--surface); color: var(--text); border-radius: var(--radius-lg); padding: clamp(20px, 3.4vw, 40px); box-shadow: 0 24px 70px rgba(11, 18, 32, 0.18); border: 1px solid var(--border); }
-  .qt__steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0; margin: 0 0 28px; font-size: 0.86rem; font-weight: 600; color: var(--muted); }
+  .qt__steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0; margin: 0 0 28px; font-size: 0.86rem; font-weight: 600; color: var(--muted); }
   .qt__steps li { border-top: 5px solid var(--limestone-2); padding-top: 8px; }
   .qt__steps li.is-on { border-color: var(--paver); color: var(--text); }
   .qt__steps li.is-done { border-color: var(--asphalt); }
   .qt__panel { display: none; border: 0; padding: 0; margin: 0; min-width: 0; }
   .qt__panel.is-on { display: block; }
   .qt__panel:focus { outline: none; }
-  .qt legend { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.5rem, 2.6vw, 2rem); letter-spacing: -0.015em; padding: 0; margin-bottom: 20px; }
+  .qt legend, .qt__lead { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.5rem, 2.6vw, 2rem); letter-spacing: -0.015em; padding: 0; margin-bottom: 20px; }
   .qt__q { font-weight: 600; margin: 24px 0 10px; }
   .chips { display: flex; flex-wrap: wrap; gap: 10px; }
   .chips label { cursor: pointer; }
@@ -306,23 +344,44 @@ import { site } from '../data/site';
   .qt__nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
   .qt .legal { margin: 16px 0 0; }
   .qt__label { font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; margin: 0 0 14px; }
-  .qt__mode { display: grid; gap: 10px; margin: 0 0 22px; } @media (min-width: 640px) { .qt__mode { grid-template-columns: 1fr 1fr; } }
+  .qt__mode { display: grid; gap: 10px; margin: 0 0 18px; grid-template-columns: 1fr 1fr; }
   .qt__mode label { cursor: pointer; } .qt__mode input { position: absolute; opacity: 0; }
   .qt__mode span { display: block; padding: 12px 16px; border: 1.5px solid var(--border-strong); border-radius: var(--radius); color: var(--text-2); font-size: 0.95rem; line-height: 1.35; }
   .qt__mode b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; color: var(--text); }
   .qt__mode input:checked + span { border-color: var(--asphalt); box-shadow: inset 0 0 0 1.5px var(--asphalt); }
   .qt__mode input:focus-visible + span { outline: 3px solid var(--paver); outline-offset: 2px; }
   [data-adv] { display: grid; gap: 14px; margin-top: 18px; } [data-adv][hidden] { display: none; }
-  .qt__opts { display: grid; gap: 12px; margin-bottom: 16px; } @media (min-width: 760px) { .qt__opts { grid-template-columns: repeat(3, 1fr); } }
-  .qt__opts :global(.qt__opt) { border: 1.5px solid var(--border-strong); border-radius: var(--radius-lg); padding: 16px; background: var(--bg); }
-  .qt__opts :global(.qt__optname) { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; margin: 0 0 6px; }
-  .qt__opts :global(.qt__price) { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.35rem, 3.4vw, 1.6rem); letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 10px; }
-  .qt__opts :global(.qt__optwhat) { margin: 0 0 4px; color: var(--text-2); font-size: 0.95rem; } .qt__opts :global(.qt__optlasts) { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  /* The choices: one row each. Name and how long it lasts on the left, price on the right; tap to drop it open. */
+  .qt__tap { margin: -6px 0 12px; color: var(--muted); font-size: 0.92rem; } .qt__tap[hidden] { display: none; }
+  .qt__opts { display: grid; gap: 10px; margin-bottom: 16px; }
+  .qt__opts :global(.qt__opt) { border: 1.5px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--bg); }
+  .qt__opts :global(.qt__opt.is-picked) { border-color: var(--asphalt); box-shadow: inset 0 0 0 1.5px var(--asphalt); }
+  .qt__opts :global(summary) { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; align-items: baseline; padding: 14px 40px 14px 16px; position: relative; }
+  .qt__opts :global(summary::-webkit-details-marker) { display: none; }
+  .qt__opts :global(summary::after) { content: '+'; position: absolute; right: 14px; top: 50%; transform: translateY(-52%); font-size: 1.5rem; color: var(--accent); }
+  .qt__opts :global(details[open] > summary::after) { content: '\2212'; }
+  .qt__opts :global(.qt__optleft) { display: contents; }
+  .qt__opts :global(.qt__optname) { grid-area: 1 / 1; } .qt__opts :global(.qt__price) { grid-area: 1 / 2; } .qt__opts :global(.qt__optlasts) { grid-area: 2 / 1 / 3 / 3; }
+  .qt__opts :global(.qt__optname) { font-family: var(--font-display); font-weight: 800; font-size: 1.12rem; line-height: 1.2; }
+  .qt__opts :global(.qt__optlasts) { color: var(--muted); font-size: 0.86rem; line-height: 1.3; }
+  .qt__opts :global(.qt__price) { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.05rem, 3.6vw, 1.45rem); letter-spacing: -0.02em; line-height: 1.15; margin: 0; text-align: right; white-space: nowrap; }
+  .qt__opts :global(.qt__optbody) { padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  .qt__opts :global(.qt__optwhat) { margin: 12px 0 8px; color: var(--text); font-weight: 600; font-size: 0.97rem; }
+  .qt__opts :global(.qt__opthowhead) { margin: 0 0 2px; font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; }
+  .qt__opts :global(.qt__opthow) { margin: 0 0 12px; color: var(--text-2); font-size: 0.95rem; }
+  .qt__opts :global(.qt__choose) { min-height: 44px; padding: 0 16px; font-size: 0.98rem; }
+  .qt__opts :global(.is-picked .qt__choose) { background: var(--asphalt); border-color: var(--asphalt); color: #fff; }
+  .qt__promise { margin: 0; align-self: center; color: var(--muted); font-size: 0.92rem; font-weight: 600; }
+  .qt__promise--right { text-align: right; margin-top: 10px; }
+  .qt__detail { margin-top: 18px; }
+  .qt__check { display: flex; gap: 10px; align-items: center; cursor: pointer; font-weight: 600; font-size: 0.97rem; }
+  .qt__check input { width: 22px; height: 22px; accent-color: var(--asphalt); flex: none; }
+  .qt__size--two { grid-template-columns: 1fr auto 1fr; } .qt__size--two > .field:last-child { grid-column: auto; }
+  .qt__next .form-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .qt__result .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .qt__result .btn-row .btn { min-height: 46px; padding: 0 10px; font-size: 0.95rem; white-space: normal; text-align: center; line-height: 1.15; } .qt__result .btn-row .btn:first-child { grid-column: 1 / -1; }
+  @media (min-width: 700px) { .qt__result .btn-row { display: flex; } .qt__result .btn-row .btn { padding: 0 18px; white-space: nowrap; } }
+  .qt__nextsub { margin: -6px 0 0; color: var(--text-2); font-size: 0.95rem; }
   .qt__inc { margin: 0 0 16px; padding-left: 18px; color: var(--text-2); font-size: 0.95rem; } .qt__inc:empty { display: none; }
-  .qt__price { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.2rem, 6vw, 3.8rem); letter-spacing: -0.03em; line-height: 1; margin: 0 0 22px; }
-  .qt__lines { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-  .qt__lines :global(th), .qt__lines :global(td) { padding: 12px 0; border-top: 1px solid var(--border-strong); text-align: left; font-weight: 500; }
-  .qt__lines :global(td) { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   .qt__note { color: var(--text-2); font-size: 0.97rem; max-width: 60ch; }
   .qt__sent { font-weight: 700; }
   .qt__sent:empty { display: none; }

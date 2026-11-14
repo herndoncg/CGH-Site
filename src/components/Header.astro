@@ -9,6 +9,15 @@ const links = [
   { href: '/careers', label: 'Careers' },
   { href: '/blog', label: 'Blog' },
 ];
+// Shortcuts in the phone menu, so the common jobs are one tap away.
+const quick = [
+  { href: '/services/asphalt-driveways', label: 'Driveways' },
+  { href: '/services/parking-lots', label: 'Parking lots' },
+  { href: '/services/sealcoating', label: 'Sealcoating' },
+  { href: '/services/asphalt-repair', label: 'Patching and repair' },
+  { href: '/services/road-base-grading', label: 'Road base and grading' },
+  { href: '/services/dirt-work', label: 'Dirt work' },
+];
 ---
 <header class="hdr band">
   <div class="wrap hdr__in">
@@ -27,12 +36,15 @@ const links = [
     <details class="menu">
       <summary aria-label="Menu"><span></span><span></span><span></span></summary>
       <div class="menu__panel band">
-        {links.map((l) => <a href={l.href}>{l.label}</a>)}
-        <a href="/app">Customer and team sign in</a>
         <div class="menu__btns">
           <a class="btn btn--paver" href="/quote">Get my price</a>
           <a class="btn btn--line" href={site.phoneHref}>Call {site.phone}</a>
         </div>
+        <a class="menu__tile" href="/">Home</a>
+        {links.map((l) => <a class="menu__tile" href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>{l.label}</a>)}
+        <a class="menu__tile" href="/app">Sign in</a>
+        <p class="menu__head">Most asked about</p>
+        {quick.map((l) => <a class="menu__tile menu__tile--sm" href={l.href}>{l.label}</a>)}
       </div>
     </details>
   </div>
@@ -56,11 +68,15 @@ const links = [
   .menu summary { list-style: none; width: 46px; height: 46px; display: grid; align-content: center; justify-items: center; gap: 5px; cursor: pointer; border: 1.5px solid var(--border-strong); border-radius: var(--radius); }
   .menu summary::-webkit-details-marker { display: none; }
   .menu summary span { width: 20px; height: 2px; background: #fff; }
-  .menu__panel { position: absolute; left: 0; right: 0; top: 100%; display: grid; padding: 8px var(--gutter) 20px; border-bottom: 1px solid var(--border); }
-  .menu__panel { max-height: calc(100vh - 70px); overflow-y: auto; }
-  .menu__panel > a { padding: 16px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-family: var(--font-display); font-weight: 800; font-size: 1.45rem; }
-  .menu__btns { display: grid; gap: 10px; padding-top: 18px; }
-  .menu__btns .btn { width: 100%; min-height: 54px; font-size: 1.1rem; }
+  /* The phone menu: a full sheet of big two-across buttons between the header and the bottom bar. */
+  .menu__panel { position: absolute; left: 0; right: 0; top: 100%; height: calc(100dvh - 69px - 56px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; padding: 16px var(--gutter) 28px; border-bottom: 1px solid var(--border); }
+  .menu__btns { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 6px; }
+  .menu__btns .btn { width: 100%; min-height: 54px; font-size: 1rem; padding: 0 8px; white-space: normal; text-align: center; line-height: 1.15; }
+  .menu__tile { display: flex; align-items: center; min-height: 58px; padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--asphalt-2); text-decoration: none; font-family: var(--font-display); font-weight: 800; font-size: 1.12rem; line-height: 1.15; }
+  .menu__tile[aria-current] { border-color: var(--paver); box-shadow: inset 0 0 0 1px var(--paver); }
+  .menu__tile--sm { min-height: 48px; font-size: 0.98rem; font-weight: 700; color: var(--text-2); background: none; }
+  .menu__head { grid-column: 1 / -1; margin: 12px 0 0; color: var(--muted); font-size: 0.86rem; font-weight: 600; }
+  @media (min-width: 861px) { .menu__panel { height: auto; max-height: calc(100dvh - 70px); } }
   @media (min-width: 1140px) {
     .nav, .hdr__cta { display: flex; }
     .menu { display: none; }

@@ -1,5 +1,5 @@
 // Every service on the site. Add, remove or edit one here and its page, the menus and the sitemap all update.
-// `instantQuote: true` means the online quote tool can price it (new asphalt by the square foot).
+// `instantQuote: true` means the online quote tool can price it (new asphalt by the square foot, and seal coats).
 
 export interface Service {
   slug: string;
@@ -207,9 +207,10 @@ export const services: Service[] = [
     },
     faqs: [
       { q: 'How often should asphalt be sealed?', a: 'It depends on sun and traffic. Most pavement benefits from a fresh coat every few years. We look at yours and tell you whether it needs it yet.' },
+      { q: 'What does a seal coat cost?', a: 'Enter the size in the price tool and pick Seal coat. You see a price range for each kind of sealer we put down, how long each one lasts and how it works. No name or phone number is needed to see it.' },
       { q: 'Can you seal brand new asphalt?', a: 'New asphalt needs time to cure before it is sealed. We let you know when yours is ready.' },
     ],
-    instantQuote: false,
+    instantQuote: true,
   },
   {
     slug: 'crack-filling',

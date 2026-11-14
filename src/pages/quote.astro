@@ -7,15 +7,17 @@ const faqs = [
   { q: 'How accurate is the online price?', a: 'It is a ballpark built from your measurements and what you tell us about the ground. Most jobs land inside the range. The site visit is where we confirm it, because drainage, soft spots and access are hard to judge from a form.' },
   { q: 'Is the site visit really free?', a: 'Yes. We come out, measure, look at the ground and give you a firm price. No charge and no pressure.' },
   { q: 'Why is there a minimum price?', a: 'Every paving job takes a crew, the paver, a roller and a truck of hot mix, no matter how small the area. The minimum covers getting all of that to your site.' },
-  { q: 'Can I get a price for repairs, sealcoating or dirt work?', a: 'Those depend too much on what is there now to price from a form. Call us and we will come look at it.' },
+  { q: 'Do I have to give my phone number to see a price?', a: 'No. You see your price range first. If it fits your budget and you want us to come look, you can leave a name and number then. If not, nothing is sent to us.' },
+  { q: 'Can I get a price for a seal coat?', a: 'Yes. Pick Seal coat at the start. You see a range for each kind of sealer we put down, with how long each one lasts and how it works.' },
+  { q: 'What about repairs, crack filling, striping or dirt work?', a: 'Those depend too much on what is there now to price from a form. Call us and we will come look at it.' },
 ];
 const schema = [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }];
 ---
-<Base title="Asphalt Paving Cost Estimate | Instant Price Range" description="Get a price range for your asphalt driveway, parking lot or private road in about a minute. Enter the size and ground conditions. Free site visit confirms it. Longview and East Texas." schema={schema}>
+<Base title="Asphalt Paving and Seal Coat Cost | Instant Price Range" description="See a price range for new asphalt or a seal coat in about a minute. No name or phone number needed. Enter the size and a few details. Longview and East Texas." schema={schema}>
   <section class="band pagehead qhead" style="--pagehead-photo:url('/img/work/curved-asphalt-driveway-east-texas.webp')">
     <div class="wrap">
       <h1>Get your price range</h1>
-      <p class="lede">Three quick steps. No waiting on a callback to find out if it fits your budget.</p>
+      <p class="lede">See your price first. No name, phone or email needed unless you decide to send it in.</p>
     </div>
   </section>
   <section class="qbody">

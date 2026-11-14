@@ -99,6 +99,32 @@ async function alertTeam(store, push, roles, msg) {
 }
 const usd = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
+// What the website's quote tool sends, tidied. Only the job details are read; any prices sent along are ignored.
+function quoteInput(data) {
+  const advanced = data.mode === 'advanced';
+  if (data.service === 'seal') return { service: 'seal', sqft: num(data.sqft), condition: ['Good shape', 'Some cracks', 'Potholes or broken spots'].includes(data.condition) ? data.condition : '', striping: data.striping === 'Yes' ? 'Yes' : '' };
+  return { service: 'pave', sqft: num(data.sqft), baseWork: clean(data.base_work, 20), fillPct: num(data.fill_pct), rockDepth: advanced ? clean(data.rock_depth, 2) : '', existing: advanced ? clean(data.existing, 30) : '' };
+}
+// The part of a quote a visitor's browser gets: ranges and plain words. No rates, totals or line prices.
+const publicView = (qt) => ({ service: qt.service, sqft: qt.sqft, loads: qt.loads, includes: qt.includes, flags: qt.flags, options: qt.options.map(({ key, name, what, lasts, how, low, high }) => ({ key, name, what, lasts, how, low, high })) });
+// Counts requests from one address over the last hour. Returns true when it is over the limit.
+// With a tag, a repeat of the same request is let through without being counted again.
+async function tooMany(store, req, bucket, max, tag = '') {
+  const ip = req.headers.get('x-nf-client-connection-ip') || '';
+  if (!ip) return false;
+  const key = bucket + '/' + sha(ip), now = Date.now();
+  const seen = ((await store.get(key, { type: 'json' })) || []).map((e) => (typeof e === 'number' ? { t: e } : e)).filter((e) => e.t > now - 36e5);
+  if (tag && seen.some((e) => e.h === tag)) return false;
+  if (seen.length >= max) return true;
+  await store.setJSON(key, [...seen, tag ? { t: now, h: tag } : { t: now }]);
+  return false;
+}
+// A plain daily count of prices shown and quotes sent in. No names, no addresses: just how many.
+const dayKey = (t = Date.now()) => 'tally/' + new Date(t).toISOString().slice(0, 10);
+async function tally(store, what) {
+  try { const k = dayKey(), d = (await store.get(k, { type: 'json' })) || {}; d[what] = (d[what] || 0) + 1; await store.setJSON(k, d); } catch {}
+}
+
 // What each role may see of a lead. Crew never see prices. Clients only see their own job.
 function leadFor(lead, user) {
   if (user.role === 'owner' || user.role === 'manager') return lead;
@@ -123,32 +149,53 @@ export async function handle(req, store, push) {
   const data = m === 'GET' ? {} : await readBody(req);
 
   // ---------- open to the public website ----------
+  // The price, with no name or phone asked for. Colton (Nov 14, 2026): asking for contact details before
+  // showing a price turns people away, so anyone can see the range and decide for themselves whether to send it in.
+  // The price is worked out here, on the server, from the job details. Numbers sent by the browser are ignored.
+  if (path === 'quote' && m === 'POST') {
+    if (data['bot-field'] || data.company_website) return json({ ok: true });
+    const input = quoteInput(data), qt = publicQuote(input);
+    if (qt.sqft < 50) return bad('Enter the size of the job so we can price it.');
+    // One address can only price so many different jobs an hour, so nobody can map the pricing by trying
+    // hundreds of sizes. Asking again about the same job does not count twice.
+    if (await tooMany(store, req, 'rate', 10, sha(JSON.stringify(input)).slice(0, 16))) return bad('That is a lot of prices in one hour. Call us and we will price it with you.', 429);
+    await tally(store, 'views');
+    return json({ ok: true, quote: publicView(qt) });
+  }
+  // The customer liked the price and sent it in with their name and phone. This is what makes a lead.
   if (path === 'lead' && m === 'POST') {
     if (data['bot-field'] || data.company_website) return json({ ok: true });
     const name = clean(data.name, 120), phone = clean(data.phone, 40);
     if (!name || phone.replace(/\D/g, '').length < 10) return bad('Name and a 10-digit phone number are required.');
-    // The price is worked out here, on the server, from the job details. Numbers sent by the browser are ignored.
-    // One address can only ask for so many quotes an hour, so nobody can map the pricing by trying hundreds of sizes.
-    const ip = req.headers.get('x-nf-client-connection-ip') || '';
-    if (ip) {
-      const rk = 'rate/' + sha(ip), now = Date.now(); const seen = ((await store.get(rk, { type: 'json' })) || []).filter((t) => t > now - 36e5);
-      if (seen.length >= 10) return bad('That is a lot of quotes in one hour. Call us and we will price it with you.', 429);
-      await store.setJSON(rk, [...seen, now]);
-    }
     const advanced = data.mode === 'advanced';
-    const qt = publicQuote({ sqft: num(data.sqft), baseWork: clean(data.base_work, 20), fillPct: num(data.fill_pct), rockDepth: advanced ? clean(data.rock_depth, 2) : '', existing: advanced ? clean(data.existing, 30) : '' });
+    const input = quoteInput(data), qt = publicQuote(input);
     if (qt.sqft < 50) return bad('Enter the size of the job so we can price it.');
-    const lead = { id: newId(), created: Date.now(), source: 'website' + (clean(data.source, 60) ? ' · ' + clean(data.source, 60) : ''), stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: clean(data.job_type, 60), sqft: qt.sqft, base_work: clean(data.base_work, 20), fill_pct: num(data.fill_pct), loads: qt.loads, est_low: qt.options[0].low, est_high: qt.options[0].high, est_total: qt.options[0].total, options: qt.options.map((o) => ({ name: o.name, low: o.low, high: o.high })), notes: [] };
-    if (advanced) {
-      const more = [['Existing surface', data.existing], ['Rock', data.rock_depth ? data.rock_depth + ' in' : ''], ['Areas', data.areas], ['Access', data.access], ['When', data.timeline], ['Striping', data.striping === 'Yes' ? 'wants striping' : '']].filter(([, v]) => clean(v, 300)).map(([k, v]) => `${k}: ${clean(v, 300)}`);
-      if (more.length) lead.notes.push({ at: Date.now(), by: 'Customer (detailed quote)', text: more.join('. ') });
+    // Its own hourly limit, separate from looking at prices, so someone who compared a few sizes can still send theirs in.
+    if (await tooMany(store, req, 'rate-lead', 10)) return bad('That is a lot of quotes in one hour. Call us and we will price it with you.', 429);
+    const seal = qt.service === 'seal', kind = clean(data.job_type, 60);
+    const lead = { id: newId(), created: Date.now(), source: 'website' + (clean(data.source, 60) ? ' · ' + clean(data.source, 60) : ''), stage: 'New', name, phone, email: email(data.email), city: clean(data.city, 200), job_type: seal ? 'Seal coat' + (kind ? ' · ' + kind : '') : kind, sqft: qt.sqft, base_work: seal ? '' : clean(data.base_work, 20), fill_pct: seal ? 0 : num(data.fill_pct), loads: qt.loads, est_low: qt.options[0].low, est_high: qt.options[0].high, est_total: qt.options[0].total, options: qt.options.map((o) => ({ name: o.name, low: o.low, high: o.high })), notes: [] };
+    const more = (seal ? [['Asphalt condition', input.condition], ['Striping', data.striping === 'Yes' ? 'wants re-striping' : ''], ['When', data.timeline]]
+      : advanced ? [['Existing surface', data.existing], ['Rock', data.rock_depth ? data.rock_depth + ' in' : ''], ['Areas', data.areas], ['Access', data.access], ['When', data.timeline], ['Striping', data.striping === 'Yes' ? 'wants striping' : '']] : [])
+      .filter(([, v]) => clean(v, 300)).map(([k, v]) => `${k}: ${clean(v, 300)}`);
+    if (more.length) lead.notes.push({ at: Date.now(), by: seal ? 'Customer (seal coat quote)' : 'Customer (detailed quote)', text: more.join('. ') });
+    // They can say what they want next in the same step: a free site visit or a phone call.
+    const asked = data.want === 'call' || data.want === 'visit';
+    const want = data.want === 'call' ? 'call' : 'visit', when = clean(data.when, 40), note = clean(data.note, 500);
+    const option = qt.options.some((o) => o.name === data.option) ? data.option : '';
+    if (asked) {
+      lead.request = { want, when, option, at: Date.now() };
+      lead.notes.push({ at: Date.now(), by: 'Customer (website)', text: `Asked for ${want === 'call' ? 'a phone call' : 'a free site visit'}${when ? '. Best time: ' + when : ''}${option ? '. Leaning toward: ' + option : ''}${note ? '. Note: ' + note : ''}` });
     }
     await store.setJSON('leads/' + lead.id, lead);
+    await tally(store, 'leads');
     // a private reference the customer's browser keeps, so they can follow up on this same quote
     const ref = randomBytes(18).toString('base64url');
     await store.setJSON('refs/' + sha(ref), { id: lead.id });
-    await alertTeam(store, push, ['owner', 'manager', 'sales'], { title: 'New quote: ' + lead.name, body: [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : '', lead.city].filter(Boolean).join(' · '), url: '/app/' });
-    return json({ ok: true, ref, quote: { sqft: qt.sqft, includes: qt.includes, flags: qt.flags, options: qt.options.map(({ key, name, what, lasts, low, high }) => ({ key, name, what, lasts, low, high })) } });
+    const job = [lead.job_type, lead.sqft ? lead.sqft.toLocaleString('en-US') + ' sq ft' : '', lead.est_low ? `${usd(lead.est_low)} to ${usd(lead.est_high)}` : ''];
+    await alertTeam(store, push, ['owner', 'manager', 'sales'], asked
+      ? { title: `${lead.name} wants ${want === 'call' ? 'a call' : 'a site visit'}`, body: [lead.phone, ...job, option ? 'Leaning ' + option : '', when ? 'Best time: ' + when : '', lead.city, note].filter(Boolean).join(' · '), url: '/app/' }
+      : { title: 'New quote: ' + lead.name, body: [...job, lead.city].filter(Boolean).join(' · '), url: '/app/' });
+    return json({ ok: true, ref, quote: publicView(qt) });
   }
   // the customer taps "book my site visit" or "call me" right after seeing their price
   if (path === 'lead-request' && m === 'POST') {
@@ -299,7 +346,9 @@ export async function handle(req, store, push) {
     if (me.role !== 'crew') {
       waiting.followups = count((l) => l.follow_up && l.follow_up <= today && !['Done', 'Lost'].includes(l.stage));
       const sum = (fn) => leads.filter(fn).reduce((t, l) => t + (l.firm_price || l.est_total || 0), 0);
-      stats = { week: count((l) => l.created > Date.now() - 7 * 864e5), quoted: sum((l) => l.stage === 'Quote sent'), booked: sum((l) => ['Accepted', 'Scheduled'].includes(l.stage)) };
+      // how many prices the website showed in the last 7 days (a plain count; nobody is identified)
+      let priced = 0; for (let i = 0; i < 7; i++) priced += ((await store.get(dayKey(Date.now() - i * 864e5), { type: 'json' })) || {}).views || 0;
+      stats = { priced, week: count((l) => l.created > Date.now() - 7 * 864e5), quoted: sum((l) => l.stage === 'Quote sent'), booked: sum((l) => ['Accepted', 'Scheduled'].includes(l.stage)) };
     }
     const dated = [];
     for (const l of leads) {
