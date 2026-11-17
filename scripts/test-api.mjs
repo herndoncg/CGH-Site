@@ -191,4 +191,43 @@ r = await call('POST', 'login', { email: 'third@example.com', password: 'RECOVER
 r = await call('POST', 'password', { next: 'recovered-password' }, rec); ok('recovered owner chooses a password and keeps their records', r.status === 200 && r.body.me.name === 'Colton'); r = await call('GET', 'leads', null, r.cookie); ok('recovered owner still sees the leads', r.status === 200 && r.body.leads.length === 3);
 for (let i = 0; i < 5; i++) await call('POST', 'login', { email: 'sam@example.com', password: 'bad-bad-bad-bad' }); r = await call('POST', 'login', { email: 'sam@example.com', password: 'sams-long-password' }); ok('five bad passwords lock sign-in for a while', r.status === 429);
 ok('no password is stored in readable form', ![...mem.values()].some((v) => ['a-long-password', 'sams-long-password', 'owners-second-password', 'TEST-CODE-12345', 'RECOVER-CODE-999', 'recovered-password', samTemp, calTemp2, patTemp].some((p) => v.includes(p))));
+// ----- the games: player logins and saved levels -----
+{ const P1 = { haul: { s: [3, 2], b: 1200 }, math: { s: [1], b: 300 } };
+  r = await call('GET', 'play/me'); ok('a visitor who is not signed in has no saved levels', r.status === 200 && r.body.who === null && r.body.progress === null);
+  r = await call('POST', 'play/save', { progress: P1 }); ok('saving levels needs a sign-in', r.status === 401);
+  r = await call('POST', 'play/join', { name: 'x', password: 'secret1' }); ok('a nickname that is too short is refused', r.status === 400);
+  r = await call('POST', 'play/join', { name: 'me@example.com', password: 'secret1' }); ok('an email address is refused as a nickname', r.status === 400);
+  r = await call('POST', 'play/join', { name: '9035550100', password: 'secret1' }); ok('a phone number is refused as a nickname', r.status === 400);
+  r = await call('POST', 'play/join', { name: 'DirtBoss', password: '123' }); ok('a short player password is refused', r.status === 400);
+  r = await call('POST', 'play/join', { name: 'DirtBoss', password: 'paver-pw-1', progress: P1 }); ok('anyone can make a player login with a nickname and password', r.status === 200 && r.body.who.kind === 'player' && r.body.who.name === 'DirtBoss' && /^cgh_p=/.test(r.cookie)); const kid = r.cookie;
+  ok('levels earned before joining come along', r.body.progress.haul.s.join() === '3,2' && r.body.progress.haul.b === 1200);
+  r = await call('POST', 'play/join', { name: 'dirtboss', password: 'another-pw' }); ok('a nickname can only be taken once (capitals do not matter)', r.status === 409);
+  r = await call('GET', 'play/me', null, kid); ok('the player is recognized next visit', r.body.who.name === 'DirtBoss' && r.body.progress.math.s.join() === '1');
+  r = await call('POST', 'play/save', { progress: { haul: { s: [1, 3, 2], b: 900 }, paver: { s: [9, -4, 'x'], b: 1e12 }, bogus: { s: [3] }, math: 'junk' } }, kid);
+  ok('saving keeps the best of each level', r.status === 200 && r.body.progress.haul.s.join() === '3,3,2' && r.body.progress.haul.b === 1200);
+  ok('made-up games and impossible numbers are thrown away', !('bogus' in r.body.progress) && r.body.progress.paver.s.join() === '3,0,0' && r.body.progress.paver.b === 9999999 && r.body.progress.math.s.join() === '1');
+  r = await call('POST', 'play/save', { progress: { haul: { s: new Array(500).fill(3) } } }, kid); ok('a game cannot have more levels than it really has', r.body.progress.haul.s.length === core.GAMES.haul);
+  for (const path of ['leads', 'team', 'applicants', 'home', 'pricing', 'my-job', 'equipment']) { r = await call('GET', path, null, kid); if (r.status !== 401) ok('a player login opens nothing in the app (' + path + ')', false); }
+  ok('a player login opens nothing in the app', true);
+  r = await call('GET', 'state', null, kid); ok('the app does not treat a player as signed in', r.body.me === null);
+  r = await call('POST', 'play/logout', {}, kid); r = await call('GET', 'play/me', null, kid); ok('signing out ends the player session', r.body.who === null);
+  r = await call('POST', 'play/login', { name: 'DirtBoss', password: 'wrong-one' }); ok('a wrong player password is refused', r.status === 401);
+  r = await call('POST', 'play/login', { name: ' dirtboss ', password: 'paver-pw-1', progress: { roller: { s: [2], b: 50 } } }); ok('a player signs back in and this device\'s levels are added', r.status === 200 && r.body.progress.roller.s.join() === '2' && r.body.progress.haul.s[0] === 3);
+  for (let i = 0; i < 5; i++) await call('POST', 'play/login', { name: 'DirtBoss', password: 'nope-nope' }); r = await call('POST', 'play/login', { name: 'DirtBoss', password: 'paver-pw-1' }); ok('five bad player passwords lock that nickname for a while', r.status === 429);
+  { const ipHdr = { 'x-nf-client-connection-ip': '203.0.113.77' }; let last; for (let i = 0; i < 6; i++) last = await call('POST', 'play/join', { name: 'Flood' + i, password: 'flood-pw-1' }, null, ipHdr); ok('one address can only make five player logins an hour', last.status === 429); }
+  r = await call('POST', 'play/join', { name: 'Other Site', password: 'other-pw-1' }, null, { origin: 'https://evil.example' }); ok('another website cannot make player logins', r.status === 403);
+  // a CGH login (team or customer) keeps levels too, separately from player logins
+  r = await call('POST', 'login', { email: 'colton@example.com', password: 'recovered-password' }); const boss = r.cookie;
+  r = await call('GET', 'play/me', null, boss); ok('a CGH login is recognized in the games by first name', r.status === 200 && r.body.who.kind === 'cgh' && r.body.who.name === 'Colton' && r.body.progress.haul.s.length === 0);
+  r = await call('POST', 'play/save', { progress: { math: { s: [3, 3], b: 4000 } } }, boss); r = await call('GET', 'play/me', null, boss); ok('a CGH login keeps its own levels', r.body.progress.math.s.join() === '3,3' && r.body.progress.math.b === 4000);
+  r = await call('GET', 'play/me', null, boss + '; ' + kid); ok('with both sign-ins present the CGH login wins', r.body.who.kind === 'cgh');
+  r = await call('POST', 'play/join', { name: 'Gone Soon', password: 'erase-me-1', progress: P1 }); const gone = r.cookie;
+  r = await call('POST', 'play/delete', {}); ok('erasing a player login needs that player to be signed in', r.status === 401);
+  r = await call('POST', 'play/delete', {}, boss); ok('a CGH login cannot be erased from the games', r.status === 401 && mem.has('gprog/' + JSON.parse(mem.get('meta/owner')).id));
+  r = await call('POST', 'play/delete', {}, gone); ok('a player can erase their own login', r.status === 200 && ![...mem.values()].some((v) => v.includes('Gone Soon')));
+  r = await call('GET', 'play/me', null, gone); ok('an erased login no longer signs in', r.body.who === null);
+  r = await call('POST', 'play/login', { name: 'Gone Soon', password: 'erase-me-1' }); ok('an erased login cannot sign back in', r.status === 401);
+  r = await call('POST', 'play/join', { name: 'Gone Soon', password: 'brand-new-1' }); ok('an erased nickname is free to use again', r.status === 200);
+  ok('no player password is stored in readable form', ![...mem.values()].some((v) => ['paver-pw-1', 'flood-pw-1'].some((p) => v.includes(p))));
+}
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

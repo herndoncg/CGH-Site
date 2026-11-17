@@ -8,6 +8,7 @@ const links = [
   { href: '/about', label: 'About' },
   { href: '/careers', label: 'Careers' },
   { href: '/blog', label: 'Blog' },
+  { href: '/games', label: 'Games' },
 ];
 // Shortcuts in the phone menu, so the common jobs are one tap away.
 const quick = [
@@ -57,7 +58,7 @@ const quick = [
   .logo b { font-weight: 900; }
   .logo__mark { width: 31px; height: 39px; display: block; }
   .nav { display: none; gap: 22px; margin-left: auto; }
-  .nav a { text-decoration: none; font-weight: 500; font-size: 0.98rem; color: var(--text-2); padding: 6px 0; border-bottom: 2px solid transparent; }
+  .nav a { text-decoration: none; font-weight: 500; font-size: 0.98rem; color: var(--text-2); padding: 6px 0; border-bottom: 2px solid transparent; white-space: nowrap; }
   .nav a:hover, .nav a[aria-current] { color: #fff; border-bottom-color: var(--paver); }
   .hdr__cta { display: none; align-items: center; gap: 18px; }
   .hdr__signin { text-decoration: none; font-weight: 500; font-size: 0.95rem; color: var(--text-2); white-space: nowrap; }
@@ -77,8 +78,10 @@ const quick = [
   .menu__tile--sm { min-height: 48px; font-size: 0.98rem; font-weight: 700; color: var(--text-2); background: none; }
   .menu__head { grid-column: 1 / -1; margin: 12px 0 0; color: var(--muted); font-size: 0.86rem; font-weight: 600; }
   @media (min-width: 861px) { .menu__panel { height: auto; max-height: calc(100dvh - 70px); } }
-  @media (min-width: 1140px) {
+  /* The full menu bar needs about 1,240 pixels now that Games is on it; narrower screens get the menu button. */
+  @media (min-width: 1240px) {
     .nav, .hdr__cta { display: flex; }
     .menu { display: none; }
   }
+  @media (min-width: 1240px) and (max-width: 1339px) { .hdr__in { gap: 20px; } .nav { gap: 17px; } .hdr__cta { gap: 14px; } }
 </style>

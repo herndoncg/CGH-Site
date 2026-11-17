@@ -176,6 +176,29 @@ function leadFor(lead, user) {
 }
 const clientView = (l) => ({ job_type: l.job_type, sqft: l.sqft, city: l.city, est_low: l.est_low, est_high: l.est_high, firm_price: l.firm_price, stage: l.stage, visit_date: l.visit_date, job_date: l.job_date, status_note: l.status_note, accepted_at: l.accepted_at });
 
+// ---------- the games ----------
+// The games on the website and how many levels each has. A player's saved levels are a short list of
+// stars (0 to 3) per level and a best score per game. Anything else sent in is thrown away.
+export const GAMES = { haul: 8, paver: 8, roller: 8, math: 8, back: 8, skid: 8, patch: 8, flag: 8 };
+function cleanProgress(p) {
+  const out = {};
+  for (const [g, levels] of Object.entries(GAMES)) {
+    const src = p && typeof p === 'object' && p[g] && typeof p[g] === 'object' ? p[g] : {};
+    const s = Array.isArray(src.s) ? src.s.slice(0, levels).map((x) => Math.max(0, Math.min(3, Math.floor(Number(x)) || 0))) : [];
+    out[g] = { s, b: Math.max(0, Math.min(9999999, Math.floor(Number(src.b)) || 0)) };
+  }
+  return out;
+}
+// Two copies of someone's levels (say, this phone and the account) become one: the best of each wins.
+function mergeProgress(x, y) {
+  const out = {};
+  for (const g of Object.keys(GAMES)) {
+    const s = []; for (let i = 0; i < Math.max(x[g].s.length, y[g].s.length); i++) s.push(Math.max(x[g].s[i] || 0, y[g].s[i] || 0));
+    out[g] = { s, b: Math.max(x[g].b, y[g].b) };
+  }
+  return out;
+}
+
 export async function handle(req, store, push) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/?/, '').replace(/\/$/, '');
@@ -256,6 +279,83 @@ export async function handle(req, store, push) {
     await store.setJSON('applicants/' + app.id, app);
     await alertTeam(store, push, ['owner', 'manager'], { title: 'New job application: ' + app.name, body: [app.position, app.city, app.phone].filter(Boolean).join(' · '), url: '/app/' });
     return json({ ok: true });
+  }
+
+  // ---------- the games (cghoperations.com/games) ----------
+  // Anyone can play without signing in; their levels stay on that device. Signing in keeps the levels
+  // on our side so they follow the player to any phone or computer. Two kinds of sign-in work here:
+  //   1. a CGH login (team member or customer), the same one used for the app;
+  //   2. a free player login anyone can make: a nickname and a password. No email, no phone, no real name.
+  // Player logins live in their own drawer (players/) and can never open anything in the app.
+  if (a === 'play') {
+    const cookieHdr = req.headers.get('cookie') || '';
+    const staffUser = await currentUser(req, store);
+    const teamUser = staffUser && !staffUser.must_change ? staffUser : null;
+    const pm = /(?:^|;\s*)cgh_p=([^;]+)/.exec(cookieHdr);
+    let player = null;
+    if (!teamUser && pm) {
+      const s = await store.get('psessions/' + sha(pm[1]), { type: 'json' });
+      if (s && s.exp > Date.now()) player = await store.get('players/' + s.pid, { type: 'json' });
+    }
+    const readProg = async () => (teamUser ? cleanProgress(await store.get('gprog/' + teamUser.id, { type: 'json' })) : player ? cleanProgress(player.prog) : cleanProgress(null));
+    const writeProg = async (prog) => { if (teamUser) await store.setJSON('gprog/' + teamUser.id, prog); else if (player) { player.prog = prog; await store.setJSON('players/' + player.id, player); } };
+    const who = () => (teamUser ? { kind: 'cgh', name: (teamUser.name || 'CGH').split(' ')[0] } : player ? { kind: 'player', name: player.name } : null);
+    const playerCookie = async (p) => {
+      const token = randomBytes(32).toString('base64url');
+      await store.setJSON('psessions/' + sha(token), { pid: p.id, exp: Date.now() + 180 * 864e5 });
+      return { 'set-cookie': `cgh_p=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${180 * 86400}` };
+    };
+
+    if (b === 'me' && m === 'GET') return json({ who: who(), progress: who() ? await readProg() : null });
+    // Saving: the levels sent in are blended with what is already kept, and the best of each wins.
+    if (b === 'save' && m === 'POST') {
+      if (!who()) return bad('Sign in to keep your levels.', 401);
+      const merged = mergeProgress(await readProg(), cleanProgress(data.progress));
+      await writeProg(merged);
+      return json({ ok: true, who: who(), progress: merged });
+    }
+    if (b === 'join' && m === 'POST') {
+      if (data['bot-field']) return json({ ok: true });
+      const name = clean(data.name, 40).replace(/\s+/g, ' '), pw = String(data.password || '');
+      if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{2,15}$/.test(name)) return bad('Pick a nickname with 3 to 16 letters or numbers.');
+      if (name.replace(/\D/g, '').length >= 7) return bad('Pick a nickname, not a phone number.');
+      if (pw.length < 6 || pw.length > 72) return bad('Use a password with at least 6 characters.');
+      const nk = 'pnames/' + sha(name.toLowerCase());
+      if (await store.get(nk, { type: 'json' })) return bad('That nickname is taken. Try another one.', 409);
+      // one address can only make a few player logins an hour
+      if (await tooMany(store, req, 'rate-join', 5)) return bad('That is a lot of new players from one place. Try again in an hour.', 429);
+      const p = { id: newId(), name, pass: hashPw(pw), created: Date.now(), prog: cleanProgress(data.progress) };
+      await store.setJSON('players/' + p.id, p); await store.setJSON(nk, { id: p.id });
+      return json({ ok: true, who: { kind: 'player', name: p.name }, progress: p.prog }, 200, await playerCookie(p));
+    }
+    if (b === 'login' && m === 'POST') {
+      const name = clean(data.name, 40).replace(/\s+/g, ' '), key = 'fails/p' + sha(name.toLowerCase());
+      const f = (await store.get(key, { type: 'json' })) || { n: 0, until: 0 };
+      if (f.until > Date.now()) return bad('Too many tries. Wait 15 minutes and try again.', 429);
+      const ref = name ? await store.get('pnames/' + sha(name.toLowerCase()), { type: 'json' }) : null;
+      const p = ref ? await store.get('players/' + ref.id, { type: 'json' }) : null;
+      if (!p || !checkPw(String(data.password || ''), p.pass)) {
+        const n = f.n + 1; await store.setJSON(key, { n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 });
+        return bad('That nickname and password do not match.', 401);
+      }
+      await store.delete(key);
+      // levels earned on this device before signing in are added to the account, not thrown away
+      p.prog = mergeProgress(cleanProgress(p.prog), cleanProgress(data.progress));
+      await store.setJSON('players/' + p.id, p);
+      return json({ ok: true, who: { kind: 'player', name: p.name }, progress: p.prog }, 200, await playerCookie(p));
+    }
+    if (b === 'logout' && m === 'POST') {
+      if (pm) await store.delete('psessions/' + sha(pm[1]));
+      return json({ ok: true }, 200, { 'set-cookie': 'cgh_p=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0' });
+    }
+    // A player can erase their own login, levels and all. (A CGH login is managed in the app, not here.)
+    if (b === 'delete' && m === 'POST') {
+      if (!player) return bad('Sign in with your player login first.', 401);
+      await store.delete('players/' + player.id); await store.delete('pnames/' + sha(player.name.toLowerCase()));
+      if (pm) await store.delete('psessions/' + sha(pm[1]));
+      return json({ ok: true }, 200, { 'set-cookie': 'cgh_p=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0' });
+    }
+    return bad('Not found.', 404);
   }
 
   // ---------- signing in ----------

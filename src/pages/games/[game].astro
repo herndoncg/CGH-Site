@@ -1,0 +1,122 @@
+---
+// One page per game (the list of games is in src/games/catalog.ts).
+// The page explains the game and lists every lesson; the Play button opens the game full screen.
+import Base from '../../layouts/Base.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { games, type Game } from '../../games/catalog';
+import '../../games/kit.css';
+
+export function getStaticPaths() { return games.map((g) => ({ params: { game: g.slug }, props: { g } })); }
+const { g } = Astro.props as { g: Game };
+// three other games to try next, starting with the one after this
+const at = games.findIndex((o) => o.id === g.id);
+const others = [1, 2, 3].map((k) => games[(at + k) % games.length]);
+const schema = [{ '@context': 'https://schema.org', '@type': 'VideoGame', name: g.name, description: g.blurb, url: `https://cghoperations.com/games/${g.slug}`, genre: 'Educational', gamePlatform: 'Web browser', applicationCategory: 'Game', operatingSystem: 'Any', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, publisher: { '@type': 'Organization', name: 'CGH Operations' } }];
+---
+<Base title={`${g.name}: Free ${g.machine} Game | CGH Operations`} description={`${g.blurb} Free to play on a phone or computer, with ${g.levels.length} levels that teach real paving work.`} schema={schema}>
+  <section class="band pagehead" style={`--pagehead-photo:url('/img/work/${g.photo}.webp')`}>
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li><a href="/games">Games</a></li><li>{g.name}</li></ol>
+      <p class="gp-kicker">{g.machine} · {g.levels.length} levels</p>
+      <h1>{g.name}</h1>
+      <p class="lede">{g.blurb}</p>
+      <div class="btn-row">
+        <button type="button" class="btn btn--paver gp-play" data-play>Play {g.name}</button>
+        <a class="btn btn--line" href="/games">All games</a>
+      </div>
+      <p class="gp-prog" data-prog hidden></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap split split--even">
+      <div>
+        <h2>How to play</h2>
+        <ol class="gp-steps">{g.how.map((h) => <li>{h}</li>)}</ol>
+        <p><button type="button" class="btn btn--dark" data-play>Start playing</button></p>
+      </div>
+      <div>
+        <h2>What it teaches</h2>
+        <ul class="checks">{g.teaches.map((x) => <li>{x}</li>)}</ul>
+        <p class="muted">Every level opens with one thing our crew really does on the job. Pass a level to open the next one.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--stone">
+    <div class="wrap">
+      <h2>The {g.levels.length} lessons</h2>
+      <ol class="gp-lessons">
+        {g.levels.map((l, i) => (
+          <li>
+            <span class="gp-lessons__n">{i + 1}</span>
+            <div><h3>{l.name}</h3><p>{l.lesson}</p></div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section--tight">
+    <div class="wrap">
+      <h2>More games</h2>
+      <div class="gp-more">
+        {others.map((o) => <a href={`/games/${o.slug}`}><b>{o.name}</b><span>{o.machine}: {o.tagline}</span></a>)}
+      </div>
+    </div>
+  </section>
+  <CtaBand heading="Need the real thing paved?" text="Get a price range for your driveway, lot or road in about a minute. A free site visit confirms it before any work starts." />
+
+  <div id="gk" class="gk" data-game={g.id} role="dialog" aria-label={`${g.name} game`} hidden></div>
+</Base>
+
+<script>
+  import { boot } from '../../games/kit.js';
+  import { games } from '../../games/catalog';
+  import * as store from '../../games/progress.js';
+
+  const loaders: Record<string, () => Promise<unknown>> = {
+    haul: () => import('../../games/haul.js'),
+    paver: () => import('../../games/paver.js'),
+    roller: () => import('../../games/roller.js'),
+    math: () => import('../../games/math.js'),
+    back: () => import('../../games/back.js'),
+    skid: () => import('../../games/skid.js'),
+    patch: () => import('../../games/patch.js'),
+    flag: () => import('../../games/flag.js'),
+  };
+  const root = document.getElementById('gk')!;
+  const meta = games.find((x) => x.id === root.dataset.game)!;
+  const panel = boot({ root, meta, load: loaders[meta.id] });
+  document.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => panel.open()));
+
+  // "Level 3 of 8 · 7 stars" under the Play button, once the player has some.
+  const line = document.querySelector<HTMLElement>('[data-prog]')!;
+  const paint = () => {
+    const p = store.local(), got = store.stars(p, meta.id);
+    line.hidden = !got; if (got) line.textContent = `You are on level ${store.open(p, meta.id)} of ${meta.levels.length}, with ${got} of ${meta.levels.length * 3} stars.`;
+    document.querySelectorAll('.gp-play').forEach((b) => (b.textContent = got ? 'Keep playing' : 'Play ' + meta.name));
+  };
+  paint(); store.session().then(paint); root.addEventListener('gk:close', paint);
+  if (location.hash === '#play') panel.open();
+</script>
+
+<style>
+  .gp-kicker { margin: 0 0 10px; color: var(--paver-bright); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .gp-prog { margin: 16px 0 0; color: var(--text-2); }
+  h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); }
+  .gp-steps { padding-left: 1.3em; display: grid; gap: 10px; margin-bottom: 1.4em; }
+  .gp-steps li::marker { font-family: var(--font-display); font-weight: 800; color: var(--accent); }
+  .gp-lessons { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  @media (min-width: 760px) { .gp-lessons { grid-template-columns: 1fr 1fr; } }
+  .gp-lessons li { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .gp-lessons__n { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--asphalt); color: var(--paver-bright); font-family: var(--font-display); font-weight: 900; }
+  .gp-lessons h3 { margin: 4px 0 4px; font-size: 1.12rem; }
+  .gp-lessons p { margin: 0; color: var(--text-2); }
+  .gp-more { display: grid; gap: 12px; }
+  @media (min-width: 760px) { .gp-more { grid-template-columns: repeat(3, 1fr); } }
+  .gp-more a { display: block; padding: 16px 18px; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface); text-decoration: none; }
+  .gp-more a:hover { border-color: var(--accent); }
+  .gp-more b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; }
+  .gp-more span { color: var(--text-2); font-size: 0.96rem; }
+</style>
