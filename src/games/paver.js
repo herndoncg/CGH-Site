@@ -23,6 +23,10 @@ const LEVELS = [
 ];
 const SCREED_AT = 0.7;     // how far down the screen the screed sits
 const STEP = 0.5;          // the mat is remembered every half foot
+// How touchy the steering is. All three were turned down on Nov 17, 2026 after Colton found it too sensitive.
+const DRAG = 0.55;         // the paver moves about half as far as the finger does (1 would be finger for finger)
+const PULL = 4.4;          // how hard the paver chases the spot it is steering toward (was 5)
+const EASE = 6;            // how quickly it changes sideways speed (was 7); lower feels heavier
 
 export function create(env) {
   const { ctx } = env;
@@ -53,13 +57,13 @@ export function create(env) {
     const ppf = scale();
     // steering: drag moves the spot the paver is steering toward; the paver follows, slowly
     const p = env.pointer;
-    if (p) { if (!drag) drag = { px: p.x, target }; target = drag.target + (p.x - drag.px) / ppf; } else drag = null;
+    if (p) { if (!drag) drag = { px: p.x, target }; target = drag.target + ((p.x - drag.px) / ppf) * DRAG; } else drag = null;
     const keyDir = (env.keys.has('ArrowRight') || env.keys.has('d') ? 1 : 0) - (env.keys.has('ArrowLeft') || env.keys.has('a') ? 1 : 0);
     const maxLat = Math.max(3.6, 1.35 * L.speed * (L.bend * Math.PI * 2) / L.wave + (L.wobble || 0) * 0.3);
     if (keyDir) target = x + keyDir * maxLat * 0.6;
     target = clamp(target, center(s) - 9, center(s) + 9);
-    const want = clamp((target - x) * 5, -maxLat, maxLat);
-    vx += (want - vx) * Math.min(1, dt * 7); x += vx * dt;
+    const want = clamp((target - x) * PULL, -maxLat, maxLat);
+    vx += (want - vx) * Math.min(1, dt * EASE); x += vx * dt;
 
     s += L.speed * dt;
     camX += (x * 0.75 - camX) * Math.min(1, dt * 3);
