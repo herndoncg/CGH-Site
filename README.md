@@ -64,7 +64,21 @@ New phone photos: `node scripts/import-photos.mjs /path/photo.jpg=descriptive-na
 - The owner account is created once at `/app` with a setup code. Team members and customers get a one-time link to choose their own password. No passwords are stored, only salted hashes.
 - Website quotes and job applications are sent to the app (`/api/lead`, `/api/apply`) and to Netlify Forms.
 - Trainings are the `LESSONS` list at the top of `core.mjs`.
-- Test the back end: `node scripts/test-api.mjs` (33 checks).
+- Test the back end: `node scripts/test-api.mjs`.
+
+## The games (/games)
+
+Four free games that teach real paving work: **Haul Run** (dump truck), **Lay the Mat** (paver), **Hot Roll** (roller) and **Yardage Boss** (job math). Eight levels each, up to three stars a level.
+
+- Pages: `src/pages/games/index.astro` (the Games page, rank, sign-in box) and `src/pages/games/[game].astro` (one page per game).
+- Names, descriptions and the lesson shown before every level: `src/games/catalog.ts`. Change a sentence there and it changes everywhere.
+- How hard each level is: the `LEVELS` list at the top of `src/games/haul.js`, `paver.js`, `roller.js` and `math.js`. Each file explains its numbers in plain words.
+- The frame around every game (level list, lesson card, pause, results, sound): `src/games/kit.js` and `kit.css`.
+- Saved levels: `src/games/progress.js` in the browser, the `play/...` routes in `netlify/functions/lib/core.mjs` on the server.
+  - Not signed in: levels are kept in the browser on that device.
+  - Signed in: levels are also kept in the site's private storage and follow the player to any device. Two sign-ins work: a CGH login (team or customer, same as the app), or a free player login (nickname and password, no email). Player logins are stored apart from app logins (`players/`, `pnames/`, `psessions/`; CGH logins' levels are in `gprog/`) and cannot open anything in the app.
+  - One address can make five player logins an hour; five wrong passwords lock a nickname for 15 minutes; a player can delete their own login on the Games page.
+- Try the whole site, games and sign-in included, on your own computer: `npm run build && node scripts/preview-local.mjs` (nothing is saved, nothing touches the live site).
 
 ## Colors
 

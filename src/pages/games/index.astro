@@ -1,0 +1,229 @@
+---
+// The Games page: four games that teach real paving work, the player's rank, and the box for
+// signing in so levels are kept. The games themselves are listed in src/games/catalog.ts.
+import Base from '../../layouts/Base.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { games, RANKS } from '../../games/catalog';
+const photo: Record<string, string> = { haul: 'dump-truck-and-roller', paver: 'leeboy-paver-laying-hot-mix', roller: 'roller-compacting-new-driveway', math: 'road-entrance-apron-finished' };
+const maxStars = games.reduce((a, g) => a + g.levels.length * 3, 0);
+const schema = [{ '@context': 'https://schema.org', '@type': 'ItemList', name: 'CGH Operations paving games', itemListElement: games.map((g, i) => ({ '@type': 'ListItem', position: i + 1, name: g.name, url: `https://cghoperations.com/games/${g.slug}` })) }];
+---
+<Base title="Paving Games: Drive the Dump Truck, Run the Paver | CGH Operations" description="Free games that teach real paving work. Drive a dump truck, run an asphalt paver, roll the mat and figure a job. Play on a phone or computer, no download." schema={schema}>
+  <section class="band pagehead" style="--pagehead-photo:url('/img/work/paving-crew-with-leeboy-paver.webp')">
+    <div class="wrap">
+      <ol class="crumbs"><li><a href="/">Home</a></li><li>Games</li></ol>
+      <h1>Learn the job. Play the games.</h1>
+      <p class="lede">Four free games built on real paving work. Drive the dump truck, run the paver, roll the mat and figure the job. Every level teaches one thing our crew really does.</p>
+      <div class="btn-row">
+        <a class="btn btn--paver" href={`/games/${games[0].slug}#play`} data-continue>Play now</a>
+        <a class="btn btn--line" href="#save">Keep my levels</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="rank" data-rank data-ranks={JSON.stringify(RANKS)} data-max={maxStars}>
+        <div>
+          <p class="rank__k">Your rank</p>
+          <p class="rank__name" data-rank-name>{RANKS[0].name}</p>
+        </div>
+        <div class="rank__meter">
+          <p class="rank__line"><b data-rank-stars>0</b> of {maxStars} stars <span data-rank-next>· {RANKS[1].stars} stars to {RANKS[1].name}</span></p>
+          <div class="rank__bar"><i data-rank-bar></i></div>
+          <ol class="rank__steps">{RANKS.map((r) => <li data-at={r.stars}>{r.name}</li>)}</ol>
+        </div>
+      </div>
+
+      <div class="cards">
+        {games.map((g) => (
+          <a class="card" href={`/games/${g.slug}#play`} data-game={g.id} data-levels={g.levels.length}>
+            <img src={`/img/work/${photo[g.id]}.webp`} alt="" loading="lazy" width="600" height="800" />
+            <span class="card__in">
+              <span class="card__k">{g.machine}</span>
+              <span class="card__name">{g.name}</span>
+              <span class="card__tag">{g.tagline}</span>
+              <span class="card__prog" data-prog>{g.levels.length} levels</span>
+              <span class="card__go">Play</span>
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--stone" id="save">
+    <div class="wrap split split--even">
+      <div>
+        <h2>Keep your levels</h2>
+        <p>Your levels save on this phone or computer by themselves. Sign in and they follow you to any device.</p>
+        <ul class="checks">
+          <li>Free. A nickname and a password, that is all.</li>
+          <li>No email, no phone number, no real name.</li>
+          <li>Already have a CGH login for the app? You are set. <a class="textlink" href="/app">Sign in there</a> and your levels save to it.</li>
+        </ul>
+      </div>
+      <div class="save" data-save>
+        <div data-view="loading"><p class="muted">Checking for your saved levels…</p></div>
+
+        <div data-view="in" hidden>
+          <p class="save__hello">Signed in as <b data-me></b></p>
+          <p>Your levels are saved. Sign in with the same login on another phone or computer and they will be there.</p>
+          <p data-cgh hidden class="muted">This is your CGH login. To sign out, use My account in the <a class="textlink" href="/app">CGH app</a>.</p>
+          <p data-player><button type="button" class="btn btn--line" data-out>Sign out</button></p>
+          <p data-player class="muted save__small">Signing out also clears the levels from this device, so the next person starts fresh. Yours stay saved in your login.</p>
+          <p data-player class="save__small"><button type="button" class="save__link" data-erase>Delete this login</button></p>
+          <div data-erase-ask hidden class="save__ask">
+            <p><b>Delete this login for good?</b> The nickname, password and every saved level are erased. This cannot be undone.</p>
+            <div class="btn-row"><button type="button" class="btn btn--dark" data-erase-yes>Yes, delete it</button><button type="button" class="btn btn--line" data-erase-no>Keep it</button></div>
+          </div>
+        </div>
+
+        <form data-view="out" hidden novalidate>
+          <div class="save__tabs" role="tablist">
+            <button type="button" role="tab" aria-selected="true" data-tab="join">New player</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="login">I have a login</button>
+          </div>
+          <label>Nickname<input name="name" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="16" required /></label>
+          <p class="save__hint" data-join-only>3 to 16 letters or numbers. Do not use your real name.</p>
+          <label>Password<input name="password" type="password" autocomplete="new-password" minlength="6" maxlength="72" required /></label>
+          <p class="save__hint" data-join-only>At least 6 characters. Write it down: with no email on file, we cannot reset it for you.</p>
+          <input type="text" name="bot-field" tabindex="-1" autocomplete="off" class="save__trap" aria-hidden="true" />
+          <p class="save__err" data-err role="alert" hidden></p>
+          <button type="submit" class="btn btn--dark" data-submit>Save my levels</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap split split--even">
+      <div>
+        <h2>Why a paving company made games</h2>
+        <p>Good pavement is mostly habits: look ahead, keep the hopper fed, roll it while it is hot, measure twice. Those are easier to learn by doing than by reading, so we built them into games anyone can pick up.</p>
+        <p>They are free for kids, students, new hires and anybody who has ever wanted to run the big yellow machine.</p>
+      </div>
+      <div>
+        <h2>Like the work?</h2>
+        <p>If the games feel good, the real thing might too. We hire paver operators, laborers, drivers and sales people.</p>
+        <div class="btn-row"><a class="btn btn--dark" href="/careers">See open jobs</a></div>
+      </div>
+    </div>
+  </section>
+  <CtaBand heading="Need the real thing paved?" text="Get a price range for your driveway, lot or road in about a minute. A free site visit confirms it before any work starts." />
+</Base>
+
+<script>
+  import * as store from '../../games/progress.js';
+
+  const $ = <T extends HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector<T>(sel)!;
+  // ----- stars, rank and "keep playing" -----
+  function paint() {
+    const p = store.local(), total = store.totalStars(p);
+    const rank = $('[data-rank]'), ranks: { stars: number; name: string }[] = JSON.parse(rank.dataset.ranks!), max = +rank.dataset.max!;
+    let at = 0; ranks.forEach((r, i) => { if (total >= r.stars) at = i; });
+    const next = ranks[at + 1];
+    $('[data-rank-name]').textContent = ranks[at].name; $('[data-rank-stars]').textContent = String(total);
+    $('[data-rank-next]').textContent = next ? `· ${next.stars - total} more to ${next.name}` : '· top rank';
+    $('[data-rank-bar]').style.width = Math.max(total ? 3 : 0, (total / max) * 100) + '%';
+    rank.querySelectorAll<HTMLElement>('.rank__steps li').forEach((li) => li.classList.toggle('is-on', total >= +li.dataset.at!));
+    let resume = '';
+    document.querySelectorAll<HTMLAnchorElement>('.card').forEach((c) => {
+      const g = c.dataset.game!, n = +c.dataset.levels!, got = store.stars(p, g), open = store.open(p, g);
+      $('[data-prog]', c).textContent = got ? `Level ${open} of ${n} · ${got} of ${n * 3} stars` : `${n} levels`;
+      $('.card__go', c).textContent = got ? (got === n * 3 ? 'Play again' : 'Keep playing') : 'Play';
+      if (got && got < n * 3 && !resume) resume = c.href;
+    });
+    const cont = $<HTMLAnchorElement>('[data-continue]'); if (resume) { cont.href = resume; cont.textContent = 'Keep playing'; }
+  }
+  paint();
+
+  // ----- signing in to keep levels -----
+  const box = $('[data-save]'), form = $<HTMLFormElement>('form[data-view=out]', box), err = $('[data-err]', box), submit = $<HTMLButtonElement>('[data-submit]', box);
+  let tab: 'join' | 'login' = 'join';
+  const view = (name: string) => box.querySelectorAll<HTMLElement>('[data-view]').forEach((v) => (v.hidden = v.dataset.view !== name));
+  function showWho() {
+    const me = store.who();
+    if (!me) return view('out');
+    $('[data-me]', box).textContent = me.name;
+    $('[data-erase-ask]', box).hidden = true;
+    $('[data-cgh]', box).hidden = me.kind !== 'cgh';
+    box.querySelectorAll<HTMLElement>('[data-player]').forEach((e) => (e.hidden = me.kind !== 'player'));
+    view('in');
+  }
+  function setTab(t: 'join' | 'login') {
+    tab = t; err.hidden = true;
+    box.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+    box.querySelectorAll<HTMLElement>('[data-join-only]').forEach((e) => (e.hidden = t !== 'join'));
+    submit.textContent = t === 'join' ? 'Save my levels' : 'Sign in';
+    $<HTMLInputElement>('input[name=password]', form).autocomplete = t === 'join' ? 'new-password' : 'current-password';
+  }
+  box.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab as 'join' | 'login')));
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault(); err.hidden = true;
+    const fd = new FormData(form);
+    if (fd.get('bot-field')) return;
+    const name = String(fd.get('name') || '').trim(), password = String(fd.get('password') || '');
+    if (name.length < 3) { err.textContent = 'Pick a nickname with 3 to 16 letters or numbers.'; err.hidden = false; return; }
+    if (password.length < 6) { err.textContent = 'Use a password with at least 6 characters.'; err.hidden = false; return; }
+    submit.disabled = true;
+    try { await (tab === 'join' ? store.join(name, password) : store.login(name, password)); form.reset(); showWho(); paint(); }
+    catch (ex) { err.textContent = (ex as Error).message; err.hidden = false; }
+    submit.disabled = false;
+  });
+  $('[data-out]', box).addEventListener('click', async () => { await store.logout(); setTab('login'); showWho(); paint(); });
+  const ask = $('[data-erase-ask]', box);
+  $('[data-erase]', box).addEventListener('click', () => { ask.hidden = false; });
+  $('[data-erase-no]', box).addEventListener('click', () => { ask.hidden = true; });
+  $('[data-erase-yes]', box).addEventListener('click', async () => { try { await store.erase(); } catch {} ask.hidden = true; setTab('join'); showWho(); paint(); });
+  store.session().then(() => { showWho(); paint(); });
+</script>
+
+<style>
+  h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); }
+  .rank { display: grid; gap: 14px 32px; align-items: center; padding: 18px 20px; margin-bottom: 22px; border-radius: var(--radius-lg); background: var(--asphalt); color: #f2f5f9; }
+  @media (min-width: 760px) { .rank { grid-template-columns: auto 1fr; padding: 22px 28px; } }
+  .rank__k { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--paver-bright); }
+  .rank__name { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: clamp(1.7rem, 4vw, 2.3rem); line-height: 1.05; }
+  .rank__line { margin: 0 0 8px; color: #cfd7e2; }
+  .rank__line b { color: #f5c542; font-family: var(--font-display); font-size: 1.15rem; }
+  .rank__bar { height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+  .rank__bar i { display: block; height: 100%; width: 0; border-radius: 5px; background: linear-gradient(90deg, var(--paver), var(--mint)); transition: width 0.6s var(--ease); }
+  .rank__steps { display: none; list-style: none; margin: 8px 0 0; padding: 0; justify-content: space-between; font-size: 0.82rem; color: #7f8ba0; }
+  .rank__steps .is-on { color: #f2f5f9; font-weight: 700; }
+  @media (min-width: 760px) { .rank__steps { display: flex; } }
+
+  /* Two across on phones so all four games fit on one screen; four across on wide screens. */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (min-width: 980px) { .cards { grid-template-columns: repeat(4, 1fr); gap: 18px; } }
+  .card { position: relative; display: block; aspect-ratio: 3 / 4.4; border-radius: var(--radius-lg); overflow: hidden; background: var(--asphalt); color: #fff; text-decoration: none; isolation: isolate; }
+  .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform 0.5s var(--ease); }
+  .card::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(11, 18, 32, 0.15) 0%, rgba(11, 18, 32, 0.55) 42%, rgba(11, 18, 32, 0.96) 78%); }
+  .card:hover img { transform: scale(1.05); }
+  .card__in { position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 3px; padding: 12px; }
+  .card__k { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--paver-bright); }
+  .card__name { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.25rem, 4.6vw, 1.7rem); line-height: 1.05; }
+  .card__tag { font-size: 0.88rem; line-height: 1.3; color: #cfd7e2; }
+  .card__prog { font-size: 0.8rem; color: #f5c542; font-weight: 600; margin-top: 2px; }
+  .card__go { margin-top: 8px; display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: var(--radius); background: var(--paver); color: var(--asphalt); font-family: var(--font-display); font-weight: 800; }
+  .card:hover .card__go { background: var(--paver-bright); }
+  @media (min-width: 560px) { .card__in { padding: 18px; } .card__tag { font-size: 0.96rem; } }
+
+  .save { padding: 22px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); }
+  .save__hello { font-size: 1.2rem; }
+  .save__small { font-size: 0.9rem; }
+  .save__tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 16px; border-radius: 10px; background: var(--bg-2); }
+  .save__tabs button { min-height: 44px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font-family: var(--font-display); font-weight: 800; font-size: 1rem; cursor: pointer; }
+  .save__tabs button[aria-selected='true'] { background: var(--asphalt); color: #fff; }
+  .save label { display: grid; gap: 6px; margin-bottom: 6px; font-weight: 600; }
+  .save input:not(.save__trap) { width: 100%; min-height: 52px; padding: 0 14px; border: 1.5px solid var(--border-strong); border-radius: var(--radius); background: #e9ecf0; color: var(--text); font: inherit; font-size: 1.05rem; }
+  .save input:focus-visible { outline: 3px solid var(--paver); outline-offset: 1px; }
+  .save__hint { margin: 0 0 14px; font-size: 0.9rem; color: var(--muted); }
+  .save form > label + label, .save form > p + label { margin-top: 10px; }
+  .save__trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .save__err { margin: 6px 0 12px; padding: 10px 12px; border-radius: var(--radius); background: rgba(179, 38, 30, 0.12); color: var(--danger); font-weight: 600; }
+  .save .btn { width: 100%; margin-top: 10px; }
+  .save__link { padding: 0; border: 0; background: none; color: var(--muted); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .save__ask { margin-top: 12px; padding: 14px; border-radius: var(--radius); background: rgba(179, 38, 30, 0.1); border: 1px solid rgba(179, 38, 30, 0.35); }
+  .save__ask .btn-row { flex-wrap: nowrap; } .save__ask .btn { margin-top: 0; padding: 0 12px; white-space: normal; }
+</style>
