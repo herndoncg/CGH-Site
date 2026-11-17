@@ -68,11 +68,24 @@ New phone photos: `node scripts/import-photos.mjs /path/photo.jpg=descriptive-na
 
 ## The games (/games)
 
-Four free games that teach real paving work: **Haul Run** (dump truck), **Lay the Mat** (paver), **Hot Roll** (roller) and **Yardage Boss** (job math). Eight levels each, up to three stars a level.
+Eight free games that teach real paving work, eight levels each, up to three stars a level:
+
+| Game | File | What you do |
+| --- | --- | --- |
+| Haul Run | `haul.js` | Drive the loaded dump truck to the job before the mix cools |
+| Lay the Mat | `paver.js` | Steer the paver down the line and keep the hopper fed |
+| Hot Roll | `roller.js` | Roll every strip while it is hot, without turning on the mat |
+| Yardage Boss | `math.js` | Job math: square feet, yards, loads, tons |
+| Back It In | `back.js` | Back the dump truck up to the paver |
+| Dirt Dash | `skid.js` | Load a truck with the skid steer, around people and utility flags |
+| Pothole Patrol | `patch.js` | Patch potholes in the right order before cars hit them |
+| Stop / Slow | `flag.js` | Flag traffic through a one-lane work zone |
+
+To add a game: write its file in `src/games/`, add its entry to `catalog.ts`, add it to the loaders list in `src/pages/games/[game].astro`, and add its id to `GAMES` in `netlify/functions/lib/core.mjs` and `COUNTS` in `src/games/progress.js`.
 
 - Pages: `src/pages/games/index.astro` (the Games page, rank, sign-in box) and `src/pages/games/[game].astro` (one page per game).
 - Names, descriptions and the lesson shown before every level: `src/games/catalog.ts`. Change a sentence there and it changes everywhere.
-- How hard each level is: the `LEVELS` list at the top of `src/games/haul.js`, `paver.js`, `roller.js` and `math.js`. Each file explains its numbers in plain words.
+- How hard each level is: the `LEVELS` list at the top of each game's file. Each file explains its numbers in plain words.
 - The frame around every game (level list, lesson card, pause, results, sound): `src/games/kit.js` and `kit.css`.
 - Saved levels: `src/games/progress.js` in the browser, the `play/...` routes in `netlify/functions/lib/core.mjs` on the server.
   - Not signed in: levels are kept in the browser on that device.

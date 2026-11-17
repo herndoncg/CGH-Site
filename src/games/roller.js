@@ -25,7 +25,7 @@ const TURN = 0.4;              // seconds it sits at the end before coming back
 
 export function create(env) {
   const { ctx } = env;
-  let L, n, cells, temps, rates, lane, laneX, y, dir, wait, marks, t, note, noteT, queued, lastRow, shown, endT;
+  let L, n, cells, temps, rates, lane, laneX, y, dir, wait, marks, t, note, noteT, queued, lastRow, shown, endT, bonus, laneDone, geo, turnPaid;
 
   const say = (text, good = false, time = 2) => { note = { text, good }; noteT = time; };
   const onMat = () => y > 0 && y < L.rows;
@@ -38,7 +38,7 @@ export function create(env) {
       // turned on hot mat: the square under the roller is scuffed and has to be rolled again
       const r = clamp(Math.floor(y), 0, L.rows - 1), c = cells[lane][r];
       if (temps[lane] > COLD) { c.passes = 0; c.scuff = true; marks++; env.sfx('bad'); env.buzz(90); say('Turned on hot mat. That leaves a mark.', false, 2.2); }
-    } else env.sfx('move');
+    } else { env.sfx('move'); if (!turnPaid && !laneDone[next]) { turnPaid = true; bonus += 25; if (geo) env.pop(geo.x0 + (next + 0.5) * geo.cw, geo.Y(y) - 30, 'Clean turn +25', '#7ef0c2'); } }
     lane = next;
   }
 
@@ -51,7 +51,7 @@ export function create(env) {
     const base = (HOT - COLD) / (best * L.slack);
     rates = Array.from({ length: L.lanes }, (_, i) => base * (i === 0 || i === L.lanes - 1 ? L.edge : 1));
     temps = rates.map(() => HOT);
-    lane = Math.floor(L.lanes / 2); laneX = lane; y = -END; dir = 1; wait = 0.8; marks = 0; t = 0; note = null; noteT = 0; queued = 0; lastRow = -1; shown = 0; endT = 0;
+    lane = Math.floor(L.lanes / 2); laneX = lane; y = -END; dir = 1; wait = 0.8; marks = 0; t = 0; note = null; noteT = 0; queued = 0; lastRow = -1; shown = 0; endT = 0; bonus = 0; laneDone = cells.map(() => false); geo = null; turnPaid = false;
     env.onSwipe = (d, x) => { if (d === 'left') shift(-1); else if (d === 'right') shift(1); else if (d === 'tap') shift(x < env.W / 2 ? -1 : 1); };
     env.onKey = (k) => { if (k === 'ArrowLeft' || k === 'a') shift(-1); if (k === 'ArrowRight' || k === 'd') shift(1); };
     say(L.edge > 1 ? 'The outside lanes cool first. Roll them first.' : 'Tap left or right to move over. Only at the ends!', true, 3);
@@ -69,19 +69,23 @@ export function create(env) {
       if (y >= L.rows + END) { y = L.rows + END; dir = -1; wait = TURN; lastRow = -1; }
       if (y <= -END) { y = -END; dir = 1; wait = TURN; lastRow = -1; }
     }
+    if (onMat()) turnPaid = false;
     if (!onMat() && queued) { const d = queued; queued = 0; shift(d); }
     // the drum counts a pass on each square as its middle goes under
     const r = Math.floor(y);
     if (onMat() && r !== lastRow && Math.abs(lane - laneX) < 0.3) {
       lastRow = r; const c = cells[lane][r];
-      if (temps[lane] > COLD) { if (c.passes < L.need) { c.passes++; if (c.passes >= L.need) env.sfx('tick'); } }
+      if (temps[lane] > COLD) {
+        if (c.passes < L.need) { c.passes++; if (c.passes >= L.need) env.sfx('tick'); }
+        if (!laneDone[lane] && cells[lane].every((q) => q.passes >= L.need)) { laneDone[lane] = true; bonus += 200; env.sfx('good'); if (geo) env.pop(geo.x0 + (lane + 0.5) * geo.cw, geo.Y(L.rows / 2), 'Lane packed +200', '#f5c542'); }
+      }
       else if (c.passes < L.need && shown < t - 3) { shown = t; say('Too cold. Rolling it now does nothing.', false, 2); }
     }
     // over when every square is either packed or too cold to pack
     let open = 0; for (let i = 0; i < L.lanes; i++) for (const c of cells[i]) if (c.passes < L.need && temps[i] > COLD) open++;
     if (!open) { endT = 0.7; env.sfx(packed() >= 0.9 ? 'good' : 'bad'); }
   }
-  const score = () => Math.max(0, Math.round(packed() * 3000 - marks * 150 + Math.max(0, Math.min(...temps) - COLD) * 6));
+  const score = () => Math.max(0, Math.round(packed() * 3000 + bonus - marks * 150 + Math.max(0, Math.min(...temps) - COLD) * 6));
   function done() {
     const p = packed(), pctNow = Math.round(p * 100);
     let stars = p >= 0.75 ? 1 : 0; if (p >= 0.9 && marks <= 2) stars = 2; if (p >= 0.999 && marks === 0) stars = 3;
@@ -95,6 +99,7 @@ export function create(env) {
     const ch = Math.min(64, (H - top - bottom) / (L.rows + END * 2 + 0.5)), cw = Math.min(78, (W - 36) / L.lanes, ch * 1.75);
     const x0 = (W - cw * L.lanes) / 2, y0 = top + (END + 0.25) * ch, matH = ch * L.rows;
     const Y = (r) => y0 + r * ch;
+    geo = { x0, cw, Y };
     // ground: grass, then rock base under and past both ends of the mat
     ctx.fillStyle = '#4c7a45'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(0,0,0,0.05)'; for (let i = 0; i < 30; i++) { const h = Math.abs(Math.sin(i * 91.7) * 43758.5453) % 1; ctx.beginPath(); ctx.ellipse(h * W, ((h * 13.7) % 1) * H, 30 + h * 30, 12, 0, 0, 7); ctx.fill(); }

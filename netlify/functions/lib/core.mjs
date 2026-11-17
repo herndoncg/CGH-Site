@@ -179,7 +179,7 @@ const clientView = (l) => ({ job_type: l.job_type, sqft: l.sqft, city: l.city, e
 // ---------- the games ----------
 // The games on the website and how many levels each has. A player's saved levels are a short list of
 // stars (0 to 3) per level and a best score per game. Anything else sent in is thrown away.
-export const GAMES = { haul: 8, paver: 8, roller: 8, math: 8 };
+export const GAMES = { haul: 8, paver: 8, roller: 8, math: 8, back: 8, skid: 8, patch: 8, flag: 8 };
 function cleanProgress(p) {
   const out = {};
   for (const [g, levels] of Object.entries(GAMES)) {

@@ -87,6 +87,9 @@ function makeQuestion(kind, R) {
   return { ...q, choices };
 }
 
+// The questions start right away, with no READY and GO.
+export const quickStart = true;
+
 export function create(env) {
   let L, qs, i, right, streak, best, points, left, answered, box, auto;
   const el = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; };

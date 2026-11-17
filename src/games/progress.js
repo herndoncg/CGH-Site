@@ -2,7 +2,7 @@
 // player login, or a CGH login), the same levels are also kept on our side so they follow the player
 // to any phone or computer. When the two copies differ, the best of each level wins.
 const KEY = 'cgh-games-v1';
-export const COUNTS = { haul: 8, paver: 8, roller: 8, math: 8 };
+export const COUNTS = { haul: 8, paver: 8, roller: 8, math: 8, back: 8, skid: 8, patch: 8, flag: 8 };
 
 function tidy(p) {
   const out = {};

@@ -110,3 +110,26 @@ html.gk-open, html.gk-open body { overflow: hidden; overscroll-behavior: none; }
 @media (orientation: landscape) and (max-height: 430px) {
   .gk__col::after { content: 'Turn your phone upright to play.'; position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; text-align: center; background: #0b1220; color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; }
 }
+
+/* Results: confetti for three stars, a gold box for a new best score, the "next level is open" line. */
+.gk-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.gk-confetti i { position: absolute; top: -14px; width: 9px; height: 14px; border-radius: 2px; opacity: 0; animation: gk-fall 2s cubic-bezier(0.3, 0.6, 0.6, 1) forwards; }
+@keyframes gk-fall { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--drift), 105vh) rotate(var(--spin)); opacity: 0.9; } }
+.gk-stats .is-best { background: rgba(245, 197, 66, 0.18); box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.7); }
+.gk-stats .is-best dt { color: #f5c542; }
+.gk-unlock { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: rgba(245, 197, 66, 0.14); color: #f5c542; font-weight: 700; }
+.gk-pedal--sm { min-width: 76px; min-height: 68px; padding: 0 10px; }
+.gk-pedal--l2 { left: 100px; }
+.gk-pedal--r2 { right: 100px; }
+
+/* Pothole Patrol (patch.js): the row of tools along the bottom. */
+.pp-tools { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; padding: 8px 8px calc(10px + env(safe-area-inset-bottom)); background: rgba(11, 18, 32, 0.9); border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.pp-tools.is-wrong { animation: pp-shake 0.3s; }
+@keyframes pp-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.pp-tool { position: relative; flex: 1 1 0; min-width: 0; min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 12px; background: #121b2e; color: #fff; cursor: pointer; touch-action: none; }
+.pp-tool b { font-family: var(--font-display); font-weight: 900; font-size: 0.82rem; letter-spacing: 0.04em; }
+.pp-tool small { position: absolute; top: 4px; right: 7px; font-size: 0.66rem; color: #6d7a8c; }
+.pp-tool:active { background: #0ea5a9; border-color: #2cc4c8; color: #0b1220; transform: translateY(2px); }
+.pp-tool.is-hint { border-color: #f5c542; box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.35); animation: pp-pulse 0.9s ease-in-out infinite; }
+@keyframes pp-pulse { 50% { box-shadow: 0 0 0 7px rgba(245, 197, 66, 0.12); } }
+@media (hover: none) { .pp-tool small { display: none; } }

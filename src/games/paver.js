@@ -26,7 +26,7 @@ const STEP = 0.5;          // the mat is remembered every half foot
 
 export function create(env) {
   const { ctx } = env;
-  let L, n, s, x, vx, target, hopper, samples, good, total, starves, spills, starved, truck, t, note, noteT, spillT, blobs, bumps, camX, drag, grass, endT, feedHeld, nextTruckAt;
+  let L, n, s, x, vx, target, hopper, samples, good, total, starves, spills, starved, truck, t, note, noteT, spillT, blobs, bumps, camX, drag, grass, endT, feedHeld, nextTruckAt, groove, bonus;
   const feedBtn = document.createElement('button');
   feedBtn.type = 'button'; feedBtn.className = 'gk-pedal gk-pedal--right'; feedBtn.innerHTML = 'FEED<small>hold to fill</small>';
   let pedal = false;
@@ -41,7 +41,7 @@ export function create(env) {
   function start(level) {
     n = level; L = LEVELS[n];
     s = 0; x = 0; vx = 0; target = 0; hopper = L.feed ? 0.7 : 1; samples = []; good = 0; total = 0; starves = 0; spills = 0; starved = false;
-    truck = null; t = 0; note = null; noteT = 0; spillT = 0; blobs = []; bumps = []; camX = 0; drag = null; endT = 0; feedHeld = false; nextTruckAt = 12;
+    truck = null; t = 0; note = null; noteT = 0; spillT = 0; blobs = []; bumps = []; camX = 0; drag = null; endT = 0; feedHeld = false; nextTruckAt = 12; groove = 0; bonus = 0;
     const r = rng(40 + n); grass = Array.from({ length: 70 }, () => ({ u: r(), v: r(), k: r() }));
     if (L.feed) env.stage.appendChild(feedBtn);
     say(L.feed ? 'Follow the lines. Feed the hopper when a truck backs in.' : 'Drag to steer. Keep the screed between the lines.', true, 3);
@@ -74,10 +74,10 @@ export function create(env) {
           truck.wait += dt; feedHeld = pedal || env.keys.has(' ');
           if (feedHeld && truck.load > 0) {
             const add = L.pour * dt; truck.load -= add;
-            if (hopper + add > 1) { spillT += dt; hopper = 1; if (spillT > 0.22) { spillT = 0; spills++; blobs.push({ s: s + 7.5, x: x + (Math.random() - 0.5) * 5 }); env.sfx('bad'); env.buzz(60); say('Hopper is full. Let go!', false, 1.6); } }
+            if (hopper + add > 1) { spillT += dt; hopper = 1; if (spillT > 0.22) { spillT = 0; spills++; truck.spilled = true; blobs.push({ s: s + 7.5, x: x + (Math.random() - 0.5) * 5 }); env.sfx('bad'); env.buzz(60); say('Hopper is full. Let go!', false, 1.6); } }
             else { hopper += add; spillT = 0; if (Math.random() < dt * 9) env.sfx('pour'); }
           }
-          if (truck.load <= 0 || truck.wait > 13) { truck.state = 'out'; nextTruckAt = s + 28; if (truck.load <= 0) say('Truck is empty. Pulling out.', true, 1.6); }
+          if (truck.load <= 0 || truck.wait > 13) { truck.state = 'out'; nextTruckAt = s + 28; if (truck.load <= 0) { say('Truck is empty. Pulling out.', true, 1.6); if (!truck.spilled) { bonus += 150; env.pop(env.W / 2, env.H * 0.3, 'Clean load +150', '#f5c542'); } } }
         } else { truck.gap += 26 * dt; if (truck.gap > 70) truck = null; }
       }
       if (hopper <= 0 && !starved) { starved = true; starves++; env.sfx('bad'); env.buzz(80); say('Hopper ran empty. That leaves a low spot.', false, 2.4); }
@@ -90,12 +90,16 @@ export function create(env) {
     while (samples.length * STEP < s) {
       const d = samples.length * STEP, laid = hopper > 0, off = Math.abs(x - center(d));
       samples.push({ x, laid, ok: laid && off <= L.tol });
-      if (d > 12) { total++; if (laid && off <= L.tol) good++; }
+      if (d > 12) {
+        total++; if (laid && off <= L.tol) good++;
+        // every 40 feet in a row on the line is a bonus
+        if (laid && off <= L.tol) { groove += STEP; if (groove >= 40) { groove = 0; bonus += 100; env.pop(env.W / 2, env.H * SCREED_AT - 60, 'In the groove +100', '#7ef0c2'); env.sfx('pick'); } } else groove = 0;
+      }
     }
     if (s >= L.len) { endT = 0.8; env.sfx('good'); }
   }
   const pct = () => (total ? Math.round((good / total) * 100) : 100);
-  const score = () => Math.max(0, pct() * 30 - starves * 250 - spills * 120);
+  const score = () => Math.max(0, pct() * 30 + bonus - starves * 250 - spills * 120);
   function done() {
     const a = pct(), slips = starves + spills;
     let stars = a >= 60 ? 1 : 0; if (a >= 80 && slips <= 2) stars = 2; if (a >= 90 && slips === 0) stars = 3;

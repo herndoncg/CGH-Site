@@ -8,12 +8,13 @@ import '../../games/kit.css';
 
 export function getStaticPaths() { return games.map((g) => ({ params: { game: g.slug }, props: { g } })); }
 const { g } = Astro.props as { g: Game };
-const photo: Record<string, string> = { haul: 'dump-truck-and-roller', paver: 'leeboy-paver-laying-hot-mix', roller: 'roller-compacting-new-driveway', math: 'road-entrance-apron-finished' };
-const others = games.filter((o) => o.id !== g.id);
+// three other games to try next, starting with the one after this
+const at = games.findIndex((o) => o.id === g.id);
+const others = [1, 2, 3].map((k) => games[(at + k) % games.length]);
 const schema = [{ '@context': 'https://schema.org', '@type': 'VideoGame', name: g.name, description: g.blurb, url: `https://cghoperations.com/games/${g.slug}`, genre: 'Educational', gamePlatform: 'Web browser', applicationCategory: 'Game', operatingSystem: 'Any', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, publisher: { '@type': 'Organization', name: 'CGH Operations' } }];
 ---
 <Base title={`${g.name}: Free ${g.machine} Game | CGH Operations`} description={`${g.blurb} Free to play on a phone or computer, with ${g.levels.length} levels that teach real paving work.`} schema={schema}>
-  <section class="band pagehead" style={`--pagehead-photo:url('/img/work/${photo[g.id]}.webp')`}>
+  <section class="band pagehead" style={`--pagehead-photo:url('/img/work/${g.photo}.webp')`}>
     <div class="wrap">
       <ol class="crumbs"><li><a href="/">Home</a></li><li><a href="/games">Games</a></li><li>{g.name}</li></ol>
       <p class="gp-kicker">{g.machine} · {g.levels.length} levels</p>
@@ -79,6 +80,10 @@ const schema = [{ '@context': 'https://schema.org', '@type': 'VideoGame', name: 
     paver: () => import('../../games/paver.js'),
     roller: () => import('../../games/roller.js'),
     math: () => import('../../games/math.js'),
+    back: () => import('../../games/back.js'),
+    skid: () => import('../../games/skid.js'),
+    patch: () => import('../../games/patch.js'),
+    flag: () => import('../../games/flag.js'),
   };
   const root = document.getElementById('gk')!;
   const meta = games.find((x) => x.id === root.dataset.game)!;

@@ -40,6 +40,11 @@ function makeSound() {
     hit: () => { noise(0.3, 0.3); tone(110, 0.3, 'square', 0.1, -50); },
     warn: () => { tone(740, 0.1, 'square', 0.06); tone(740, 0.1, 'square', 0.06, 0, 0.18); },
     tick: () => tone(1000, 0.03, 'square', 0.04),
+    go: () => { tone(660, 0.1, 'triangle', 0.1); tone(990, 0.22, 'triangle', 0.12, 0, 0.09); },
+    beep: () => tone(1250, 0.09, 'square', 0.05),
+    thump: () => { tone(90, 0.16, 'sine', 0.22, -40); noise(0.08, 0.12); },
+    horn: () => { tone(310, 0.3, 'sawtooth', 0.07); tone(392, 0.3, 'sawtooth', 0.06); },
+    scoop: () => noise(0.18, 0.14),
     move: () => tone(300, 0.07, 'triangle', 0.07, 120),
     pour: () => noise(0.12, 0.08),
     star: (i = 0) => tone(700 + i * 180, 0.16, 'triangle', 0.12),
@@ -85,8 +90,26 @@ export function boot({ root, meta, load }) {
     // Finger or mouse position while it is down on the play area (for dragging), or null.
     pointer: null,
     onKey: null,
+    // A short bit of text that floats up from a spot on the play area and fades ("+100", "Close call!").
+    pop: (x, y, text, color = '#fff') => { pops.push({ x, y, text, color, age: 0 }); if (pops.length > 14) pops.shift(); },
     finish,
   };
+  let pops = [], ready = 0;
+  function drawPops(dt) {
+    for (const p of pops) {
+      p.age += dt; const k = p.age / 1.0; if (k >= 1) continue;
+      ctx.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3; ctx.font = font(k < 0.12 ? 15 + k * 40 : 19, 900); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const x = clamp(p.x, 46, env.W - 46), y = p.y - 46 * (1 - Math.pow(1 - k, 2));
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,18,32,0.8)'; ctx.lineJoin = 'round'; ctx.strokeText(p.text, x, y); ctx.fillStyle = p.color; ctx.fillText(p.text, x, y);
+    }
+    ctx.globalAlpha = 1; pops = pops.filter((p) => p.age < 1);
+  }
+  // "READY" then "GO!" at the start of a level. The game holds still until GO.
+  function drawReady() {
+    const go = ready < 0.45, text = go ? 'GO!' : 'READY', k = go ? ready / 0.45 : 1;
+    ctx.globalAlpha = go ? Math.min(1, k * 2) : 1; ctx.font = font(go ? 64 + (1 - k) * 26 : 44, 900); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(11,18,32,0.85)'; ctx.lineJoin = 'round'; ctx.strokeText(text, env.W / 2, env.H * 0.42); ctx.fillStyle = go ? '#34d399' : '#fff'; ctx.fillText(text, env.W / 2, env.H * 0.42); ctx.globalAlpha = 1;
+  }
 
   function size() {
     const r = col.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -127,7 +150,11 @@ export function boot({ root, meta, load }) {
   function frame(t) {
     if (mode !== 'play') return;
     const dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t;
-    game.update(dt); if (mode === 'play') game.draw();
+    if (ready > 0.45) { const was = ready; ready -= dt; game.draw(); drawReady(); if (was > 0.45 && ready <= 0.45) sound.play('go'); }
+    else {
+      game.update(dt);
+      if (mode === 'play') { game.draw(); drawPops(dt); if (ready > 0) { ready -= dt; drawReady(); } }
+    }
     raf = requestAnimationFrame(frame);
   }
   const run = () => { mode = 'play'; pauseBtn.hidden = false; screen.hidden = true; last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); };
@@ -170,7 +197,8 @@ export function boot({ root, meta, load }) {
     sound.wake(); sound.play('click');
     if (game && game.destroy) game.destroy();
     stage.innerHTML = ''; keys.clear(); env.onSwipe = null; env.onKey = null; env.pointer = null;
-    game = mod.create(env); game.start(level);
+    pops = []; game = mod.create(env); game.start(level);
+    ready = mod.quickStart ? 0 : 1.15; if (ready) sound.play('tick');
     run();
   }
   function pause() {
@@ -183,6 +211,7 @@ export function boot({ root, meta, load }) {
     if (mode !== 'play') return;
     mode = 'result'; cancelAnimationFrame(raf); pauseBtn.hidden = true; keys.clear(); game.draw();
     stars = Math.max(0, Math.min(3, stars | 0));
+    const before = store.local()[meta.id], newBest = stars > 0 && before.b > 0 && Math.round(score) > before.b, firstClear = stars > 0 && !(before.s[level] > 0);
     if (stars > 0) store.record(meta.id, level, stars, score);
     const lastLevel = level === meta.levels.length - 1, won = stars > 0;
     show(`
@@ -191,14 +220,20 @@ export function boot({ root, meta, load }) {
         <h2 class="gk-h">${esc(headline || (won ? 'Level passed' : 'Not this time'))}</h2>
         <div class="gk-bigstars">${starRow(stars, 46)}</div>
         ${note ? `<p class="gk-lede">${esc(note)}</p>` : ''}
-        <dl class="gk-stats">${stats.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}<div><dt>Score</dt><dd>${Math.round(score).toLocaleString('en-US')}</dd></div></dl>
+        <dl class="gk-stats">${stats.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}<div class="${newBest ? 'is-best' : ''}"><dt>${newBest ? 'New best score' : 'Score'}</dt><dd>${Math.round(score).toLocaleString('en-US')}</dd></div></dl>
         <div class="gk-lesson gk-lesson--sm"><p class="gk-lesson__k">Remember</p><p>${esc(meta.levels[level].lesson)}</p></div>
         <div class="gk-btns">${won && !lastLevel ? '<button type="button" class="gk-btn gk-btn--go" data-act="next" data-focus>Next level</button>' : ''}<button type="button" class="gk-btn ${won && !lastLevel ? '' : 'gk-btn--go'}" data-act="retry" ${won && !lastLevel ? '' : 'data-focus'}>${won ? 'Play again' : 'Try again'}</button><button type="button" class="gk-btn" data-act="levels">Levels</button></div>
+        ${firstClear && !lastLevel ? `<p class="gk-unlock">Level ${level + 2} is open: ${esc(meta.levels[level + 1].name)}</p>` : ''}
         ${won && lastLevel ? `<p class="gk-save">That is every level of ${esc(meta.name)}. <a href="/games">Try another game</a>.</p>` : ''}
         ${won && level >= 2 ? '<p class="gk-save">Rather do this for real? <a href="/careers">CGH is hiring</a>.</p>' : ''}
         ${store.who() ? '' : '<p class="gk-save"><a href="/games#save">Sign in</a> to keep your levels on any phone or computer.</p>'}
       </div>`, 'is-result ' + (won ? 'is-won' : 'is-lost'));
     sound.play(won ? 'win' : 'lose');
+    if (stars === 3 && !reduced) {
+      const colors = ['#f5c542', '#34d399', '#2cc4c8', '#ffffff', '#ff8a5c'], wrap = document.createElement('div'); wrap.className = 'gk-confetti'; wrap.setAttribute('aria-hidden', 'true');
+      for (let i = 0; i < 36; i++) { const c = document.createElement('i'); c.style.left = Math.random() * 100 + '%'; c.style.background = colors[i % colors.length]; c.style.animationDelay = Math.random() * 0.5 + 's'; c.style.animationDuration = 1.6 + Math.random() * 1.2 + 's'; c.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg'); c.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px'); wrap.appendChild(c); }
+      screen.appendChild(wrap); setTimeout(() => wrap.remove(), 3400);
+    }
     if (won && !reduced) screen.querySelectorAll('.gk-bigstars svg.on').forEach((s, i) => { s.style.animationDelay = 0.25 + i * 0.22 + 's'; });
   }
 
@@ -228,7 +263,7 @@ export function boot({ root, meta, load }) {
   });
 
   // For testing only: with ?debug in the address, the running game can be inspected from the browser console.
-  if (/[?&]debug\b/.test(location.search)) window.__cghGame = { get game() { return game; }, get mode() { return mode; }, env };
+  if (/[?&]debug\b/.test(location.search)) window.__cghGame = { get game() { return game; }, get mode() { return mode; }, env, skipReady() { ready = 0; } };
   return { open: openPanel, close };
 }
 

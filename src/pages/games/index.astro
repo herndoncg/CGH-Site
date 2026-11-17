@@ -1,19 +1,18 @@
 ---
-// The Games page: four games that teach real paving work, the player's rank, and the box for
+// The Games page: eight games that teach real paving work, the player's rank, and the box for
 // signing in so levels are kept. The games themselves are listed in src/games/catalog.ts.
 import Base from '../../layouts/Base.astro';
 import CtaBand from '../../components/CtaBand.astro';
 import { games, RANKS } from '../../games/catalog';
-const photo: Record<string, string> = { haul: 'dump-truck-and-roller', paver: 'leeboy-paver-laying-hot-mix', roller: 'roller-compacting-new-driveway', math: 'road-entrance-apron-finished' };
 const maxStars = games.reduce((a, g) => a + g.levels.length * 3, 0);
 const schema = [{ '@context': 'https://schema.org', '@type': 'ItemList', name: 'CGH Operations paving games', itemListElement: games.map((g, i) => ({ '@type': 'ListItem', position: i + 1, name: g.name, url: `https://cghoperations.com/games/${g.slug}` })) }];
 ---
-<Base title="Paving Games: Drive the Dump Truck, Run the Paver | CGH Operations" description="Free games that teach real paving work. Drive a dump truck, run an asphalt paver, roll the mat and figure a job. Play on a phone or computer, no download." schema={schema}>
+<Base title="Paving Games: Drive the Dump Truck, Run the Paver | CGH Operations" description="Eight free games that teach real paving work. Drive a dump truck, run a paver, roll the mat, patch potholes, flag traffic and more. Play on a phone or computer." schema={schema}>
   <section class="band pagehead" style="--pagehead-photo:url('/img/work/paving-crew-with-leeboy-paver.webp')">
     <div class="wrap">
       <ol class="crumbs"><li><a href="/">Home</a></li><li>Games</li></ol>
       <h1>Learn the job. Play the games.</h1>
-      <p class="lede">Four free games built on real paving work. Drive the dump truck, run the paver, roll the mat and figure the job. Every level teaches one thing our crew really does.</p>
+      <p class="lede">Eight free games built on real paving work. Drive the dump truck, run the paver, roll the mat, back it in, move dirt, patch potholes, flag traffic and figure the job. Every level teaches one thing our crew really does.</p>
       <div class="btn-row">
         <a class="btn btn--paver" href={`/games/${games[0].slug}#play`} data-continue>Play now</a>
         <a class="btn btn--line" href="#save">Keep my levels</a>
@@ -38,7 +37,7 @@ const schema = [{ '@context': 'https://schema.org', '@type': 'ItemList', name: '
       <div class="cards">
         {games.map((g) => (
           <a class="card" href={`/games/${g.slug}#play`} data-game={g.id} data-levels={g.levels.length}>
-            <img src={`/img/work/${photo[g.id]}.webp`} alt="" loading="lazy" width="600" height="800" />
+            <img src={`/img/work/${g.photo}.webp`} alt="" loading="lazy" width="600" height="800" />
             <span class="card__in">
               <span class="card__k">{g.machine}</span>
               <span class="card__name">{g.name}</span>
@@ -193,7 +192,7 @@ const schema = [{ '@context': 'https://schema.org', '@type': 'ItemList', name: '
   .rank__steps .is-on { color: #f2f5f9; font-weight: 700; }
   @media (min-width: 760px) { .rank__steps { display: flex; } }
 
-  /* Two across on phones so all four games fit on one screen; four across on wide screens. */
+  /* Two across on phones, four across on wide screens. */
   .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (min-width: 980px) { .cards { grid-template-columns: repeat(4, 1fr); gap: 18px; } }
   .card { position: relative; display: block; aspect-ratio: 3 / 4.4; border-radius: var(--radius-lg); overflow: hidden; background: var(--asphalt); color: #fff; text-decoration: none; isolation: isolate; }

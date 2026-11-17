@@ -68,7 +68,7 @@ function layout(n) {
 
 export function create(env) {
   const { ctx } = env;
-  let L, n, items, dist, v, px, lane, temp, hits, tickets, checks, shake, ghost, t, braking, coolRate, zoneNow, over, overTime, ticketed, note, noteT, endT, particles;
+  let L, n, items, dist, v, px, lane, temp, hits, tickets, checks, points, streak, shake, ghost, t, braking, coolRate, zoneNow, over, overTime, ticketed, note, noteT, endT, particles;
   const brakeBtn = document.createElement('button');
   brakeBtn.type = 'button'; brakeBtn.className = 'gk-pedal gk-pedal--right gk-pedal--red'; brakeBtn.innerHTML = 'BRAKE<small>hold to slow</small>';
   let pedal = false;
@@ -77,12 +77,16 @@ export function create(env) {
   brakeBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
   const say = (text, good) => { note = { text, good }; noteT = 2.2; };
-  const steer = (dir) => { const next = clamp(lane + dir, 0, 2); if (next !== lane) { lane = next; env.sfx('move'); } };
+  // where the truck is on the screen, for score pop-ups
+  const truckAt = () => { const s = (env.W * 0.86) / 10.8; return [env.W / 2 + px * 0.18 * s, env.H * 0.34 + env.H * 0.47 - 3.9 * s]; };
+  const award = (pts, text, color) => { points += pts; const [x, y] = truckAt(); env.pop(x, y, text, color); };
+  let left = { lane: -1, at: -99 };   // the lane the truck last pulled out of, and where
+  const steer = (dir) => { const next = clamp(lane + dir, 0, 2); if (next !== lane) { left = { lane, at: dist }; lane = next; env.sfx('move'); } };
 
   function start(level) {
     n = level; L = LEVELS[n]; items = layout(n).map((o) => ({ ...o }));
-    dist = 0; v = L.speed * 0.5; px = 0; lane = 1; temp = START_TEMP; hits = 0; tickets = 0; checks = 0; shake = 0; ghost = 0; t = 0; braking = false;
-    zoneNow = null; over = false; overTime = 0; ticketed = new Set(); note = null; noteT = 0; endT = 0; particles = [];
+    dist = 0; v = L.speed * 0.5; px = 0; lane = 1; temp = START_TEMP; hits = 0; tickets = 0; checks = 0; points = 0; streak = 0; shake = 0; ghost = 0; t = 0; braking = false;
+    left = { lane: -1, at: -99 }; zoneNow = null; over = false; overTime = 0; ticketed = new Set(); note = null; noteT = 0; endT = 0; particles = [];
     // Heat is lost by the second. A clean run at cruising speed, slowing only for the zones, loses `cool` degrees.
     const zoneLen = L.zones.reduce((a, z) => a + z.len, 0), clean = (L.len - zoneLen) / L.speed + L.zones.reduce((a, z) => a + z.len / ((z.limit - 2) / MPH), 0);
     coolRate = L.cool / clean;
@@ -93,7 +97,7 @@ export function create(env) {
   }
 
   function crash(o) {
-    hits++; temp -= 6; v = Math.max(8, v * 0.4); ghost = 1.5; shake = 0.5; env.sfx('hit'); env.buzz(120);
+    hits++; streak = 0; temp -= 6; v = Math.max(8, v * 0.4); ghost = 1.5; shake = 0.5; env.sfx('hit'); env.buzz(120);
     say(o.t === 'hole' ? 'Pothole. That shook the load.' : o.t === 'car' ? 'Too close. Leave room.' : 'Hit a ' + o.t + '.', false);
     if (o.t !== 'car' && o.t !== 'hole') { o.gone = true; for (let i = 0; i < 8; i++) particles.push({ x: px, z: 4, vx: (Math.random() - 0.5) * 9, vy: 5 + Math.random() * 6, y: 0.4, life: 0.8, c: '#f47a20' }); }
   }
@@ -112,10 +116,10 @@ export function create(env) {
     // slow zones
     const z = L.zones.find((zz) => dist > zz.at && dist < zz.at + zz.len) || null;
     if (z && !zoneNow) { env.sfx('warn'); }
-    if (!z && zoneNow) { if (!ticketed.has(zoneNow)) { say('Zone clear. Nice and slow.', true); checks += 2; env.sfx('good'); } }
+    if (!z && zoneNow) { if (!ticketed.has(zoneNow)) { say('Zone clear. Nice and slow.', true); award(200, 'Zone clear +200', '#7ef0c2'); env.sfx('good'); } }
     zoneNow = z;
     over = !!z && v * MPH > z.limit + 3;
-    if (over) { overTime += dt; if (overTime > 0.7 && !ticketed.has(z)) { ticketed.add(z); tickets++; shake = 0.25; env.sfx('bad'); env.buzz(80); say(z.kind === 'school' ? 'Speeding in a school zone: ticket' : 'Speeding in a work zone: ticket', false); } } else overTime = 0;
+    if (over) { overTime += dt; if (overTime > 0.7 && !ticketed.has(z)) { ticketed.add(z); tickets++; streak = 0; shake = 0.25; env.sfx('bad'); env.buzz(80); say(z.kind === 'school' ? 'Speeding in a school zone: ticket' : 'Speeding in a work zone: ticket', false); } } else overTime = 0;
     const coming = L.zones.find((zz) => dist > zz.at - 95 && dist <= zz.at);
     if (coming && !coming.warned) { coming.warned = true; say((coming.kind === 'school' ? 'School zone ahead: ' : 'Work zone ahead: ') + coming.limit + ' mph', false); env.sfx('warn'); }
 
@@ -133,7 +137,15 @@ export function create(env) {
       const rel = o.d - dist;
       if (rel > 7 || rel < -2) continue;
       const ox = (o.lane - 1) * LANE, side2 = Math.abs(px - ox);
-      if (o.t === 'check') { if (side2 < 2.1) { o.gone = true; checks++; env.sfx('pick'); } }
+      if (o.t === 'check') {
+        if (side2 < 2.1) {
+          // checks in a row build a streak: every four in a row is worth one more times the points, up to five
+          o.gone = true; checks++; streak++; const mult = Math.min(5, 1 + Math.floor(streak / 4));
+          if (streak % 4 === 0 && mult > 1 && streak <= 16) { award(50 * mult, 'Streak ×' + mult + '!', '#f5c542'); env.sfx('good'); } else { award(50 * mult, '+' + 50 * mult, '#7ef0c2'); env.sfx('pick'); }
+        }
+      }
+      // squeezing past something in the next lane without touching it
+      else if (rel < 1.5 && !o.hit && !o.near && o.t !== 'hole' && side2 >= 2.25 && ghost <= 0) { o.near = true; if (o.lane === left.lane && dist - left.at < 24) award(75, 'Close call +75', '#fff'); }
       else if (side2 < (o.t === 'car' ? 2.25 : 2.0) && ghost <= 0 && !o.hit) { o.hit = true; crash(o); }
     }
     for (const p of particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 22 * dt; p.z -= v * dt * 0.6; }
@@ -143,7 +155,7 @@ export function create(env) {
     if (temp < REJECT) return env.finish({ stars: 0, score: score(), headline: 'The load got too cold', note: 'Under 250 degrees the mix will not pack down right, so the load was turned away.', stats: stats() });
     if (dist >= L.len && endT <= 0) { endT = 0.9; env.sfx('good'); }
   }
-  const score = () => Math.max(0, Math.round(checks * 50 + Math.max(0, temp - REJECT) * 20 + (3 - hits) * 300 - tickets * 400));
+  const score = () => Math.max(0, Math.round(points + Math.max(0, temp - REJECT) * 20 + (3 - hits) * 300 - tickets * 400));
   const stats = () => [['Mix temp', Math.round(temp) + '°F'], ['Hits', String(hits)], ['Tickets', String(tickets)], ['Checks', String(checks)]];
   function done() {
     let stars = 1; if (temp >= GOOD && tickets === 0) stars = 2; if (stars === 2 && temp >= GREAT && hits === 0) stars = 3;
