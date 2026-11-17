@@ -3,6 +3,10 @@
 import { getStore } from '@netlify/blobs';
 import webpush from 'web-push';
 import { handle } from './lib/core.mjs';
+import { setBackupStore } from './lib/backup.mjs';
+
+// Where the nightly backups are kept: a second storage area, apart from the app's own records.
+setBackupStore(() => getStore({ name: 'cgh-backup', consistency: 'strong' }));
 
 export const config = { path: '/api/*' };
 

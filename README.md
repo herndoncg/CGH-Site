@@ -80,6 +80,15 @@ Four free games that teach real paving work: **Haul Run** (dump truck), **Lay th
   - One address can make five player logins an hour; five wrong passwords lock a nickname for 15 minutes; a player can delete their own login on the Games page.
 - Try the whole site, games and sign-in included, on your own computer: `npm run build && node scripts/preview-local.mjs` (nothing is saved, nothing touches the live site).
 
+## Security (added Nov 17, 2026)
+
+- **Second sign-in step.** Anyone can turn it on under My account: after the password, the app asks for a 6-digit code from an authenticator app on their phone (standard TOTP, no outside service). Eight one-time backup codes cover a lost phone. Owner and managers get a nudge on Home until it is on. **Reset password** on the Team page also turns a person's second step off, so a lost phone never locks anyone out for good. Code: "the second sign-in step" in `lib/core.mjs`.
+- **Owner recovery code.** The fingerprint in `lib/core.mjs` is retired the moment the owner has chosen their own password. If the owner is ever locked out after that: make a new code, put the SHA-256 of it (upper-case) in Netlify as the site setting `CGH_RECOVERY_HASH`, redeploy, sign in with any email plus that code, then delete the setting.
+- **Only this site's scripts run.** `scripts/csp.mjs` runs at the end of every build and finishes the `Content-Security-Policy` line in `dist/_headers`: scripts from this site only, the few small in-page scripts allowed by fingerprint, no `onclick="..."` attributes. The build stops if a page loads a script from another website. To use one anyway, add it with `import` so it is bundled with the site.
+- **Nightly backup.** `netlify/functions/nightly-backup.mjs` runs at 3 AM Central and copies every record into a second storage area (`cgh-backup`), keeping 30 nights. If a night is missed, the next time the owner or a manager opens Home the app makes the copy then. The owner can download the newest copy from My account (passwords and sign-in keys are left out). To put a night back: `scripts/restore-backup.mjs`.
+- **Secrets files** (`.env`, keys) are listed in `.gitignore` so one can never be uploaded by accident. The repo needs none.
+- Test all of the above: `node scripts/test-security.mjs` (62 checks).
+
 ## Colors
 
 Ink navy base, blue for links and labels, green for buttons and highlights. All set in `src/styles/tokens.css`; the reasoning is in the project doc `cgh-color-study`.
