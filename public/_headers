@@ -1,6 +1,8 @@
 # Response headers Netlify adds to every page (security + caching).
 # Plain version: these tell browsers to always use the secure connection, never show this site inside
 # another site's frame, and never keep a saved copy of the sign-in app's screens.
+# The build adds one more rule to the Content-Security-Policy line below: only run scripts that came from this
+# site (scripts/csp.mjs explains it). The finished line is in dist/_headers after a build.
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff

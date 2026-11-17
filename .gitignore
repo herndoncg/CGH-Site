@@ -2,3 +2,12 @@ node_modules/
 dist/
 .astro/
 .DS_Store
+
+# Files that hold secrets (keys, passwords, tokens) must never be uploaded. The repo needs none today:
+# the site's only settings live in Netlify. These lines make sure one can never be added by accident.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.netlify/
