@@ -20,7 +20,7 @@ import { site } from '../data/site';
   import guide from '../data/field-guide.json';
 
   type Role = 'owner' | 'manager' | 'sales' | 'crew' | 'client';
-  type Me = { id: string; name: string; email: string; role: Role; mustChange?: boolean };
+  type Me = { id: string; name: string; email: string; role: Role; mustChange?: boolean; twoStep?: boolean };
   const root = document.getElementById('app')!;
   const PHONE = root.dataset.phone!, PHONE_HREF = root.dataset.phoneHref!;
   const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -133,9 +133,28 @@ import { site } from '../data/site';
   const welcomeBox = (w: any) => `<div class="linkbox"><p><b>Send this to ${esc(w.name || 'them')}.</b> The temporary password is shown only once. If it gets lost, press Reset password to make a new one.</p><textarea readonly rows="9" data-welcome>${esc(w.text)}</textarea><p class="row"><button type="button" class="btn btn--line sm" data-act="copy">Copy message</button><a class="btn btn--line sm" href="mailto:${esc(w.email)}?subject=${encodeURIComponent('Your CGH Operations sign-in')}&body=${encodeURIComponent(w.text)}">Email it</a><a class="btn btn--paver sm" href="${esc(smsHref(w.phone, w.text))}">${w.phone ? `Text it to ${esc(w.phone)}` : 'Text it'}</a></p>${w.phone ? '' : '<p class="muted small">Text it opens your Messages with this written out. You fill in who it goes to.</p>'}</div>`;
   const passwordForm = () => `<form data-form="password" class="stack narrow">${field('Current password', 'current', 'password', 'required autocomplete="current-password"')}${field('New password (10 or more letters or numbers)', 'next', 'password', 'required autocomplete="new-password"')}${showPw}<div><button class="btn btn--paver">Change password</button></div><p class="muted small">Changing it signs you out on your other devices.</p></form>`;
 
+  // ---------- the second sign-in step, and the nightly backup (both on My account) ----------
+  // Plain version: with the second step on, signing in takes the password AND a 6-digit code from an
+  // authenticator app on the person's phone. S.ts holds the key while it is being set up; S.tsCodes holds
+  // the backup codes for the one time they are shown. Neither is ever saved on this device.
+  const pwAgain = (id: string) => field('Your password, to confirm it is you', 'password', 'password', `required autocomplete="current-password" id="${id}"`);
+  const twoStepCard = () => {
+    if (S.tsCodes) return card('Save your backup codes', `<div class="linkbox"><p><b>The second step is on.</b> These 8 backup codes are shown only this once. Each one works one time in place of the 6-digit code, for the day your phone is lost or dead. Keep them somewhere that is not this phone.</p><textarea readonly rows="8" data-welcome>${esc(S.tsCodes.join('\n'))}</textarea><p class="row"><button type="button" class="btn btn--paver sm" data-act="copy">Copy the codes</button><button type="button" class="btn btn--line sm" data-act="ts-done">I saved them</button></p></div>`);
+    if (S.ts) return card('Turn on the second step', `<ol class="steps"><li><b>Add CGH to your authenticator app.</b> On this phone, tap the button. On an iPhone it opens Passwords; on Android it opens Google Authenticator or the app you use.<br /><a class="btn btn--paver sm" href="${esc(S.ts.uri)}">Add to my authenticator</a></li><li><b>No button luck, or setting it up from a computer?</b> In the authenticator app choose "enter a setup key" and type this key (the account name is your email):<br /><code class="keybox" data-key>${esc(S.ts.secret.replace(/(.{4})/g, '$1 ').trim())}</code> <button type="button" class="btn btn--line sm" data-act="ts-copykey">Copy key</button></li><li><b>Type the 6-digit code the app now shows for CGH Operations.</b><form data-form="ts-confirm" class="stack narrow">${field('6-digit code', 'code', 'text', 'required inputmode="numeric" autocomplete="one-time-code" maxlength="7" pattern="[0-9 ]*"')}<div class="row"><button class="btn btn--paver">Turn it on</button><button type="button" class="btn btn--line" data-act="ts-cancel">Cancel</button></div></form></li></ol>`);
+    if (S.me.twoStep) return card('Second sign-in step', `<p><b class="good">On.</b> Signing in takes your password and a 6-digit code from your authenticator app.</p><details class="fold"><summary>New backup codes, or turn it off</summary><form data-form="ts-manage" class="stack narrow">${pwAgain('ts-pw')}<div class="row"><button class="btn btn--line" data-do="codes">Make new backup codes</button><button class="btn btn--line" data-do="off">Turn the second step off</button></div><p class="muted small">New backup codes replace the old ones. Lost the phone and the codes? ${S.me.role === 'owner' ? `Call ${PHONE}.` : 'Ask the owner to press Reset password for you.'}</p></form></details>`);
+    return card('Second sign-in step', `<p><b>Off.</b> Right now your password alone opens this login. With the second step on, signing in also takes a 6-digit code from an authenticator app on your phone, so a stolen or guessed password is not enough.${S.me.role === 'owner' || S.me.role === 'manager' ? ' <b>Worth doing for this login, because it can see everything.</b>' : ''}</p><p class="muted small">It takes about a minute. You need an authenticator app: iPhones have one built in (Passwords); on Android, Google Authenticator is free.</p><form data-form="ts-start" class="stack narrow">${pwAgain('ts-pw')}<div><button class="btn btn--paver">Set it up</button></div></form>`);
+  };
+  const when = (t: number) => new Date(t).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const backupCard = () => {
+    if (S.me.role !== 'owner' && S.me.role !== 'manager') return '';
+    const b = S.backup;
+    return card('Nightly backup', `<p>Every night the app saves a full copy of the leads, customers, team logins and settings to a second storage area, and keeps the last 30 nights. If something is ever deleted by mistake, a night can be put back.</p>${b ? `<p><b class="good">Last copy: ${esc(when(b.at))}.</b> ${plural(b.counts.leads, 'lead', 'leads')}, ${plural(b.counts.logins, 'login', 'logins')}, ${plural(b.counts.applicants, 'job application', 'job applications')}. ${plural(b.nights, 'night', 'nights')} kept so far.</p>` : '<p class="muted">Open Home once to see when the last copy was made.</p>'}${S.me.role === 'owner' ? '<p class="row"><button type="button" class="btn btn--line sm" data-act="backupdl">Download the latest copy</button></p><p class="muted small">The download is for keeping a copy of your own, off this system. Passwords and sign-in keys are left out of it.</p>' : ''}`);
+  };
+
   // ---------- signed out ----------
   const authCard = (title: string, lede: string, body: string) => `<div class="authwrap" style="--photo:url('/img/work/${PHOTO.auth}.webp')"><div class="auth"><p class="auth__brand">${BRAND}</p><h1>${title}</h1><p class="lede">${lede}</p>${notes()}${body}<p class="muted small">Trouble signing in? Call <a href="${PHONE_HREF}">${PHONE}</a>.</p></div>${verseFoot('auth')}<p class="motto">For a better future</p></div>`;
-  function renderAuth(mode: 'login' | 'first') {
+  function renderAuth(mode: 'login' | 'first' | 'code') {
+    if (mode === 'code') return void (root.innerHTML = authCard('Enter your sign-in code', 'Your password was right. Now type the 6-digit code from your authenticator app. Lost your phone? Type one of your backup codes instead.', `<form data-form="logincode" class="stack">${field('6-digit code, or a backup code', 'code', 'text', 'required autocomplete="one-time-code" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="20"')}<button class="btn btn--paver">Sign in</button></form><button class="btn btn--line" data-act="ts-back">Back</button>`));
     if (mode === 'first') root.innerHTML = authCard('Choose your own password', 'You signed in with a temporary password. Pick your own to finish. Nobody at CGH can see it.', `<form data-form="firstpw" class="stack">${S.me.name ? '' : field('Your name', 'name', 'text', 'required autocomplete="name"')}${field('New password', 'next', 'password', 'required autocomplete="new-password"')}${showPw}<p class="rule">Make it at least 10 letters or numbers. It cannot be the temporary one.</p><button class="btn btn--paver">Save and continue</button></form><button class="btn btn--line" data-act="logout">Sign out</button>`);
     else root.innerHTML = authCard('Sign in', 'For CGH Operations customers and team. First time here? Use the temporary password you were sent.', `<form data-form="login" class="stack">${field('Email', 'email', 'email', 'required autocomplete="username"')}${field('Password', 'password', 'password', 'required autocomplete="current-password"')}${showPw}<button class="btn btn--paver">Sign in</button></form><details class="forgot"><summary>Forgot your password?</summary><p>Call or text CGH at <a href="${PHONE_HREF}">${PHONE}</a> and ask for a reset. You get a new temporary password and choose your own again.</p></details>`);
   }
@@ -213,6 +232,8 @@ import { site } from '../data/site';
       if (w.unscheduled) rows.push(['warn', `${plural(w.unscheduled, 'accepted job needs', 'accepted jobs need')} a paving day`, 'pipeline:Accepted']);
       if (w.applicants) rows.push(['warn', `${plural(w.applicants, 'new job application', 'new job applications')}`, 'hiring']);
       if (w.notSignedIn) rows.push(['calm', `${plural(w.notSignedIn, 'team login has', 'team logins have')} not been used yet`, 'team']);
+      if (w.twoStep) rows.push(['calm', 'Add a second sign-in step to protect this login (1 minute)', 'account']);
+      S.backup = d.backup || S.backup; // shown on My account
       if (w.lessons) rows.push(['calm', `${plural(w.lessons, 'training lesson', 'training lessons')} left for you`, 'training']);
       const total = rows.length;
       const coming = d.dated.filter((x: any) => x.date >= today()).slice(0, 6);
@@ -281,7 +302,7 @@ import { site } from '../data/site';
       const { users } = await api('users');
       return { eyebrow: 'Team', title: 'Team', sub: 'Who can sign in, and what they can see.',
         body: `<details class="card fold" ${S.welcome && S.welcome.for === 'team' ? 'open' : ''}><summary>Add a team member</summary><form data-form="newuser" class="grid2">${field('Name', 'name', 'text', 'required')}${field('Email', 'email', 'email', 'required')}${field('Cell phone (optional, for texting their sign-in)', 'phone', 'tel')}<div class="field"><label>Role<select name="role">${(S.me.role === ('owner' as Role) ? ['manager', 'sales', 'crew'] : ['sales', 'crew']).map((r) => `<option value="${r}" ${r === 'sales' ? 'selected' : ''}>${ROLE_WORDS[r]}</option>`).join('')}</select></label></div><div class="full"><button class="btn btn--paver">Create login</button></div></form>${S.welcome && S.welcome.for === 'team' ? welcomeBox(S.welcome) : ''}</details>
-          <div class="tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${S.me.role === ('owner' as Role) && ['manager', 'sales', 'crew'].includes(u.role) ? `<select data-role-for="${u.id}" aria-label="Role for ${esc(u.name)}">${['manager', 'sales', 'crew'].map((r) => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r[0].toUpperCase() + r.slice(1)}</option>`).join('')}</select>` : u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Has not signed in yet'}</td><td>${u.role === 'owner' || (u.role === 'manager' && S.me.role !== ('owner' as Role)) ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}" data-name="${esc(u.name)}" data-email="${esc(u.email)}" data-phone="${esc(u.phone || '')}" data-kind="${u.role === 'client' ? 'client' : 'team'}">Reset password</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table></div>` };
+          <div class="tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map((u: any) => `<tr><td><b>${esc(u.name)}</b><br /><span class="muted small">${esc(u.email)}</span></td><td>${S.me.role === ('owner' as Role) && ['manager', 'sales', 'crew'].includes(u.role) ? `<select data-role-for="${u.id}" aria-label="Role for ${esc(u.name)}">${['manager', 'sales', 'crew'].map((r) => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r[0].toUpperCase() + r.slice(1)}</option>`).join('')}</select>` : u.role}</td><td>${u.disabled ? 'Turned off' : u.active ? 'Active' : 'Has not signed in yet'}${u.twoStep ? '<br /><span class="muted small">Second step on</span>' : ''}</td><td>${u.role === 'owner' || (u.role === 'manager' && S.me.role !== ('owner' as Role)) ? '' : `<button class="btn btn--line sm" data-act="relink" data-id="${u.id}" data-name="${esc(u.name)}" data-email="${esc(u.email)}" data-phone="${esc(u.phone || '')}" data-kind="${u.role === 'client' ? 'client' : 'team'}">Reset password</button> <button class="btn btn--line sm" data-act="toggle" data-id="${u.id}" data-off="${u.disabled ? '' : '1'}">${u.disabled ? 'Turn on' : 'Turn off'}</button>`}</td></tr>`).join('')}</tbody></table></div>` };
     },
     async hiring() {
       const { applicants } = await api('applicants');
@@ -313,7 +334,7 @@ import { site } from '../data/site';
     async matcost() {
       const st = await api('estimate-settings'); const m = st.materials || {}; S.est = { p: st.prices, c: st.contractor || {} };
       const v = (id: string, f: string, d: unknown = '') => esc(m[id]?.[f] ?? d);
-      const n = (label: string, name: string, val: unknown, hint = '') => `<div class="field"><label>${label}<input name="${name}" inputmode="decimal" value="${val}" />${hint ? `<small>${hint}</small>` : ''}</label></div>`;
+      const n = (label: string, name: string, val: unknown, hint = '') => `<div class="field"><label>${label}<input name="${name}" inputmode="decimal" value="${esc(val)}" />${hint ? `<small>${hint}</small>` : ''}</label></div>`;
       const tick = (name: string, label: string, on: boolean) => `<label class="showpw"><input type="checkbox" name="${name}" ${on ? 'checked' : ''} /> ${label}</label>`;
       const LAYERS: [string, string, string, number, number, string][] = [['d', 'Type D hot mix', 'Surface layer, ½ inch rock, 1.5 to 2 in thick', 2.015, 25, ''], ['c', 'Type C hot mix', 'Intermediate layer, ¾ inch rock, 2 to 3 in thick', 2, 15, 'Average $88 to $125'], ['b', 'Type B hot mix', 'Base layer, 1 inch rock, 3 to 6 in thick', 2, 15, ''], ['agg', 'Aggregate base', 'TxDOT Item 247, Grade 1, Type A', 1.25, 15, '']];
       const LIQ: [string, string, string, number, number, string, string][] = [['tack', 'Tack coat (CSS-1H)', 'Bonds one asphalt layer to the next', 0.08, 7.5, 'Average 0.08', 'Average $3.50 to $12'], ['prime', 'Primer (AE-P)', 'Soaks into the rock base before paving', 0.5, 7, 'Average 0.25 to 0.5', 'Average $2.75 to $9'], ['seal', 'Seal coat (MasterSeal AE)', 'Surface sealant', 0.15, 7, 'Average 0.1 to 0.15', 'Average $3.25 to $4.75']];
@@ -344,7 +365,7 @@ import { site } from '../data/site';
     },
     async account() {
       return { eyebrow: 'You', title: 'My account', sub: `${S.me.name} · ${S.me.email}`,
-        body: `${card('This device', alertsBar() || '<p class="muted">This app is installed and alerts are set.</p>')}${card('Change my password', passwordForm())}${card('Sign out', '<button class="btn btn--line" data-act="logout">Sign out of this device</button>')}` };
+        body: `${card('This device', alertsBar() || '<p class="muted">This app is installed and alerts are set.</p>')}${card('Change my password', passwordForm())}${twoStepCard()}${backupCard()}${card('Sign out', '<button class="btn btn--line" data-act="logout">Sign out of this device</button>')}` };
     },
   };
 
@@ -375,7 +396,7 @@ import { site } from '../data/site';
   async function render() {
     const act = document.activeElement as HTMLElement | null; const searching = act?.matches?.('[data-gsearch]') ? '[data-gsearch]' : act?.matches?.('[data-search]') ? '[data-search]' : '';
     try {
-      if (!S.me) renderAuth('login');
+      if (!S.me) renderAuth(S.code ? 'code' : 'login');
       else if (S.me.mustChange) renderAuth('first');
       else if (S.me.role === 'client') await renderClient();
       else await renderStaff();
@@ -461,7 +482,21 @@ import { site } from '../data/site';
     const data: any = Object.fromEntries(new FormData(f).entries()); const kind = f.dataset.form, id = f.dataset.id;
     if (kind?.startsWith('calc-')) return;
     run(async () => {
-      if (kind === 'login') { S.me = (await api('login', 'POST', data)).me; S.view = 'home'; S.welcome = null; await syncPush().catch(() => {}); }
+      if (kind === 'login' || kind === 'logincode') {
+        // With the second step on, the first answer is "now send the code". The email and password are held
+        // in memory only until the code is typed, then dropped.
+        const creds = kind === 'logincode' ? { ...S.code, code: data.code } : data;
+        const r = await api('login', 'POST', creds);
+        if (r.needCode) { S.code = { email: data.email, password: data.password }; return; }
+        S.code = null; S.me = r.me; S.view = 'home'; S.welcome = null; await syncPush().catch(() => {});
+      }
+      else if (kind === 'ts-start') { S.ts = await api('two-step/start', 'POST', data); }
+      else if (kind === 'ts-confirm') { const r = await api('two-step/confirm', 'POST', data); S.me = r.me; S.ts = null; S.tsCodes = r.codes; S.ok = 'The second step is on. Save the backup codes below before you leave this page.'; }
+      else if (kind === 'ts-manage') {
+        const what = ((e as SubmitEvent).submitter as HTMLElement | null)?.dataset.do;
+        if (what === 'off') { S.me = (await api('two-step/off', 'POST', data)).me; S.ok = 'The second step is off. Your password alone signs you in.'; }
+        else { S.tsCodes = (await api('two-step/codes', 'POST', data)).codes; }
+      }
       else if (kind === 'firstpw') { S.me = (await api('password', 'POST', data)).me; S.ok = 'Your password is saved. You are in.'; await syncPush().catch(() => {}); }
       else if (kind === 'password') { S.acct = true; S.me = (await api('password', 'POST', data)).me; S.acct = false; S.ok = 'Your password is changed.'; }
       else if (kind === 'lead') { S.open = id; await api('leads/' + id, 'PATCH', data); S.ok = 'Saved.'; }
@@ -486,7 +521,7 @@ import { site } from '../data/site';
     if (act === 'drawer') { S.drawer = !S.drawer; root.querySelector('.shell')?.classList.toggle('drawer-open', S.drawer); return; }
     if (act === 'reload') return void location.reload();
     run(async () => {
-      if (act === 'logout') { await api('logout', 'POST', {}); S.me = null; S.welcome = null; S.view = 'home'; }
+      if (act === 'logout') { await api('logout', 'POST', {}); S.me = null; S.welcome = null; S.view = 'home'; S.ts = null; S.tsCodes = null; S.backup = null; }
       else if (act === 'copy') { await navigator.clipboard.writeText(root.querySelector<HTMLTextAreaElement>('[data-welcome]')!.value); S.ok = 'Copied. Paste it into a text or email.'; }
       else if (act === 'accept') await api('my-job/accept', 'POST', {});
       else if (act === 'client') { S.open = id; const r = await api(`leads/${id}/invite`, 'POST', {}); const l = (S.data?.leads || []).find((x: any) => x.id === id); S.welcome = { for: id, name: r.name, email: r.email, phone: l?.phone, text: welcomeText('client', r.name, r.email, r.temp) }; }
@@ -503,6 +538,14 @@ import { site } from '../data/site';
       }
       else if (act === 'relink') { const r = await api('users/' + id, 'PATCH', { reset: true }); S.welcome = { for: 'team', name: t.dataset.name, email: t.dataset.email, phone: t.dataset.phone, text: welcomeText(t.dataset.kind as any, t.dataset.name || '', t.dataset.email || '', r.temp) }; }
       else if (act === 'toggle') await api('users/' + id, 'PATCH', { disabled: !!t.dataset.off });
+      else if (act === 'ts-back') { S.code = null; }
+      else if (act === 'ts-cancel') { S.ts = null; }
+      else if (act === 'ts-done') { S.tsCodes = null; S.ok = 'Good. The second step is on for this login.'; }
+      else if (act === 'ts-copykey') { await navigator.clipboard.writeText(S.ts.secret); S.ok = 'Key copied. Paste it into your authenticator app as the setup key.'; }
+      else if (act === 'backupdl') {
+        const copy = await api('backup');
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(copy, null, 1)], { type: 'application/json' })); a.download = `cgh-backup-${copy.day}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); S.ok = 'Downloaded. Keep the file somewhere safe; it has customer names and phone numbers in it.';
+      }
       else if (act === 'anndel' || act === 'equipdel') { if (S.confirm !== id) { S.confirm = id; if (act === 'equipdel') S.open = id; return; } S.confirm = null; await api((act === 'anndel' ? 'announcements/' : 'equipment/') + id, 'DELETE'); }
       else if (act === 'install' && installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; }
       else if (act === 'alerts') {
@@ -653,6 +696,9 @@ import { site } from '../data/site';
   .lines { width: 100%; border-collapse: collapse; } .lines th, .lines td { padding: 8px 0; border-bottom: 1px solid var(--a-line); text-align: left; font-weight: 500; } .lines td { text-align: right; font-weight: 700; }
   .showpw { display: flex; gap: 8px; align-items: center; font-size: 0.95rem; color: #cbd5e1; } .showpw input { width: 20px; height: 20px; }
   .rule { margin: 0; font-weight: 600; color: #cbd5e1; }
+  /* second sign-in step */
+  .steps { margin: 0; padding-left: 20px; display: grid; gap: 14px; } .steps li > .btn, .steps li > form { margin-top: 8px; } .good { color: #6ee7b7; }
+  .keybox { display: inline-block; margin: 8px 8px 0 0; padding: 8px 10px; border: 1px solid var(--a-line); border-radius: 6px; background: #0b1322; color: #fff; font: 600 1rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; word-break: break-word; user-select: all; }
 
   /* customer portal */
   .track { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--a-dim); }

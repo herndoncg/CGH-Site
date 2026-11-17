@@ -8,7 +8,8 @@
 //
 // New logins start with a temporary password. The first sign-in forces the person to choose their own.
 // Changing or resetting a password signs that person out everywhere else.
-import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import { scryptSync, randomBytes, timingSafeEqual, createHash, createHmac } from 'node:crypto';
+import { backupStatus, downloadCopy } from './backup.mjs';
 import { PRICES, EST_DEFAULTS, publicQuote } from './quote.mjs';
 
 // The owner's first temporary password (the setup code). Only its fingerprint lives here, and it stops
@@ -18,8 +19,15 @@ export const SETUP_HASH = '877f19dc823c32a131f4ac88749165bed3fb5dee888de6a37ffcc
 // A one-time owner recovery code, for when the owner is locked out or the account landed on the wrong
 // email. Signing in with any email plus this code moves the owner login to that email and forces a new
 // password. Only the fingerprint lives here, and each code works once.
+//
+// Anyone who can read this file can read the fingerprint below, so it is RETIRED the moment the owner has
+// chosen their own password: from then on it opens nothing. If the owner is ever locked out after that, a
+// fresh code is made and only its fingerprint is put in the site's private settings (CGH_RECOVERY_HASH in
+// Netlify), where nobody outside can see it. A fingerprint from the private settings always counts.
 export const RECOVERY_HASH = '91d540e8eced52aed5ef046f94e82a2de69c918911c9046cffd9385a19ba6403';
-const recoveryHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_RECOVERY_HASH) || RECOVERY_HASH;
+const privateRecovery = () => (typeof process !== 'undefined' && process.env && process.env.CGH_RECOVERY_HASH) || '';
+const recoveryHash = () => privateRecovery() || RECOVERY_HASH;
+export const recoveryOpen = (owner) => !!privateRecovery() || !(owner && owner.pass && !owner.must_change);
 
 // The fingerprint can also be supplied as a site setting (CGH_SETUP_HASH) instead of living in this file.
 const setupHash = () => (typeof process !== 'undefined' && process.env && process.env.CGH_SETUP_HASH) || SETUP_HASH;
@@ -55,14 +63,44 @@ const bad = (error, status = 400) => json({ error }, status);
 const clean = (v, max = 300) => String(v ?? '').trim().slice(0, max);
 const email = (v) => clean(v, 200).toLowerCase();
 const num = (v) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
-const pub = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, active: !!u.pass && !u.must_change, disabled: !!u.disabled, mustChange: !!u.must_change });
+const pub = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, active: !!u.pass && !u.must_change, disabled: !!u.disabled, mustChange: !!u.must_change, twoStep: !!u.totp });
 const TEMP_DAYS = 14;
 // A temporary password like K7QM-4TXP-9RWD (no look-alike letters such as O/0 or I/1).
 const tempPw = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; const r = randomBytes(12); return [0, 4, 8].map((i) => [...r.subarray(i, i + 4)].map((x) => A[x % A.length]).join('')).join('-'); };
 // Gives a login a fresh temporary password and signs that person out everywhere.
-const setTemp = (u) => { const t = tempPw(); u.pass = hashPw(t); u.must_change = true; u.temp_exp = Date.now() + TEMP_DAYS * 864e5; u.sv = (u.sv || 0) + 1; return t; };
+// It also turns off their second sign-in step, so a lost phone never locks anyone out for good.
+const setTemp = (u) => { const t = tempPw(); u.pass = hashPw(t); u.must_change = true; u.temp_exp = Date.now() + TEMP_DAYS * 864e5; u.sv = (u.sv || 0) + 1; clearTwoStep(u); return t; };
 // Temporary passwords are forgiving about spaces and lower-case typing.
 const matches = (pw, u) => !!u.pass && (checkPw(pw, u.pass) || (!!u.must_change && checkPw(pw.trim().toUpperCase(), u.pass)));
+
+// ---------- the second sign-in step ----------
+// Plain version: after the password, the app asks for a 6-digit code from an authenticator app on the
+// person's phone (Apple Passwords, Google Authenticator and the like). The code changes every 30 seconds,
+// so a stolen password alone no longer opens the login. It is the standard method (TOTP, RFC 6238) and
+// needs no outside service: the phone and this server share one secret key and both do the same math.
+// Eight one-time backup codes cover a lost phone. Only their fingerprints are kept.
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const toB32 = (buf) => { let bits = ''; for (const x of buf) bits += x.toString(2).padStart(8, '0'); let out = ''; for (let i = 0; i < bits.length; i += 5) out += B32[parseInt(bits.slice(i, i + 5).padEnd(5, '0'), 2)]; return out; };
+const fromB32 = (s) => { let bits = ''; for (const ch of String(s).toUpperCase().replace(/[^A-Z2-7]/g, '')) bits += B32.indexOf(ch).toString(2).padStart(5, '0'); const out = []; for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2)); return Buffer.from(out); };
+const STEP_MS = 30e3;
+// The 6-digit code for one 30-second step.
+export const codeAt = (secret, step) => { const c = Buffer.alloc(8); c.writeBigUInt64BE(BigInt(step)); const h = createHmac('sha1', fromB32(secret)).update(c).digest(); const o = h[h.length - 1] & 15; return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0'); };
+const same = (x, y) => { const p = Buffer.from(String(x)), q = Buffer.from(String(y)); return p.length === q.length && timingSafeEqual(p, q); };
+// Returns the step a typed code belongs to (this one, the one before or the one after, to allow for a slow
+// thumb or a clock a few seconds off), or 0. A code that was already used is refused.
+const stepFor = (secret, typed, last = 0, now = Date.now()) => { const code = String(typed).replace(/\D/g, ''); if (code.length !== 6) return 0; const t = Math.floor(now / STEP_MS); for (const s of [t, t - 1, t + 1]) if (s > last && same(codeAt(secret, s), code)) return s; return 0; };
+const backupHash = (code) => sha('backup:' + String(code).toUpperCase().replace(/[^A-Z0-9]/g, ''));
+const newBackupCodes = (u) => { const codes = Array.from({ length: 8 }, tempPw); u.backup = codes.map(backupHash); return codes; };
+const clearTwoStep = (u) => { delete u.totp; delete u.totp_pending; delete u.backup; };
+// Checks the second step at sign-in. Accepts the app's 6-digit code or one unused backup code. Changes `u`
+// (remembers the step, or crosses off the backup code); the caller saves it.
+function passTwoStep(u, typed) {
+  const step = stepFor(u.totp.secret, typed, u.totp.last);
+  if (step) { u.totp.last = step; return true; }
+  const h = backupHash(typed), i = (u.backup || []).findIndex((x) => same(x, h));
+  if (i >= 0 && String(typed).replace(/[^A-Za-z0-9]/g, '').length === 12) { u.backup.splice(i, 1); return true; }
+  return false;
+}
 
 async function readBody(req) {
   const type = req.headers.get('content-type') || '';
@@ -251,9 +289,9 @@ export async function handle(req, store, push) {
     if (/^\S+@\S+\.\S+$/.test(e) && sha(pw.trim().toUpperCase()) === recoveryHash()) {
       const meta = await store.get('meta/owner', { type: 'json' }), used = await store.get('meta/recovery', { type: 'json' });
       const o = meta ? await store.get('users/' + meta.id, { type: 'json' }) : null;
-      if (o && !(used && used.hash === recoveryHash()) && (!u || u.id === o.id)) {
+      if (o && recoveryOpen(o) && !(used && used.hash === recoveryHash()) && (!u || u.id === o.id)) {
         if (o.email !== e) await store.delete('emails/' + sha(o.email));
-        Object.assign(o, { email: e, pass: hashPw(pw.trim().toUpperCase()), must_change: true, disabled: false, sv: (o.sv || 0) + 1 }); delete o.temp_exp;
+        Object.assign(o, { email: e, pass: hashPw(pw.trim().toUpperCase()), must_change: true, disabled: false, sv: (o.sv || 0) + 1 }); delete o.temp_exp; clearTwoStep(o);
         await saveUser(store, o); await store.setJSON('meta/recovery', { hash: recoveryHash(), at: Date.now() });
         u = o;
       }
@@ -263,6 +301,17 @@ export async function handle(req, store, push) {
       return bad('That email and password do not match.', 401);
     }
     if (u.must_change && u.temp_exp && u.temp_exp < Date.now()) return bad('That temporary password has expired. Ask CGH for a new one.', 401);
+    // The second step, for logins that turned it on. The password was right, so ask for the code. A wrong
+    // code counts as a wrong try, so nobody can sit and guess: five misses locks the email for 15 minutes.
+    if (u.totp) {
+      const typed = clean(data.code, 40);
+      if (!typed) return json({ needCode: true });
+      if (!passTwoStep(u, typed)) {
+        const n = f.n + 1; await store.setJSON(key, { n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 });
+        return bad('That code is not right. Use the newest code in your authenticator app, or a backup code.', 401);
+      }
+      await saveUser(store, u);
+    }
     await store.delete(key);
     return json({ me: pub(u) }, 200, await startSession(store, u));
   }
@@ -291,6 +340,32 @@ export async function handle(req, store, push) {
   }
   // a temporary password only opens the "choose your own password" screen
   if (me.must_change) return bad('Choose your own password first.', 403);
+
+  // The second sign-in step: turning it on, confirming it, new backup codes, turning it off.
+  // Every change asks for the password again, so an unlocked phone left on a table is not enough.
+  if (a === 'two-step' && m === 'POST') {
+    if (b === 'confirm') {
+      const p = me.totp_pending;
+      if (!p || p.at < Date.now() - 30 * 60e3) return bad('That setup timed out. Start again.');
+      const step = stepFor(p.secret, clean(data.code, 40));
+      if (!step) return bad('That code is not right. Use the newest 6-digit code your authenticator app shows for CGH Operations.');
+      me.totp = { secret: p.secret, on: Date.now(), last: step }; delete me.totp_pending;
+      const codes = newBackupCodes(me);
+      me.sv = (me.sv || 0) + 1; // signs this login out on every other device
+      await saveUser(store, me);
+      return json({ me: pub(me), codes }, 200, await startSession(store, me));
+    }
+    if (!checkPw(String(data.password || ''), me.pass)) return bad('Your password is not right.', 403);
+    if (b === 'start') {
+      const secret = toB32(randomBytes(20));
+      me.totp_pending = { secret, at: Date.now() }; await saveUser(store, me);
+      const uri = `otpauth://totp/${encodeURIComponent('CGH Operations')}:${encodeURIComponent(me.email)}?secret=${secret}&issuer=${encodeURIComponent('CGH Operations')}&algorithm=SHA1&digits=6&period=30`;
+      return json({ secret, uri });
+    }
+    if (b === 'codes') { if (!me.totp) return bad('Turn on the second step first.'); const codes = newBackupCodes(me); await saveUser(store, me); return json({ codes }); }
+    if (b === 'off') { clearTwoStep(me); await saveUser(store, me); return json({ me: pub(me) }); }
+    return bad('Not found.', 404);
+  }
 
   // the client portal
   if (a === 'my-job') {
@@ -337,6 +412,7 @@ export async function handle(req, store, push) {
     if (owner) {
       waiting.applicants = (await all(store, 'applicants/')).filter((x) => x.status === 'New').length;
       waiting.notSignedIn = (await all(store, 'users/')).filter((u) => STAFF.includes(u.role) && !u.disabled && u.must_change).length;
+      if (!me.totp) waiting.twoStep = 1; // a nudge for the logins that can see everything
     }
     const done = (await store.get('training/' + me.id, { type: 'json' })) || {};
     waiting.lessons = LESSONS.filter((l) => !done[l.id]).length;
@@ -357,7 +433,9 @@ export async function handle(req, store, push) {
       if (l.job_date) dated.push({ date: l.job_date, kind: 'Paving day', id: l.id, name: l.name, city: l.city, phone: l.phone, job_type: l.job_type, sqft: l.sqft });
     }
     const announcements = (await all(store, 'ann/')).sort((x, y) => y.at - x.at).slice(0, 3);
-    return json({ waiting, stats, dated: dated.sort((x, y) => x.date.localeCompare(y.date)), announcements });
+    // The nightly backup's safety net: if the newest copy is stale, one is made now (see lib/backup.mjs).
+    const backup = owner ? await backupStatus(store) : undefined;
+    return json({ waiting, stats, dated: dated.sort((x, y) => x.date.localeCompare(y.date)), announcements, backup: backup || undefined });
   }
 
   // announcements: the owner posts, the whole team reads
@@ -480,6 +558,12 @@ export async function handle(req, store, push) {
 
   // owner only: applicants and team logins
   if (!owner) return bad('Not found.', 404);
+  // The newest backup, for the one owner account to save somewhere of their own. Secrets are removed first.
+  if (a === 'backup' && m === 'GET') {
+    if (!realOwner) return bad('Not found.', 404);
+    const copy = await downloadCopy();
+    return copy ? json(copy, 200, { 'content-disposition': `attachment; filename="cgh-backup-${copy.day}.json"` }) : bad('There is no backup yet. Open Home once and try again.', 404);
+  }
   if (a === 'applicants' && !b && m === 'GET') return json({ applicants: (await all(store, 'applicants/')).sort((x, y) => y.created - x.created) });
   if (a === 'applicants' && b && m === 'PATCH') {
     const app = await store.get('applicants/' + b, { type: 'json' }); if (!app) return bad('Not found.', 404);
